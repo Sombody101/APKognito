@@ -10,7 +10,7 @@ public class KognitoConfig
     [JsonProperty("apk_output")]
     public string? ApkOutputDirectory { get; set; }
 
-    public string ApkNameReplacement { get; set; } = "apkognito";
+    public string ApkNameReplacement { get; set; }
 
     public List<string> ApkHistory { get; set; } = [];
 

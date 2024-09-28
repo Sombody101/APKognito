@@ -40,7 +40,7 @@
                 <StackPanel>
                     <TextBlock>
                         <Bold>
-                            Ellapsed Time:
+                            Elapsed Time:
                         </Bold>
                     </TextBlock>
 
@@ -56,13 +56,13 @@
                 <StackPanel Grid.Column="1">
                     <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
                         <TextBlock.Text>
-                            <Binding Path="ApkName" />
+                            <Binding Path="ElapsedTime" />
                         </TextBlock.Text>
                     </TextBlock>
 
                     <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
                         <TextBlock.Text>
-                            <Binding Path="ApkName" />
+                            <Binding Path="JobbedApk" />
                         </TextBlock.Text>
                     </TextBlock>
                 </StackPanel>
@@ -81,11 +81,14 @@
                 <Grid.RowDefinitions>
                     <RowDefinition />
                     <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Column="0">
 
-                    <!--  Input Fields  -->
+                    <!--  Input Field Labels  -->
 
                     <TextBlock Margin="1">
                         <Bold>
@@ -95,19 +98,38 @@
 
                     <TextBlock Margin="1">
                         <Bold>
-                            Package Name:
-                        </Bold>
-                    </TextBlock>
-
-                    <TextBlock Margin="1">
-                        <Bold>
                             Filepath:
                         </Bold>
                     </TextBlock>
 
-                    <Separator Margin="0,2.5" />
+                </StackPanel>
 
-                    <!--  Output Fields  -->
+                <StackPanel Grid.Column="1">
+
+                    <!--  Input Field Values  -->
+
+                    <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Text>
+                            <Binding Path="ApkName" />
+                        </TextBlock.Text>
+                    </TextBlock>
+
+                    <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Text>
+                            <Binding Path="FilePath" />
+                        </TextBlock.Text>
+                    </TextBlock>
+
+                </StackPanel>
+
+                <Separator
+                    Grid.Row="1"
+                    Grid.ColumnSpan="2"
+                    Margin="0,2.5" />
+
+                <StackPanel Grid.Row="2">
+
+                    <!--  Output Field Labels  -->
 
                     <TextBlock Margin="1">
                         <Bold>
@@ -123,31 +145,9 @@
 
                 </StackPanel>
 
-                <StackPanel Grid.Column="1">
+                <StackPanel Grid.Row="2" Grid.Column="1">
 
-                    <!--  Input Fields  -->
-
-                    <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
-                        <TextBlock.Text>
-                            <Binding Path="ApkName" />
-                        </TextBlock.Text>
-                    </TextBlock>
-
-                    <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
-                        <TextBlock.Text>
-                            <Binding Path="OriginalPackageName" />
-                        </TextBlock.Text>
-                    </TextBlock>
-
-                    <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
-                        <TextBlock.Text>
-                            <Binding Path="FilePath" />
-                        </TextBlock.Text>
-                    </TextBlock>
-
-                    <Separator Margin="0,2.5" />
-
-                    <!--  Output Fields  -->
+                    <!--  Output Field Values  -->
 
                     <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
                         <TextBlock.Text>
@@ -160,29 +160,89 @@
                             <Binding Path="OutputPath" />
                         </TextBlock.Text>
                     </TextBlock>
-
                 </StackPanel>
 
-                <StackPanel
-                    Grid.Row="1"
+                <Expander
+                    Grid.Row="3"
                     Grid.ColumnSpan="2"
-                    Margin="0,10,0,0">
-                    <Button
-                        x:Name="LoadAPK"
-                        Grid.Row="1"
-                        Grid.Column="2"
-                        Margin="0,5"
-                        HorizontalAlignment="Stretch"
-                        Click="LoadApk"
-                        Content="Select APK"
-                        Cursor="Hand" />
+                    Margin="0,5,0,0"
+                    Header="APK Settings">
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!--  Field Labels  -->
+
+                        <StackPanel>
+                            <TextBlock Height="36">
+                                <Bold>
+                                    Output Directory
+                                </Bold>
+                            </TextBlock>
+
+                            <TextBlock Height="36">
+                                <Bold>
+                                    Output APK Name
+                                </Bold>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!--  Field Values  -->
+
+                        <StackPanel Grid.Column="1">
+                            <TextBox
+                                Height="36"
+                                Margin="1"
+                                KeyUp="TextBox_KeyUp"
+                                Text="{Binding OutputPath, Mode=TwoWay}" />
+
+                            <TextBox
+                                Height="36"
+                                Margin="1"
+                                KeyUp="TextBox_KeyUp"
+                                Text="{Binding ApkReplacementName, Mode=TwoWay}" />
+                        </StackPanel>
+
+                    </Grid>
+                </Expander>
+
+                <StackPanel
+                    Grid.Row="4"
+                    Grid.ColumnSpan="2"
+                    Margin="0,5,0,0">
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <Button
+                            x:Name="LoadAPK"
+                            Margin="0,5"
+                            HorizontalAlignment="Stretch"
+                            Click="LoadApk"
+                            Content="Select APK"
+                            Cursor="Hand" />
+                    </Grid>
 
                     <Button
-                        Grid.Row="1"
                         Margin="0,5"
                         HorizontalAlignment="Stretch"
-                        Click="StartApkRename"
+                        Command="{Binding StartApkRenameCommand}"
                         Content="Start"
+                        Cursor="Hand"
+                        IsEnabled="{Binding CanStart}" />
+
+                    <ProgressBar IsIndeterminate="{Binding RunningJobs}" />
+
+                    <Button
+                        Margin="0,5"
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding ShowOutputFolderCommand}"
+                        Content="See Output"
                         Cursor="Hand" />
                 </StackPanel>
 
@@ -202,17 +262,14 @@
                 forcing the textbox to use a scroll bar, and you cannot disable that
                 (Limitation of WPFUI)
             -->
-            <ui:TextBox
+            <ui:RichTextBox
                 x:Name="APKLogs"
                 Grid.Row="0"
                 Height="300"
                 Margin="0,5"
-                VerticalAlignment="Stretch"
                 FontFamily="{StaticResource FiraRegular}"
-                IsReadOnly="True"
-                Text="{Binding Logs, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"
-                TextWrapping="WrapWithOverflow"
-                VerticalScrollBarVisibility="Auto" />
+                FontSize="12"
+                IsReadOnly="True" />
 
             <Separator Grid.Row="1" Margin="0,10,0,5" />
 
@@ -256,6 +313,7 @@
                 </TextBlock>
             </Grid>
         </Grid>
+
 
     </Grid>
 </Page>
