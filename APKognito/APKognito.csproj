@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Assets\apkognito.ico" />
     <None Remove="Assets\apkognito.png" />
     <None Remove="Assets\incognito.png" />
     <None Remove="Fonts\FiraCode-Bold.ttf" />
@@ -22,11 +23,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\apkognito.png">
+    <Resource Include="Assets\apkognito.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\apkognito.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
   <ItemGroup>
@@ -54,12 +58,6 @@
     <Resource Include="Fonts\FiraCode-Retina.ttf">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Assets\apkognito.ico">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

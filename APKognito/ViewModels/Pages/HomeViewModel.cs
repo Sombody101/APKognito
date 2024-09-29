@@ -36,24 +36,27 @@ public partial class HomeViewModel : ObservableObject, IViewable
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel? Instance { get; private set; }
 
-    private readonly KognitoConfig config;
+    private KognitoConfig config;
 
     private RichTextBox logBox;
     private readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
 
     // This is NOT the correct way to do this, but I don't want to setup
-    // a convoluted converted for this
-    public void SetLogBox(RichTextBox _logBox)
+    // a convoluted converter for any of this
+    public void AntiMvvm_ConfigureLogger(RichTextBox _logBox)
     {
         logBox = _logBox;
         logBox.Document.FontFamily = firaRegular;
     }
 
+    public void AntiMvvm_ConfigureConfig(KognitoConfig _config)
+    {
+        config = _config;
+    }
+
     public HomeViewModel()
     {
         Instance = this;
-
-        config = KognitoSettings.GetSettings();
 
         AppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito));
 

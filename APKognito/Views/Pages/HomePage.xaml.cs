@@ -29,17 +29,19 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         DataContext = ViewModel;
 
         InitializeComponent();
-        viewModel.SetLogBox(APKLogs);
+        viewModel.AntiMvvm_ConfigureLogger(APKLogs);
 
         Config = KognitoSettings.GetSettings();
+        viewModel.AntiMvvm_ConfigureConfig(Config);
 
-        if (string.IsNullOrWhiteSpace(viewModel.FilePath))
+        string[]? loadedFiles = viewModel.GetFilePaths();
+        if (loadedFiles is null || loadedFiles.Length is 0)
         {
-            viewModel.WriteGenericLog("@ Welcome! Load an APK to get started! @\n");
+            viewModel.WriteGenericLog("\n@ Welcome! Load an APK to get started! @\n");
         }
         else
         {
-            viewModel.WriteGenericLog($"@ Press 'Start' to rename your APK{(viewModel.GetFilePaths()?.Length is 1 ? string.Empty : 's')}! @\n");
+            viewModel.WriteGenericLog($"@ Press 'Start' to rename your APK{(loadedFiles.Length is 1 ? string.Empty : 's')}! @\n");
             viewModel.ApkName = Path.GetFileName(viewModel.FilePath);
             viewModel.CanStart = true;
         }

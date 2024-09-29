@@ -1,5 +1,4 @@
 ﻿using APKognito.ViewModels.Pages;
-using APKognito.Views.Pages;
 using Newtonsoft.Json;
 using System.IO;
 
@@ -10,12 +9,19 @@ internal static class KognitoSettings
     private const string configsPath = "./config";
     private const string settingsPath = $"{configsPath}/settings.json";
 
-    private static KognitoConfig? _globalInstance = DeserializeFromFile<KognitoConfig>(settingsPath);
+    private static KognitoConfig? _globalInstance;
 
     static KognitoSettings()
     {
-        // Ensure the directory exists
-        _ = Directory.CreateDirectory(configsPath);
+        try
+        {
+            // Ensure the directory exists
+            _ = Directory.CreateDirectory(configsPath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to create configuration directory: {ex.Message}");
+        }
     }
 
     public static KognitoConfig GetSettings()
