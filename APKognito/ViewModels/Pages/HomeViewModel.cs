@@ -112,6 +112,9 @@ public partial class HomeViewModel : ObservableObject, IViewable
     private bool _runningJobs = false;
 
     [ObservableProperty]
+    private bool _canEdit = true;
+
+    [ObservableProperty]
     private string _apkName = defaultPropertyMessage;
 
     [ObservableProperty]
@@ -131,7 +134,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     public string FilePath
     {
-        get => config.ApkSourcePath ?? defaultPropertyMessage;
+        get => config?.ApkSourcePath ?? defaultPropertyMessage;
         set
         {
             config.ApkSourcePath = value;
@@ -141,12 +144,12 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     public string[]? GetFilePaths()
     {
-        return config.ApkSourcePath?.Split(PathSeparator);
+        return config?.ApkSourcePath?.Split(PathSeparator);
     }
 
     public string OutputPath
     {
-        get => config.ApkOutputDirectory ?? "./output";
+        get => config?.ApkOutputDirectory ?? Path.Combine(AppData, "output");
         set
         {
             config.ApkOutputDirectory = value;
@@ -156,7 +159,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     public string ApkReplacementName
     {
-        get => config.ApkNameReplacement ?? "apkognito";
+        get => config?.ApkNameReplacement ?? "apkognito";
         set => config.ApkNameReplacement = value;
     }
 
@@ -173,9 +176,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
             return;
         }
 
-        if (!ValidDirectory(OutputPath))
-            return;
-
         if (!ValidCompanyName(ApkReplacementName))
         {
             string fixedName = ApkNameFixerRegex().Replace(ApkReplacementName, string.Empty);
@@ -183,7 +183,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
             return;
         }
 
-        Log("Verifying that APK tools are installed...");
+        Log("Verifying that Java 8+ and APK tools are installed...");
 
         if (!VerifyJavaInstallation(out string javaPath) || !await VerifyToolInstallation())
         {
@@ -192,8 +192,10 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
         // Create a temp directory for the APK(s)
         TempData = Directory.CreateTempSubdirectory("APKognito-");
+        _ = Directory.CreateDirectory(OutputPath);
 
         RunningJobs = true;
+        CanEdit = false;
 
         Stopwatch elapsedTime = new();
         DispatcherTimer taskTimer = new()
@@ -213,7 +215,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
         List<string> failedJobs = [];
         foreach (string apkTarget in files)
         {
-            JobbedApk = apkTarget;
+            JobbedApk = Path.GetFileName(apkTarget);
 
             string? errorReason = await RenameApk(javaPath, apkTarget, OutputPath);
 
@@ -234,7 +236,9 @@ public partial class HomeViewModel : ObservableObject, IViewable
             LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
         }
 
+        JobbedApk = FinalName = "Finished all APKs";
         RunningJobs = false;
+        CanEdit = true;
         elapsedTime.Stop();
         taskTimer.Stop();
     }
@@ -244,25 +248,38 @@ public partial class HomeViewModel : ObservableObject, IViewable
     {
         string directory = OutputPath;
         if (!ValidDirectory(directory))
+        {
             return;
+        }
 
-        Process.Start("explorer", directory);
+        _ = Process.Start("explorer", Path.GetFullPath(directory));
+    }
+
+    [RelayCommand]
+    private void SaveSettings()
+    {
+        KognitoSettings.SaveSettings();
+        Log("Settings saved!");
     }
 
     private async Task<string?> RenameApk(string java, string sourceApk, string output)
     {
         try
         {
+            FinalName = "Unpacking...";
             string tempData = TempData.FullName;
             string sourceApkName = Path.GetFileName(sourceApk);
-            string apkTempFolder = Path.Combine(tempData, sourceApkName[..^4]);
+            string apkTempFolder = Path.Combine(tempData, $"{sourceApkName[..^4]}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
 
             _ = Directory.CreateDirectory(apkTempFolder);
 
             WriteGenericLog("------------------\n");
+
+            // Unpack
             Log($"Unpacking {sourceApkName}");
             await UnpackApk(java, sourceApk, apkTempFolder);
 
+            // Replace package name
             Log("Getting package name...");
             string packageName = GetApkPackageName(Path.Combine(apkTempFolder, "AndroidManifest.xml"));
 
@@ -271,6 +288,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
             split[1] = ApkReplacementName;
 
             string newPackageName = string.Join('.', split);
+            FinalName = newPackageName;
 
             Log($"Changing '{packageName}' -> '{newPackageName}'");
             await Task.WhenAll(
@@ -280,12 +298,15 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
             await ReplaceAllNameInstancesAsync(sourceApk, apkTempFolder, oldCompanyName, ApkReplacementName, output);
 
+            // Repack
             Log("Packing APK...");
             string unsignedApk = await PackApk(java, apkTempFolder, newPackageName);
 
+            // Sign
             Log("Singing APK...");
-            await SignApkTool(java, unsignedApk, $"{Path.Combine(OutputPath, newPackageName)}.apk");
+            await SignApkTool(java, unsignedApk, Path.Combine(OutputPath, $"{newPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}"));
 
+            // Copy to output and cleanup
             Log($"Finished APK {newPackageName}.");
 
             Log("Cleaning up...");
@@ -293,13 +314,11 @@ public partial class HomeViewModel : ObservableObject, IViewable
         }
         catch (Exception ex)
         {
-#if DEBUG
             // All methods called in this try/catch will not handle their own exceptions.
             // If they do, it's to reformat the error message and re-throw it to be caught here.
+#if DEBUG
             return $"{(ex.InnerException ?? ex).GetType().Name}: {ex.Message}\n{ex.StackTrace}";
 #else
-            // All methods called in this try/catch will not handle their own exceptions.
-            // If they do, it's to reformat the error message and re-throw it to be caught here.
             return $"{(ex.InnerException ?? ex).GetType().Name}: {ex.Message}";
 #endif
         }
@@ -462,6 +481,13 @@ public partial class HomeViewModel : ObservableObject, IViewable
         {
             throw new Exception(error);
         }
+
+        // Rename the output APK
+        string trueName = Path.Combine(outputApkPath, Path.GetFileName(apkPath).Replace(".unsigned.apk", string.Empty));
+        string newSignedName = $"{trueName}.unsigned-aligned-debugSigned";
+
+        File.Move($"{newSignedName}.apk", $"{trueName}.apk", true);
+        File.Move($"{newSignedName}.apk.idsig", $"{trueName}.apk.idsig", true);
     }
 
     private static string GetApkPackageName(string manifestPath)
@@ -591,10 +617,10 @@ public partial class HomeViewModel : ObservableObject, IViewable
         return ApkCompanyCheck().IsMatch(segment);
     }
 
-    private bool ValidDirectory(string path)
+    public bool ValidDirectory(string path)
     {
         string directory = OutputPath;
-        if (Directory.Exists(directory))
+        if (!Directory.Exists(directory))
         {
             LogError($"The directory '{directory}' does not exist. Check the path and try again.");
             return false;

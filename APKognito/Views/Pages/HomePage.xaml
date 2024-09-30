@@ -7,6 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
     xmlns:sys="clr-namespace:System;assembly=netstandard"
+    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="DashboardPage"
     d:DataContext="{d:DesignInstance pages:HomeViewModel,
@@ -149,17 +150,15 @@
 
                     <!--  Output Field Values  -->
 
-                    <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
-                        <TextBlock.Text>
-                            <Binding Path="FinalName" />
-                        </TextBlock.Text>
-                    </TextBlock>
+                    <TextBlock
+                        Margin="1"
+                        Text="{Binding FinalName}"
+                        TextTrimming="CharacterEllipsis" />
 
-                    <TextBlock Margin="1" TextTrimming="CharacterEllipsis">
-                        <TextBlock.Text>
-                            <Binding Path="OutputPath" />
-                        </TextBlock.Text>
-                    </TextBlock>
+                    <TextBlock
+                        Margin="1"
+                        Text="{Binding OutputPath}"
+                        TextTrimming="CharacterEllipsis" />
                 </StackPanel>
 
                 <Expander
@@ -173,6 +172,11 @@
                             <ColumnDefinition Width="170" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
 
                         <!--  Field Labels  -->
 
@@ -196,16 +200,27 @@
                             <TextBox
                                 Height="36"
                                 Margin="1"
+                                IsEnabled="{Binding CanEdit}"
                                 KeyUp="TextBox_KeyUp"
                                 Text="{Binding OutputPath, Mode=TwoWay}" />
 
                             <TextBox
                                 Height="36"
                                 Margin="1"
+                                IsEnabled="{Binding CanEdit}"
                                 KeyUp="TextBox_KeyUp"
                                 Text="{Binding ApkReplacementName, Mode=TwoWay}" />
+
                         </StackPanel>
 
+                        <ui:Button
+                            Grid.Row="1"
+                            Grid.Column="2"
+                            Width="150"
+                            Margin="0,12"
+                            HorizontalAlignment="Right"
+                            Command="{Binding SaveSettingsCommand}"
+                            Content="Save Settings" />
                     </Grid>
                 </Expander>
 
@@ -214,19 +229,14 @@
                     Grid.ColumnSpan="2"
                     Margin="0,5,0,0">
 
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-
-                        <Button
-                            x:Name="LoadAPK"
-                            Margin="0,5"
-                            HorizontalAlignment="Stretch"
-                            Click="LoadApk"
-                            Content="Select APK"
-                            Cursor="Hand" />
-                    </Grid>
+                    <Button
+                        x:Name="LoadAPK"
+                        Margin="0,5"
+                        HorizontalAlignment="Stretch"
+                        Click="LoadApk"
+                        Content="Select APK"
+                        Cursor="Hand"
+                        IsEnabled="{Binding CanEdit}" />
 
                     <Button
                         Margin="0,5"

@@ -1,9 +1,8 @@
-﻿namespace APKognito.Models
-{
-    public class AppConfig
-    {
-        public string ConfigurationsFolder { get; set; }
+﻿namespace APKognito.Models;
 
-        public string AppPropertiesFileName { get; set; }
-    }
+public class AppConfig
+{
+    public required string ConfigurationsFolder { get; set; }
+
+    public required string AppPropertiesFileName { get; set; }
 }
