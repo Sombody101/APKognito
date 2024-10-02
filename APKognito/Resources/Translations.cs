@@ -1,6 +1,5 @@
-namespace APKognito.Resources
+namespace APKognito.Resources;
+
+public partial class Translations
 {
-    public partial class Translations
-    {
-    }
 }

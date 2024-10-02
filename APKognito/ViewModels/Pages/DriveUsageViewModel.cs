@@ -1,4 +1,5 @@
 ﻿using APKognito.Models;
+using APKognito.Models.Settings;
 using System.Collections.ObjectModel;
 using System.IO;
 using Wpf.Ui.Controls;
@@ -9,6 +10,8 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class DriveUsageViewModel : ObservableObject, IViewable
 {
+    private static KognitoConfig _config = KognitoSettings.GetSettings();
+
     #region Properties
 
     [ObservableProperty]
@@ -20,7 +23,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 #endif
 
     [ObservableProperty]
-    private string _startButtonText = "Get Drive Footprint";
+    private string _startButtonText = "Refresh";
 
     [ObservableProperty]
     private int _totalUsedSpace = 0;
@@ -61,14 +64,14 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private CancellationTokenSource? _collectDataCancelationSource;
 
     [RelayCommand]
-    private void StartSearch()
+    private async Task StartSearch()
     {
         if (IsRunning == Visibility.Visible)
         {
-            StartButtonText = "Get Drive Footprint";
+            StartButtonText = "Refresh";
             IsRunning = Visibility.Hidden;
 
-            _collectDataCancelationSource?.Cancel();
+            _ = (_collectDataCancelationSource?.CancelAsync());
         }
         else
         {
@@ -81,7 +84,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
             try
             {
-                CollectDiskUsage(_collectDataCancelationSource.Token);
+                await CollectDiskUsage(_collectDataCancelationSource.Token);
             }
             catch (OperationCanceledException)
             {
@@ -91,7 +94,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             {
                 _collectDataCancelationSource.Dispose();
                 _collectDataCancelationSource = null;
-                StartButtonText = "Get Drive Footprint";
+                StartButtonText = "Refresh";
                 IsRunning = Visibility.Hidden;
             }
         }
@@ -168,12 +171,12 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
     #endregion
 
-    private void CollectDiskUsage(CancellationToken cancellation)
+    public async Task CollectDiskUsage(CancellationToken cancellation)
     {
         List<string> folders = [];
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
 
-        string apkOutputPath = HomeViewModel.Instance!.OutputPath;
+        string apkOutputPath = _config.ApkOutputDirectory ?? string.Empty;
         if (Directory.Exists(apkOutputPath))
         {
             apkOutputPath = Path.GetFullPath(apkOutputPath);
@@ -181,6 +184,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             folders.AddRange(Directory.GetFiles(apkOutputPath));
         }
 
+        List<Task<DriveFolderStat>> tasks = [];
         foreach (string folderName in folders)
         {
             if (cancellation.IsCancellationRequested)
@@ -188,21 +192,32 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
                 break;
             }
 
-            FileAttributes attrs = File.GetAttributes(folderName);
-            if (attrs.HasFlag(FileAttributes.Directory))
+            tasks.Add(Task.Run(async () =>
             {
-                DirectoryInfo di = new(folderName);
-                long size = DirSize(di);
-                FoundFolders.Add(new DriveFolderStat(di, size));
-                TotalUsedSpace += (int)(size / 1024 / 1024);
-            }
-            else
-            {
-                FileInfo fi = new(folderName);
-                FoundFolders.Add(new DriveFolderStat(fi));
-                TotalUsedSpace += (int)(fi.Length / 1024 / 1024);
-            }
+                FileAttributes attrs = await Task.Run(() => File.GetAttributes(folderName), cancellation);
+                if (attrs.HasFlag(FileAttributes.Directory))
+                {
+                    DirectoryInfo di = new(folderName);
+                    long size = await DirSizeAsync(di, cancellation);
+                    return new DriveFolderStat(di, size);
+                }
+                else
+                {
+                    FileInfo fi = new(folderName);
+                    return new DriveFolderStat(fi);
+                }
+            }, cancellation));
         }
+
+        DriveFolderStat[] folderStats = await Task.WhenAll(tasks);
+
+        // Use a loop to add items individually to the ObservableCollection
+        foreach (DriveFolderStat? folderStat in folderStats)
+        {
+            FoundFolders.Add(folderStat);
+        }
+
+        TotalUsedSpace = folderStats.Sum(f => (int)(f.FolderSizeBytes / 1024 / 1024));
 
         if (FoundFolders.Count is 0)
         {
@@ -215,19 +230,26 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         }
     }
 
-    private static long DirSize(DirectoryInfo d)
+    private static async Task<long> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation)
     {
         long size = 0;
-        FileInfo[] fis = d.GetFiles();
-        foreach (FileInfo fi in fis)
+
+        List<Task<long>> tasks = [];
+        foreach (FileInfo fi in d.GetFiles())
         {
-            size += fi.Length;
+            tasks.Add(Task.Run(() => fi.Length, cancellation));
         }
 
-        DirectoryInfo[] dis = d.GetDirectories();
-        foreach (DirectoryInfo di in dis)
+        foreach (DirectoryInfo di in d.GetDirectories())
         {
-            size += DirSize(di);
+            tasks.Add(DirSizeAsync(di, cancellation));
+        }
+
+        _ = await Task.WhenAll(tasks);
+
+        foreach (Task<long> task in tasks)
+        {
+            size += await task;
         }
 
         return size;

@@ -16,12 +16,18 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
             Content = "Rename APK",
             Icon = new SymbolIcon { Symbol = SymbolRegular.Box16 },
             TargetPageType = typeof(Views.Pages.HomePage)
-        },        
+        },
         new NavigationViewItem()
         {
             Content = "Drive Footprint",
             Icon = new SymbolIcon { Symbol = SymbolRegular.HardDrive16 },
             TargetPageType = typeof(Views.Pages.DriveUsagePage)
+        },
+        new NavigationViewItem()
+        {
+            Content = "Rename History",
+            Icon = new SymbolIcon { Symbol = SymbolRegular.History16 },
+            TargetPageType = typeof(Views.Pages.RenamingHistoryPage)
         },
     ];
 

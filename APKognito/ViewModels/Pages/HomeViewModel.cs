@@ -1,10 +1,12 @@
-﻿using APKognito.Models.Settings;
+﻿using APKognito.Models;
+using APKognito.Models.Settings;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -27,6 +29,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
     private DirectoryInfo TempData;
 
     private static readonly HttpClient httpClient = new();
+    private readonly KognitoConfig config;
 
     // Tool paths
     private readonly string apktoolJar;
@@ -36,7 +39,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel? Instance { get; private set; }
 
-    private KognitoConfig config;
 
     private RichTextBox logBox;
     private readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
@@ -47,24 +49,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
     {
         logBox = _logBox;
         logBox.Document.FontFamily = firaRegular;
-    }
-
-    public void AntiMvvm_ConfigureConfig(KognitoConfig _config)
-    {
-        config = _config;
-    }
-
-    public HomeViewModel()
-    {
-        Instance = this;
-
-        AppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito));
-
-        apktoolJar = Path.Combine(AppData, "apktoo.jar");
-        apktoolBat = Path.Combine(AppData, "apktool.bat");
-        apksignerJar = Path.Combine(AppData, "uber-apk-signer.jar");
-
-        httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
     }
 
     public void WriteGenericLog(string text, [Optional] Brush color)
@@ -165,6 +149,20 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     #endregion Properties
 
+    public HomeViewModel()
+    {
+        Instance = this;
+        config = KognitoSettings.GetSettings();
+
+        AppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito));
+
+        apktoolJar = Path.Combine(AppData, "apktoo.jar");
+        apktoolBat = Path.Combine(AppData, "apktool.bat");
+        apksignerJar = Path.Combine(AppData, "uber-apk-signer.jar");
+
+        httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
+    }
+
     [RelayCommand]
     private async Task StartApkRename()
     {
@@ -211,15 +209,19 @@ public partial class HomeViewModel : ObservableObject, IViewable
         elapsedTime.Start();
         taskTimer.Start();
 
-        int completeJobs = 0;
+        List<RenameSession> renameHistory = RenameSessionManager.GetSessions();
+        List<string> pendingSession = [];
+
         List<string> failedJobs = [];
+        int completeJobs = 0;
         foreach (string apkTarget in files)
         {
             JobbedApk = Path.GetFileName(apkTarget);
 
             string? errorReason = await RenameApk(javaPath, apkTarget, OutputPath);
+            bool apkFailed = errorReason is null;
 
-            if (errorReason is null)
+            if (apkFailed)
             {
                 ++completeJobs;
             }
@@ -227,6 +229,8 @@ public partial class HomeViewModel : ObservableObject, IViewable
             {
                 failedJobs.Add($"\t{Path.GetFileName(apkTarget)}: {errorReason}");
             }
+
+            pendingSession.Add(RenameSession.FormatForSerializer(ApkName ?? "[Unknown]", FinalName ?? "[Unknown]", apkFailed));
         }
 
         WriteGenericLog("------------------\n");
@@ -236,11 +240,65 @@ public partial class HomeViewModel : ObservableObject, IViewable
             LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
         }
 
+        // Finalize session and write it to the history file
+        RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
+        renameHistory.Add(currentSession);
+        RenameSessionManager.SaveSessions();
+
         JobbedApk = FinalName = "Finished all APKs";
         RunningJobs = false;
         CanEdit = true;
         elapsedTime.Stop();
         taskTimer.Stop();
+    }
+
+    [RelayCommand]
+    private void LoadApk()
+    {
+        OpenFileDialog openFileDialog = new()
+        {
+            Filter = "APK files (*.apk)|*.apk",
+            Multiselect = true,
+            DefaultDirectory = config.LastDialogDirectory
+        };
+
+        bool? result = openFileDialog.ShowDialog();
+
+        if (result is null)
+        {
+            Log("Failed to get file. Please try again.");
+            return;
+        }
+
+        if ((bool)result)
+        {
+            string[] selectedFilePaths = openFileDialog.FileNames;
+
+            if (selectedFilePaths.Length is 1)
+            {
+                string selectedFilePath = selectedFilePaths[0];
+                FilePath = selectedFilePath;
+                string apkName = ApkName = Path.GetFileName(selectedFilePath);
+                Log($"Selected {apkName} from: {selectedFilePath}");
+            }
+            else
+            {
+                FilePath = string.Join(PathSeparator, selectedFilePaths);
+
+                StringBuilder sb = new($"Selected {selectedFilePaths.Length} APKs\n");
+
+                foreach (string str in selectedFilePaths)
+                {
+                    _ = sb.Append("\tAt: ").AppendLine(str);
+                }
+
+                Log(sb.ToString());
+            }
+        }
+        else
+        {
+            Log("Did you forget to select a file from the File Explorer window?");
+        }
     }
 
     [RelayCommand]
@@ -290,13 +348,15 @@ public partial class HomeViewModel : ObservableObject, IViewable
             string newPackageName = string.Join('.', split);
             FinalName = newPackageName;
 
-            Log($"Changing '{packageName}' -> '{newPackageName}'");
+            Log($"Changing '{packageName}'  →  '{newPackageName}'");
             await Task.WhenAll(
                 ReplaceTextInFileAsync(Path.Combine(apkTempFolder, "AndroidManifest.xml"), oldCompanyName, ApkReplacementName),
                 ReplaceTextInFileAsync(Path.Combine(apkTempFolder, "apktool.yml"), oldCompanyName, ApkReplacementName)
             );
 
             await ReplaceAllNameInstancesAsync(sourceApk, apkTempFolder, oldCompanyName, ApkReplacementName, output);
+
+            throw new Exception("Test");
 
             // Repack
             Log("Packing APK...");
@@ -361,38 +421,54 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     private bool VerifyJavaInstallation(out string javaPath)
     {
+        static bool VerifyVersion(string versionStr)
+        {
+            // Java versions 9-22
+            if (Version.TryParse(versionStr, out Version? jdkVersion) && jdkVersion.Major >= 18)
+            {
+                return true;
+            }
+
+            // Formatting for Java versions 23+ (or the JAVA_HOME path)
+            return int.TryParse(versionStr.Split('.')[0], out int major) && major >= 9;
+        }
+
         // Check with the environment variable first
         string? javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
 
-        if (!string.IsNullOrWhiteSpace(javaHome) && Directory.Exists(javaHome))
+        if (!string.IsNullOrWhiteSpace(javaHome)
+           && VerifyVersion( /* Remove 'jdk-' from the folder */ Path.GetFileName(javaHome)[4..])
+           && Directory.Exists(javaHome))
         {
-            javaPath = $"{javaHome}/bin/java.exe";
+            javaPath = Path.Combine(javaHome, "\\bin\\java.exe");
             return true;
         }
 
         RegistryKey lm = Registry.LocalMachine;
 
-        // Check for JDK
-        RegistryKey? javaJdk = lm.OpenSubKey("SOFTWARE\\JavaSoft\\JDK");
-        if (javaJdk is not null)
+        // Check for JDK via registry
+        RegistryKey? javaJdkKey = lm.OpenSubKey("SOFTWARE\\JavaSoft\\JDK");
+        if (javaJdkKey is not null)
         {
-            if (javaJdk.GetValue("CurrentVersion") is not string rawJdkVersion)
+            if (javaJdkKey.GetValue("CurrentVersion") is not string rawJdkVersion)
             {
-                LogError($"A JDK installation key was found, but there was no Java version associated with it. Did a Java installation not complete correctly?");
+                LogError($"A JDK installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
                 goto JavaSearchFailed;
             }
 
-            if (!Version.TryParse(rawJdkVersion, out Version? jdkVersion) || jdkVersion.Major <= 18)
+            if (!VerifyVersion(rawJdkVersion))
             {
-                LogError($"JDK installation found with the version {rawJdkVersion}, but it's not Java 8+");
+                LogError($"JDK installation found with the version {rawJdkVersion}, but it's not Java 9+");
                 goto JavaSearchFailed;
             }
 
-            javaPath = $"{(string)javaJdk.OpenSubKey(rawJdkVersion)!.GetValue("JavaHome")!}/bin/java";
+            string keyPath = (string)javaJdkKey.OpenSubKey(rawJdkVersion)!.GetValue("JavaHome")!;
+            javaPath = Path.Combine(keyPath, "bin\\java.exe");
 
+            // This is a VERY rare case
             if (!File.Exists(javaPath))
             {
-                LogError($"Java version {rawJdkVersion} found, but the Java executable it points to does not exist: {javaPath}");
+                LogError($"Java version {rawJdkVersion} found, but the Java directory it points to does not exist: {javaPath}");
                 return false;
             }
 
@@ -400,26 +476,17 @@ public partial class HomeViewModel : ObservableObject, IViewable
             return true;
         }
 
+    // A JRE check will be implemented. Eventually...
+
     JavaSearchFailed:
-        LogError("Failed to find a valid JDK installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886");
+        LogError("Failed to find a valid JDK installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
         javaPath = string.Empty;
         return false;
     }
 
     private async Task UnpackApk(string javaPath, string sourceApk, string outputDirectory)
     {
-        using Process process = new()
-        {
-            StartInfo = new()
-            {
-                FileName = javaPath,
-                Arguments = $"-jar \"{apktoolJar}\" -f d \"{sourceApk}\" -o \"{outputDirectory}\"",
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
+        using Process process = CreateJavaProcess(javaPath, $"-jar \"{apktoolJar}\" -f d \"{sourceApk}\" -o \"{outputDirectory}\"");
 
         _ = process.Start();
         await process.WaitForExitAsync();
@@ -439,18 +506,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
         string apkName = $"{newPackageName}.unsigned.apk";
         string outputApkName = $"{Path.Combine(directoryPath, apkName)}";
 
-        using Process process = new()
-        {
-            StartInfo = new()
-            {
-                FileName = javaPath,
-                Arguments = $"-jar \"{apktoolJar}\" -f b \"{directoryPath}\" -o \"{outputApkName}\"",
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            }
-        };
+        using Process process = CreateJavaProcess(javaPath, $"-jar \"{apktoolJar}\" -f b \"{directoryPath}\" -o \"{outputApkName}\"");
 
         _ = process.Start();
         await process.WaitForExitAsync();
@@ -460,17 +516,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     private async Task SignApkTool(string javaPath, string apkPath, string outputApkPath)
     {
-        using Process process = new()
-        {
-            StartInfo = new()
-            {
-                FileName = javaPath,
-                Arguments = $"-jar \"{apksignerJar}\" -a \"{apkPath}\" -o \"{outputApkPath}\" --allowResign",
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
+        using Process process = CreateJavaProcess(javaPath, $"-jar \"{apksignerJar}\" -a \"{apkPath}\" -o \"{outputApkPath}\" --allowResign");
 
         _ = process.Start();
         await process.WaitForExitAsync();
@@ -627,6 +673,21 @@ public partial class HomeViewModel : ObservableObject, IViewable
         }
 
         return true;
+    }
+
+    private static Process CreateJavaProcess(string javaPath, string arguments)
+    {
+        return new()
+        {
+            StartInfo = new()
+            {
+                FileName = javaPath,
+                Arguments = arguments,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
     }
 
     [GeneratedRegex("[^a-zA-Z0-9]")]

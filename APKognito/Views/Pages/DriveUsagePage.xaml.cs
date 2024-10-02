@@ -1,6 +1,5 @@
-﻿using APKognito.Models;
-using APKognito.ViewModels.Pages;
-using System.IO;
+﻿using APKognito.ViewModels.Pages;
+using System.Windows.Threading;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Views.Pages;
@@ -16,5 +15,10 @@ public partial class DriveUsagePage : INavigableView<DriveUsageViewModel>, IView
     {
         InitializeComponent();
         DataContext = ViewModel = viewModel;
+
+        Loaded += (sender, e) =>
+        {
+            _ = Dispatcher.BeginInvoke(new Action(() => viewModel.StartSearchCommand.Execute(null)), DispatcherPriority.ContextIdle, null);
+        };
     }
 }

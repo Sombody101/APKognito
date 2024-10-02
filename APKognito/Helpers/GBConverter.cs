@@ -10,7 +10,7 @@ public class GBConverter : IValueConverter
         return value is int totalUsedSpace
             ? totalUsedSpace >= 1024
                 ? $"{totalUsedSpace / 1024f:0.00} GB"
-                : (object)$"{totalUsedSpace:n0} MB"
+                : $"{totalUsedSpace:n0} MB"
             : value;
     }
 

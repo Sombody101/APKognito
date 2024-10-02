@@ -23,9 +23,10 @@
     <Page.Resources>
         <helpers:StringFormatConverter x:Key="StringFormatConverter" />
         <helpers:GBConverter x:Key="GBConverter" />
+        <helpers:IsFileConverter x:Key="IsFileConverter" />
     </Page.Resources>
 
-    <Grid Grid.Column="1" Margin="0,30">
+    <Grid Margin="0,30">
 
         <Grid.ColumnDefinitions />
 
@@ -141,6 +142,12 @@
                                     <TextBlock FontWeight="Bold">
                                         Size:
                                     </TextBlock>
+                                    <TextBlock FontWeight="Bold">
+                                        Creation Date:
+                                    </TextBlock>
+                                    <TextBlock FontWeight="Bold">
+                                        Item Type:
+                                    </TextBlock>
                                 </StackPanel>
 
                                 <StackPanel
@@ -156,6 +163,8 @@
                                             </MultiBinding>
                                         </TextBlock.Text>
                                     </TextBlock>
+                                    <TextBlock Text="{Binding FormattedCreationDate}" />
+                                    <TextBlock Text="{Binding IsFile, Converter={StaticResource IsFileConverter}}" />
                                 </StackPanel>
                             </Grid>
                         </ui:Card>

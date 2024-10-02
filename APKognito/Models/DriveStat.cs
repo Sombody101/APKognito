@@ -4,16 +4,23 @@ namespace APKognito.Models;
 
 public record DriveFolderStat
 {
-    public string FolderPath { get; init; }
+    public static DriveFolderStat Empty = new(string.Empty, "No files to cleanup!", 0, false);
 
-    public string FolderName { get; init; }
+    public string FolderPath { get; }
 
-    public long FolderSizeBytes { get; init; }
+    public string FolderName { get; }
+
+    public long FolderSizeBytes { get; }
 
     public int FolderSizeMegabytes => (int)(FolderSizeBytes / 1024 / 1024);
 
-    public bool IsFile { get; init; }
+    public bool IsFile { get; }
 
+    public DateTime CreationDate {get;}
+
+    public string FormattedCreationDate { get; }
+
+#if DEBUG
     public DriveFolderStat(string folderPath, long folderByteSize, bool isFile = false)
     {
         FolderPath = folderPath;
@@ -24,8 +31,12 @@ public record DriveFolderStat
 
         FolderSizeBytes = folderByteSize;
 
+        CreationDate = DateTimeOffset.FromUnixTimeSeconds(Random.Shared.NextInt64(-62135596800, 253402300799)).DateTime;
+        FormattedCreationDate = CreationDate.ToString();
+
         IsFile = isFile;
     }
+#endif
 
     public DriveFolderStat(DirectoryInfo directory, long folderByteSize)
     {
@@ -33,6 +44,9 @@ public record DriveFolderStat
         FolderName = directory.Name;
 
         FolderSizeBytes = folderByteSize;
+        
+        CreationDate = directory.CreationTime;
+        FormattedCreationDate = CreationDate.ToString();
 
         IsFile = false;
     }
@@ -44,6 +58,9 @@ public record DriveFolderStat
 
         FolderSizeBytes = file.Length;
 
+        CreationDate = file.CreationTime;
+        FormattedCreationDate = CreationDate.ToString();
+
         IsFile = true;
     }
 
@@ -54,6 +71,4 @@ public record DriveFolderStat
         FolderSizeBytes = folderByteSize;
         IsFile = isFile;
     }
-
-    public static DriveFolderStat Empty = new(string.Empty, "No files to cleanup!", 0, false);
 }
