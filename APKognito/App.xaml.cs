@@ -19,6 +19,8 @@ namespace APKognito;
 /// </summary>
 public partial class App
 {
+    public static DirectoryInfo AppData { get; private set; }
+
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
     // https://docs.microsoft.com/dotnet/core/extensions/generic-host
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
@@ -29,6 +31,7 @@ public partial class App
         .ConfigureAppConfiguration(c => { _ = c.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)); })
         .ConfigureServices((context, services) =>
         {
+            AppData = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
             var config = KognitoSettings.GetSettings();
 
             _ = services.AddHostedService<ApplicationHostService>();

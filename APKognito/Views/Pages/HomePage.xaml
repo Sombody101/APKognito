@@ -184,16 +184,19 @@
                         <!--  Field Labels  -->
 
                         <StackPanel>
-                            <TextBlock Height="36">
-                                <Bold>
-                                    Output Directory
-                                </Bold>
+                            <TextBlock Height="36" FontWeight="Bold">
+                                Output Directory
                             </TextBlock>
 
-                            <TextBlock Height="36">
-                                <Bold>
-                                    Output APK Name
-                                </Bold>
+                            <TextBlock Height="36" FontWeight="Bold">
+                                Output APK Name
+                            </TextBlock>
+
+                            <TextBlock
+                                Height="36"
+                                FontWeight="Bold"
+                                ToolTip="Copy APK and OBB files when renaming rather than moving them (Takes double the storage space as moving them)">
+                                Copy App Files (?)
                             </TextBlock>
                         </StackPanel>
 
@@ -214,6 +217,7 @@
                                 KeyUp="TextBox_KeyUp"
                                 Text="{Binding ApkReplacementName, Mode=TwoWay}" />
 
+                            <CheckBox IsChecked="{Binding CopyWhenRenaming}" />
                         </StackPanel>
 
                         <ui:Button
@@ -256,7 +260,8 @@
                         HorizontalAlignment="Stretch"
                         Command="{Binding ShowOutputFolderCommand}"
                         Content="See Output"
-                        Cursor="Hand" />
+                        Cursor="Hand"
+                        ToolTip="{Binding CantStartReason}" />
                 </StackPanel>
 
             </Grid>

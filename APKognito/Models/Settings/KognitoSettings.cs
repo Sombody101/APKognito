@@ -25,7 +25,7 @@ internal static class KognitoSettings
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to create configuration directory: {ex.Message}");
+            TryLogError($"Failed to create configuration directory: {ex.Message}");
         }
     }
 
@@ -33,7 +33,7 @@ internal static class KognitoSettings
     {
         return _globalInstance ??= DeserializeFromFile(settingsPath, () =>
         {
-            HomeViewModel.Instance!.Log($"No config found! Creating a new one with default values.");
+            TryLogError($"No config found! Creating a new one with default values.");
 
             KognitoConfig newConfig = new();
             SerializeToFile(newConfig, settingsPath);
@@ -63,7 +63,7 @@ internal static class KognitoSettings
             using JsonTextReader jsonReader = new(reader);
             JsonSerializer serializer = new()
             {
-                NullValueHandling = NullValueHandling.Ignore
+                NullValueHandling = NullValueHandling.Ignore,
             };
 
             return serializer.Deserialize<T>(jsonReader)!;

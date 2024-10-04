@@ -5,13 +5,10 @@ using Newtonsoft.Json;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
-using System.Xml;
 using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
@@ -25,7 +22,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
     private const string defaultJobMessage = "No jobs started";
     public const char PathSeparator = '\n';
 
-    public readonly string AppData;
     private DirectoryInfo TempData;
 
     private static readonly HttpClient httpClient = new();
@@ -42,50 +38,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     private RichTextBox logBox;
     private readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
-
-    // This is NOT the correct way to do this, but I don't want to setup
-    // a convoluted converter for any of this
-    public void AntiMvvm_ConfigureLogger(RichTextBox _logBox)
-    {
-        logBox = _logBox;
-        logBox.Document.FontFamily = firaRegular;
-    }
-
-    public void WriteGenericLog(string text, [Optional] Brush color)
-    {
-        Run log = new(text)
-        {
-            FontFamily = firaRegular
-        };
-
-        if (color is not null)
-        {
-            log.Foreground = color;
-        }
-
-    ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.Add(log);
-        logBox.ScrollToEnd();
-    }
-
-    public void Log(string log)
-    {
-        WriteGenericLog($"[INFO]    ~ {log}\n");
-    }
-
-    public void LogWarning(string log)
-    {
-        WriteGenericLog($"[WARNING] # {log}\n", Brushes.Yellow);
-    }
-
-    public void LogError(string log)
-    {
-        WriteGenericLog($"[ERROR]   ! {log}\n", Brushes.Red);
-    }
-
-    public void ClearLogs()
-    {
-        ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.Clear();
-    }
 
     /*
      * Properties
@@ -116,6 +68,19 @@ public partial class HomeViewModel : ObservableObject, IViewable
     [ObservableProperty]
     private bool _canStart = false;
 
+    [ObservableProperty]
+    private string _cantStartReason = string.Empty;
+
+    public bool CopyWhenRenaming
+    {
+        get => config.CopyFilesWhenRenaming;
+        set
+        {
+            config.CopyFilesWhenRenaming = value;
+            OnPropertyChanged(nameof(CopyWhenRenaming));
+        }
+    }
+
     public string FilePath
     {
         get => config?.ApkSourcePath ?? defaultPropertyMessage;
@@ -126,25 +91,24 @@ public partial class HomeViewModel : ObservableObject, IViewable
         }
     }
 
-    public string[]? GetFilePaths()
-    {
-        return config?.ApkSourcePath?.Split(PathSeparator);
-    }
-
     public string OutputPath
     {
-        get => config?.ApkOutputDirectory ?? Path.Combine(AppData, "output");
+        get => config.ApkOutputDirectory;
         set
         {
             config.ApkOutputDirectory = value;
-            OnPropertyChanged();
+            OnPropertyChanged(nameof(OutputPath));
         }
     }
 
     public string ApkReplacementName
     {
         get => config?.ApkNameReplacement ?? "apkognito";
-        set => config.ApkNameReplacement = value;
+        set
+        {
+            config.ApkNameReplacement = value;
+            OnPropertyChanged(nameof(ApkReplacementName));
+        }
     }
 
     #endregion Properties
@@ -154,14 +118,17 @@ public partial class HomeViewModel : ObservableObject, IViewable
         Instance = this;
         config = KognitoSettings.GetSettings();
 
-        AppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito));
+        string appDataTools = Path.Combine(App.AppData.FullName, "tools");
 
-        apktoolJar = Path.Combine(AppData, "apktoo.jar");
-        apktoolBat = Path.Combine(AppData, "apktool.bat");
-        apksignerJar = Path.Combine(AppData, "uber-apk-signer.jar");
+        _ = Directory.CreateDirectory(appDataTools);
+        apktoolJar = Path.Combine(appDataTools, "apktoo.jar");
+        apktoolBat = Path.Combine(appDataTools, "apktool.bat");
+        apksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
 
         httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
     }
+
+    #region Commands
 
     [RelayCommand]
     private async Task StartApkRename()
@@ -299,14 +266,17 @@ public partial class HomeViewModel : ObservableObject, IViewable
         {
             Log("Did you forget to select a file from the File Explorer window?");
         }
+
+        UpdateCanStart();
     }
 
     [RelayCommand]
     private void ShowOutputFolder()
     {
         string directory = OutputPath;
-        if (!ValidDirectory(directory))
+        if (!Directory.Exists(directory))
         {
+            LogError($"The directory '{directory}' does not exist. Check the path and try again.");
             return;
         }
 
@@ -320,8 +290,25 @@ public partial class HomeViewModel : ObservableObject, IViewable
         Log("Settings saved!");
     }
 
+    #endregion Commands
+
+    public void UpdateCanStart()
+    {
+        CanStart = false;
+
+        if (string.IsNullOrWhiteSpace(config.ApkSourcePath))
+        {
+            CantStartReason = "No input APKs given. Click 'Select' and pick some.";
+            return;
+        }
+
+        CanStart = true;
+    }
+
     private async Task<string?> RenameApk(string java, string sourceApk, string output)
     {
+        bool preserveFileAfterUse = config.CopyFilesWhenRenaming;
+
         try
         {
             FinalName = "Unpacking...";
@@ -348,15 +335,17 @@ public partial class HomeViewModel : ObservableObject, IViewable
             string newPackageName = string.Join('.', split);
             FinalName = newPackageName;
 
+            string finalOutputDirectory = Path.Combine(output, $"{newPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
+
             Log($"Changing '{packageName}'  →  '{newPackageName}'");
             await Task.WhenAll(
                 ReplaceTextInFileAsync(Path.Combine(apkTempFolder, "AndroidManifest.xml"), oldCompanyName, ApkReplacementName),
                 ReplaceTextInFileAsync(Path.Combine(apkTempFolder, "apktool.yml"), oldCompanyName, ApkReplacementName)
             );
 
-            await ReplaceAllNameInstancesAsync(sourceApk, apkTempFolder, oldCompanyName, ApkReplacementName, output);
+            await ReplaceObbFiles(sourceApk, packageName, ApkReplacementName, finalOutputDirectory);
 
-            throw new Exception("Test");
+            await ReplaceAllNameInstancesAsync(apkTempFolder, oldCompanyName, ApkReplacementName);
 
             // Repack
             Log("Packing APK...");
@@ -364,13 +353,23 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
             // Sign
             Log("Singing APK...");
-            await SignApkTool(java, unsignedApk, Path.Combine(OutputPath, $"{newPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}"));
+            await SignApkTool(java, unsignedApk, finalOutputDirectory);
 
             // Copy to output and cleanup
             Log($"Finished APK {newPackageName}.");
 
             Log("Cleaning up...");
             Directory.Delete(apkTempFolder, true);
+
+            if (!preserveFileAfterUse)
+            {
+                File.Delete(sourceApk);
+
+                string oobDirectory = Path.GetDirectoryName(sourceApk)
+                    ?? throw new Exception("Failed to clean OOB directory ");
+
+                Directory.Delete(oobDirectory);
+            }
         }
         catch (Exception ex)
         {
@@ -388,8 +387,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
 
     private async Task<bool> VerifyToolInstallation()
     {
-        _ = Directory.CreateDirectory(AppData);
-
         try
         {
             if (!File.Exists(apktoolJar))
@@ -440,7 +437,7 @@ public partial class HomeViewModel : ObservableObject, IViewable
            && VerifyVersion( /* Remove 'jdk-' from the folder */ Path.GetFileName(javaHome)[4..])
            && Directory.Exists(javaHome))
         {
-            javaPath = Path.Combine(javaHome, "\\bin\\java.exe");
+            javaPath = Path.Combine(javaHome, "bin\\java.exe");
             return true;
         }
 
@@ -482,133 +479,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
         LogError("Failed to find a valid JDK installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
         javaPath = string.Empty;
         return false;
-    }
-
-    private async Task UnpackApk(string javaPath, string sourceApk, string outputDirectory)
-    {
-        using Process process = CreateJavaProcess(javaPath, $"-jar \"{apktoolJar}\" -f d \"{sourceApk}\" -o \"{outputDirectory}\"");
-
-        _ = process.Start();
-        await process.WaitForExitAsync();
-
-        if (process.ExitCode is 0)
-        {
-            return;
-        }
-
-        string error = await process.StandardError.ReadToEndAsync();
-        LogError($"Failed to unpack {sourceApk}. Error: {error}");
-        throw new Exception(error);
-    }
-
-    public async Task<string> PackApk(string javaPath, string directoryPath, string newPackageName)
-    {
-        string apkName = $"{newPackageName}.unsigned.apk";
-        string outputApkName = $"{Path.Combine(directoryPath, apkName)}";
-
-        using Process process = CreateJavaProcess(javaPath, $"-jar \"{apktoolJar}\" -f b \"{directoryPath}\" -o \"{outputApkName}\"");
-
-        _ = process.Start();
-        await process.WaitForExitAsync();
-
-        return process.ExitCode is not 0 ? throw new Exception(await process.StandardError.ReadToEndAsync()) : outputApkName;
-    }
-
-    private async Task SignApkTool(string javaPath, string apkPath, string outputApkPath)
-    {
-        using Process process = CreateJavaProcess(javaPath, $"-jar \"{apksignerJar}\" -a \"{apkPath}\" -o \"{outputApkPath}\" --allowResign");
-
-        _ = process.Start();
-        await process.WaitForExitAsync();
-
-        string error = await process.StandardError.ReadToEndAsync();
-
-        if (process.ExitCode is not 0)
-        {
-            throw new Exception(error);
-        }
-
-        // Rename the output APK
-        string trueName = Path.Combine(outputApkPath, Path.GetFileName(apkPath).Replace(".unsigned.apk", string.Empty));
-        string newSignedName = $"{trueName}.unsigned-aligned-debugSigned";
-
-        File.Move($"{newSignedName}.apk", $"{trueName}.apk", true);
-        File.Move($"{newSignedName}.apk.idsig", $"{trueName}.apk.idsig", true);
-    }
-
-    private static string GetApkPackageName(string manifestPath)
-    {
-        XmlDocument xmlDoc = new();
-        xmlDoc.Load(manifestPath);
-
-        return xmlDoc.DocumentElement?.Attributes["package"]?.Value
-            ?? throw new Exception("Failed to get package name.");
-    }
-
-    private static async Task ReplaceAllNameInstancesAsync(string apkSourcePath, string apkPath, string searchCompanyName, string replacementName, string outputDirectory)
-    {
-        static void RenameDirectory(string directory, string newName)
-        {
-            string newFolderPath = Path.Combine(Path.GetDirectoryName(directory), newName);
-
-            Directory.Move(directory, newFolderPath);
-        }
-
-        RenameDirectory(Path.Combine(apkPath, "smali\\com", searchCompanyName), replacementName);
-
-        // Rename OBB file (if there is one)
-        string obbDirectory = Path.Combine(apkSourcePath, searchCompanyName);
-        if (Directory.Exists(obbDirectory))
-        {
-            _ = await Task.Run(() =>
-                _ = Parallel.ForEach(Directory.GetFiles(obbDirectory), filePath =>
-                {
-                    string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
-
-                    if (fileNameWithoutExtension.Contains(searchCompanyName))
-                    {
-                        string newFileName = fileNameWithoutExtension.Replace(searchCompanyName, replacementName);
-                        string newFilePath = Path.Combine(obbDirectory, newFileName, Path.GetExtension(filePath));
-
-                        File.Move(filePath, newFilePath);
-                    }
-                })
-            );
-
-            RenameDirectory(obbDirectory, Path.Combine(obbDirectory, replacementName));
-
-            // Move the renamed OBB to the output
-            Directory.Move(obbDirectory, outputDirectory);
-        }
-
-        string[] files = Directory.GetFiles(Path.Combine(apkPath, "smali"), "*", SearchOption.AllDirectories);
-
-        _ = await Task.Run(() =>
-            _ = Parallel.ForEach(files, async filePath =>
-            {
-                await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName);
-            })
-        );
-    }
-
-    private static async Task ReplaceTextInFileAsync(string filePath, string searchText, string replaceText)
-    {
-        string tempFile = $"${Path.GetFileName(filePath)}-{Random.Shared.Next():x00}.tmp.strm";
-
-        using StreamReader input = File.OpenText(filePath);
-        using StreamWriter output = new(tempFile);
-
-        string? line;
-        while ((line = await input.ReadLineAsync()) is not null)
-        {
-            await output.WriteLineAsync(line.Replace(searchText, replaceText));
-        }
-
-        input.Close();
-        output.Close();
-
-        File.Delete(filePath);
-        File.Move(tempFile, filePath);
     }
 
     private async Task FetchAndDownload(string url, int num, string name)
@@ -661,18 +531,6 @@ public partial class HomeViewModel : ObservableObject, IViewable
     private static bool ValidCompanyName(string segment)
     {
         return ApkCompanyCheck().IsMatch(segment);
-    }
-
-    public bool ValidDirectory(string path)
-    {
-        string directory = OutputPath;
-        if (!Directory.Exists(directory))
-        {
-            LogError($"The directory '{directory}' does not exist. Check the path and try again.");
-            return false;
-        }
-
-        return true;
     }
 
     private static Process CreateJavaProcess(string javaPath, string arguments)

@@ -41,7 +41,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         {
             viewModel.WriteGenericLog($"@ Press 'Start' to rename your APK{(loadedFiles.Length is 1 ? string.Empty : 's')}! @\n");
             viewModel.ApkName = Path.GetFileName(viewModel.FilePath);
-            viewModel.CanStart = true;
+            viewModel.UpdateCanStart();
         }
 
         // Dump config logs
