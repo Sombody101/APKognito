@@ -11,6 +11,9 @@ internal class RenameSessionConverter : IValueConverter
     {
         if (value is string[] apks)
         {
+            if (apks.Length > 0 && apks[0] == "<>")
+                return string.Empty;
+
             StringBuilder output = new();
 
             foreach (string[] apkPair in apks.Select(RenameSession.FormatForView))

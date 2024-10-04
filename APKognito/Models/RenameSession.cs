@@ -6,6 +6,9 @@ namespace APKognito.Models;
 [MemoryPackable]
 public partial record RenameSession
 {
+    [MemoryPackIgnore]
+    public static readonly RenameSession Empty = new();
+
     private const string separator = ";;";
 
     public string[] ApkTransforms { get; }
@@ -15,10 +18,17 @@ public partial record RenameSession
     [MemoryPackIgnore]
     public string FormattedDate => DateTimeOffset.FromUnixTimeSeconds(DateEpochSeconds).DateTime.ToString();
 
+    [MemoryPackConstructor]
     public RenameSession(string[] apkTransforms, long dateEpochSeconds)
     {
         ApkTransforms = apkTransforms;
         DateEpochSeconds = dateEpochSeconds;
+    }
+
+    private RenameSession()
+    {
+        ApkTransforms = ["<>"];
+        DateEpochSeconds = 0;
     }
 
     public static string FormatForSerializer(string str1, string str2, bool wasSuccess = true)

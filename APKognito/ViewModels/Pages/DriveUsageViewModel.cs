@@ -101,7 +101,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     }
 
     [RelayCommand]
-    private void DeleteSelectedItems(ListView folderList)
+    private async Task DeleteSelectedItems(ListView folderList)
     {
         CanDelete = false;
         IsRunning = Visibility.Visible;
@@ -110,7 +110,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         foreach (DriveFolderStat? item in itemsToDelete)
         {
-            if (item.IsFile)
+            if (item.IsFile is true)
             {
                 File.Delete(item.FolderPath);
             }
@@ -127,6 +127,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         CanDelete = true;
         IsRunning = Visibility.Hidden;
+
+        await StartSearch();
     }
 
     [RelayCommand]
@@ -152,7 +154,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         foreach (DriveFolderStat item in FoundFolders)
         {
-            if (item.IsFile)
+            if (item.IsFile is true)
             {
                 File.Delete(item.FolderPath);
             }
@@ -167,6 +169,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     Exit:
         CanDelete = true;
         IsRunning = Visibility.Hidden;
+
+        await StartSearch();
     }
 
     #endregion

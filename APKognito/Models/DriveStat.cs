@@ -4,7 +4,7 @@ namespace APKognito.Models;
 
 public record DriveFolderStat
 {
-    public static DriveFolderStat Empty = new(string.Empty, "No files to cleanup!", 0, false);
+    public static readonly DriveFolderStat Empty = new(string.Empty, "No files to cleanup!", 0, null);
 
     public string FolderPath { get; }
 
@@ -14,7 +14,7 @@ public record DriveFolderStat
 
     public int FolderSizeMegabytes => (int)(FolderSizeBytes / 1024 / 1024);
 
-    public bool IsFile { get; }
+    public bool? IsFile { get; }
 
     public DateTime CreationDate {get;}
 
@@ -64,7 +64,7 @@ public record DriveFolderStat
         IsFile = true;
     }
 
-    private DriveFolderStat(string folderPath, string folderName, long folderByteSize, bool isFile)
+    private DriveFolderStat(string folderPath, string folderName, long folderByteSize, bool? isFile)
     {
         FolderPath = folderPath;
         FolderName = folderName;

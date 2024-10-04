@@ -28,6 +28,11 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 
         RenameSessions.Clear();
 
+        if (storedSessions.Count is 0)
+        {
+            RenameSessions.Add(RenameSession.Empty);
+        }
+
         // Add a delay so the user knows something happened
         await Task.Delay(200);
 

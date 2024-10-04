@@ -365,10 +365,10 @@ public partial class HomeViewModel : ObservableObject, IViewable
             {
                 File.Delete(sourceApk);
 
-                string oobDirectory = Path.GetDirectoryName(sourceApk)
-                    ?? throw new Exception("Failed to clean OOB directory ");
+                string obbDirectory = Path.GetDirectoryName(sourceApk)
+                    ?? throw new Exception("Failed to clean OBB directory ");
 
-                Directory.Delete(oobDirectory);
+                Directory.Delete(obbDirectory);
             }
         }
         catch (Exception ex)
