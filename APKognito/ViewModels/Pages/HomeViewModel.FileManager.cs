@@ -71,7 +71,7 @@ public partial class HomeViewModel
 
         if (process.ExitCode is 0)
         {
-            if (config.CopyFilesWhenRenaming)
+            if (!config.CopyFilesWhenRenaming)
             {
                 // No need to move the source, if it's already unpacked 
                 File.Delete(sourceApk);
