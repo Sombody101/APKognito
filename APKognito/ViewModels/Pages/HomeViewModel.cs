@@ -161,8 +161,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     [RelayCommand]
     private async Task OnStartApkRename()
     {
-        throw new TaskSchedulerException("This is a fake cast, but still an exception.");
-
         if (_renameApksCancelationSource is not null && !__handlingRenameExitDebounce)
         {
             __handlingRenameExitDebounce = true;
@@ -245,10 +243,16 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     [RelayCommand]
     private void OnSelectOutputFolder()
     {
+        string? oldOutput = OutputDirectory;
+
+        // So it defaults to the Documents folder
+        if (!Directory.Exists(oldOutput))
+            oldOutput = null;
+
         OpenFolderDialog openFolderDialog = new()
         {
             Multiselect = false,
-            DefaultDirectory = OutputDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            DefaultDirectory = oldOutput ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
         };
 
         if (openFolderDialog.ShowDialog() is false
@@ -284,7 +288,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     public void UpdateCanStart()
     {
-        // CanStart = false;
+        CanStart = false;
 
         if (string.IsNullOrWhiteSpace(config.ApkSourcePath))
         {
@@ -352,26 +356,38 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         if (files is null || files.Length is 0)
         {
             LogError("No APK files selected!");
-            return;
+            goto ChecksFailed;
         }
 
         if (!ValidCompanyName(ApkReplacementName))
         {
             string fixedName = ApkNameFixerRegex().Replace(ApkReplacementName, string.Empty);
             LogError($"The name '{ApkReplacementName}' cannot be used with as the company name of an APK. You can use '{fixedName}' which has all offending characters removed.");
-            return;
+            goto ChecksFailed;
         }
 
         Log("Verifying that Java 8+ and APK tools are installed...");
 
         if (!VerifyJavaInstallation(out string javaPath) || !await VerifyToolInstallation())
         {
-            return;
+            goto ChecksFailed;
+        }
+
+        if (!Directory.Exists(OutputDirectory))
+        {
+            try
+            {
+                _ = Directory.CreateDirectory(OutputDirectory);
+            }
+            catch
+            {
+                LogError($"Failed to create directory '{OutputDirectory}'. Check for formatting issues and try again.");
+                goto ChecksFailed;
+            }
         }
 
         // Create a temp directory for the APK(s)
         TempData = Directory.CreateTempSubdirectory("APKognito-");
-        _ = Directory.CreateDirectory(OutputDirectory);
 
         Stopwatch elapsedTime = new();
         DispatcherTimer taskTimer = new()
@@ -451,11 +467,14 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         elapsedTime.Stop();
         taskTimer.Stop();
 
+        InvertStartButtonVisibility();
+
         JobbedApk = FinalName = "Finished all APKs";
         StartButtonText = "Start";
+
+    ChecksFailed:
         RunningJobs = false;
         CanEdit = true;
-        InvertStartButtonVisibility();
     }
 
     private async Task<bool> VerifyToolInstallation()
