@@ -1,0 +1,88 @@
+﻿<ui:FluentWindow
+    x:Class="APKognito.Views.Windows.ExceptionWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:APKognito.Views.Windows"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="Unhandled Exception"
+    Width="800"
+    Height="450"
+    MinWidth="600"
+    MinHeight="300"
+    d:DataContext="{d:DesignInstance local:ExceptionWindow,
+                                     IsDesignTimeCreatable=False}"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ExtendsContentIntoTitleBar="True"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    WindowBackdropType="Mica"
+    WindowCornerPreference="Round"
+    WindowStartupLocation="CenterScreen"
+    mc:Ignorable="d">
+
+    <Window.Resources />
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar
+            x:Name="TitleBar"
+            Title="Unhandled Exception"
+            Grid.Row="0"
+            CloseWindowByDoubleClickOnIcon="True">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon RenderSize="100,100" Source="pack://application:,,,/Assets/apkognito.png" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+
+        <Grid Grid.Row="1">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock
+                Margin="10"
+                FontSize="20"
+                Text="{Binding ViewModel.ExceptionTypeName}" />
+
+            <ui:RichTextBox
+                x:Name="ExceptionDetailsBox"
+                Grid.Row="1"
+                IsReadOnly="True" />
+
+            <Grid Grid.Row="2">
+
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <ui:Button
+                        Margin="10"
+                        Command="{Binding ViewModel.CopyExceptionDetailsCommand}"
+                        Content="Copy Details" />
+                    <ui:Button Command="{Binding ViewModel.OpenGithubIssueCommand}" Content="Create GitHub Issue" />
+                </StackPanel>
+
+                <StackPanel
+                    Grid.Column="1"
+                    FlowDirection="RightToLeft"
+                    Orientation="Horizontal">
+                    <ui:Button
+                        Margin="10"
+                        Command="{Binding ViewModel.ExitApkognitoCommand}"
+                        Content="Close APKognito" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</ui:FluentWindow>

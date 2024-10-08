@@ -10,7 +10,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class DriveUsageViewModel : ObservableObject, IViewable
 {
-    private static KognitoConfig _config = KognitoSettings.GetSettings();
+    private static readonly KognitoConfig _config = KognitoSettings.GetSettings();
 
     #region Properties
 
@@ -32,7 +32,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private bool _canDelete = false;
 
     [ObservableProperty]
-    private ObservableCollection<DriveFolderStat> _foundFolders = [
+    private ObservableCollection<FootprintInfo> _foundFolders = [
 #if DEBUG
         new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
         new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
@@ -106,11 +106,11 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         CanDelete = false;
         IsRunning = Visibility.Visible;
 
-        List<DriveFolderStat> itemsToDelete = folderList.SelectedItems.Cast<DriveFolderStat>().ToList();
+        List<FootprintInfo> itemsToDelete = folderList.SelectedItems.Cast<FootprintInfo>().ToList();
 
-        foreach (DriveFolderStat? item in itemsToDelete)
+        foreach (FootprintInfo? item in itemsToDelete)
         {
-            if (item.IsFile is true)
+            if (item.ItemType is FootprintType.File)
             {
                 File.Delete(item.FolderPath);
             }
@@ -120,7 +120,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             }
         }
 
-        foreach (DriveFolderStat? item in itemsToDelete)
+        foreach (FootprintInfo? item in itemsToDelete)
         {
             _ = FoundFolders.Remove(item);
         }
@@ -152,9 +152,9 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             goto Exit;
         }
 
-        foreach (DriveFolderStat item in FoundFolders)
+        foreach (FootprintInfo item in FoundFolders)
         {
-            if (item.IsFile is true)
+            if (item.ItemType is FootprintType.File)
             {
                 File.Delete(item.FolderPath);
             }
@@ -188,7 +188,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             folders.AddRange(Directory.GetFiles(apkOutputPath));
         }
 
-        List<Task<DriveFolderStat>> tasks = [];
+        List<Task<FootprintInfo>> tasks = [];
         foreach (string folderName in folders)
         {
             if (cancellation.IsCancellationRequested)
@@ -203,20 +203,20 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
                 {
                     DirectoryInfo di = new(folderName);
                     long size = await DirSizeAsync(di, cancellation);
-                    return new DriveFolderStat(di, size);
+                    return new FootprintInfo(di, size);
                 }
                 else
                 {
                     FileInfo fi = new(folderName);
-                    return new DriveFolderStat(fi);
+                    return new FootprintInfo(fi);
                 }
             }, cancellation));
         }
 
-        DriveFolderStat[] folderStats = await Task.WhenAll(tasks);
+        FootprintInfo[] folderStats = await Task.WhenAll(tasks);
 
         // Use a loop to add items individually to the ObservableCollection
-        foreach (DriveFolderStat? folderStat in folderStats)
+        foreach (FootprintInfo? folderStat in folderStats)
         {
             FoundFolders.Add(folderStat);
         }
@@ -225,7 +225,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         if (FoundFolders.Count is 0)
         {
-            FoundFolders.Add(DriveFolderStat.Empty);
+            FoundFolders.Add(FootprintInfo.Empty);
             CanDelete = false;
         }
         else

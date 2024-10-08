@@ -19,7 +19,7 @@ namespace APKognito;
 /// </summary>
 public partial class App
 {
-    public static DirectoryInfo AppData { get; private set; }
+    public static DirectoryInfo? AppData { get; private set; }
 
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
     // https://docs.microsoft.com/dotnet/core/extensions/generic-host
@@ -31,9 +31,6 @@ public partial class App
         .ConfigureAppConfiguration(c => { _ = c.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)); })
         .ConfigureServices((context, services) =>
         {
-            AppData = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
-            var config = KognitoSettings.GetSettings();
-
             _ = services.AddHostedService<ApplicationHostService>();
 
             // Page resolver service
@@ -51,6 +48,12 @@ public partial class App
             // Main window with navigation
             _ = services.AddSingleton<INavigationWindow, MainWindow>().
                 AddSingleton<MainWindowViewModel>();
+
+            // Exception window model
+            _ = services.AddSingleton<ExceptionWindowViewModel>();
+
+            AppData = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
+            var config = KognitoSettings.GetSettings();
 
             // Load all pages (any class that implements IViewable)
             IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
@@ -79,6 +82,11 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        TaskScheduler.UnobservedTaskException += (sender, e) =>
+        {
+            ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [TaskScheduler]");
+        };
+
         _host.Start();
     }
 
@@ -88,7 +96,7 @@ public partial class App
     private async void OnExit(object sender, ExitEventArgs e)
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
-        HomeViewModel.Instance!.Log("Saving settings...");
+        HomeViewModel.Instance?.Log("Saving settings...");
         KognitoSettings.SaveSettings();
 
         await _host.StopAsync();
@@ -102,6 +110,7 @@ public partial class App
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
+        ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host,  "AppMain [Default Dispatcher]");
     }
 
     public static void OpenHyperlink(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)

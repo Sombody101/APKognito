@@ -160,7 +160,7 @@
 
                     <TextBlock
                         Margin="1"
-                        Text="{Binding OutputPath}"
+                        Text="{Binding OutputDirectory}"
                         TextTrimming="CharacterEllipsis" />
                 </StackPanel>
 
@@ -195,7 +195,7 @@
                             <TextBlock
                                 Height="36"
                                 FontWeight="Bold"
-                                ToolTip="Copy APK and OBB files when renaming rather than moving them (Takes double the storage space as moving them)">
+                                ToolTip="Copy APK and OBB files when renaming rather than moving them (Takes double the storage space as moving them, but removes the risk of data loss if an error occurs while renaming)">
                                 Copy App Files (?)
                             </TextBlock>
                         </StackPanel>
@@ -203,16 +203,32 @@
                         <!--  Field Values  -->
 
                         <StackPanel Grid.Column="1">
-                            <TextBox
-                                Height="36"
-                                Margin="1"
-                                IsEnabled="{Binding CanEdit}"
-                                KeyUp="TextBox_KeyUp"
-                                Text="{Binding OutputPath, Mode=TwoWay}" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="75" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox
+                                    Height="36"
+                                    Margin="1"
+                                    IsEnabled="{Binding CanEdit}"
+                                    KeyUp="TextBox_KeyUp"
+                                    Text="{Binding OutputDirectory, Mode=TwoWay}" />
+
+                                <ui:Button
+                                    Grid.Column="1"
+                                    Width="68"
+                                    Height="32"
+                                    Margin="5,0,1,0"
+                                    HorizontalAlignment="Right"
+                                    Command="{Binding SelectOutputFolderCommand}"
+                                    Content="Browse" />
+                            </Grid>
 
                             <TextBox
-                                Height="36"
-                                Margin="1"
+                                Margin="1,1,1,1"
                                 IsEnabled="{Binding CanEdit}"
                                 KeyUp="TextBox_KeyUp"
                                 Text="{Binding ApkReplacementName, Mode=TwoWay}" />
@@ -227,7 +243,8 @@
                             Margin="0,12"
                             HorizontalAlignment="Right"
                             Command="{Binding SaveSettingsCommand}"
-                            Content="Save Settings" />
+                            Content="Save Settings"
+                            ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
                     </Grid>
                 </Expander>
 
@@ -251,7 +268,16 @@
                         Command="{Binding StartApkRenameCommand}"
                         Content="Start"
                         Cursor="Hand"
-                        IsEnabled="{Binding CanStart}" />
+                        IsEnabled="{Binding CanStart}"
+                        Visibility="{Binding StartButtonVisibility}" />
+
+                    <Button
+                        Margin="0,5"
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding CancelApkRenameCommand}"
+                        Content="Cancel"
+                        Cursor="Hand"
+                        Visibility="{Binding CancelButtonVisibility}" />
 
                     <ProgressBar IsIndeterminate="{Binding RunningJobs}" />
 

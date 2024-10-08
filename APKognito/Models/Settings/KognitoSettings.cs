@@ -1,5 +1,4 @@
-﻿using APKognito.ViewModels.Pages;
-using APKognito.Views.Pages;
+﻿using APKognito.Views.Pages;
 using Newtonsoft.Json;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -8,24 +7,32 @@ namespace APKognito.Models.Settings;
 
 internal static class KognitoSettings
 {
-    private const string configsPath = "./config";
-    private const string settingsPath = $"{configsPath}/settings.json";
+    private static readonly string settingsPath;
 
     private static HomePage? _homePage = HomePage.Instance;
     private static KognitoConfig? _globalInstance;
 
-    public static List<string>? PrePageErrorLogs;
+    public static List<string>? PrePageErrorLogs { get; private set; }
 
     static KognitoSettings()
     {
+        string configsPath = Path.Combine(App.AppData!.FullName, "./config");
+        settingsPath = Path.Combine(configsPath, "settings.json");
+
         try
         {
             // Ensure the directory exists
             _ = Directory.CreateDirectory(configsPath);
+
+            // Check for old config
+            if (File.Exists("./config/settings.json") && !File.Exists(settingsPath))
+            {
+                File.Move("./config/settings.json", settingsPath);
+            }
         }
         catch (Exception ex)
         {
-            TryLogError($"Failed to create configuration directory: {ex.Message}");
+            TryLog($"Failed to create configuration directory: {ex.Message}");
         }
     }
 
@@ -33,21 +40,21 @@ internal static class KognitoSettings
     {
         return _globalInstance ??= DeserializeFromFile(settingsPath, () =>
         {
-            TryLogError($"No config found! Creating a new one with default values.");
+            TryLog($"No config found! Creating a new one with default values.");
 
             KognitoConfig newConfig = new();
             SerializeToFile(newConfig, settingsPath);
             return newConfig;
         }, (ex) =>
         {
-            TryLogError($"Error loading settings: {ex.Message}");
+            TryLog($"Error loading settings: {ex.Message}");
             return new();
         });
     }
 
     public static void SaveSettings()
     {
-        SerializeToFile(_globalInstance, settingsPath, (ex) => TryLogError($"Error saving settings: {ex.Message}"));
+        SerializeToFile(_globalInstance, settingsPath, (ex) => TryLog($"Error saving settings: {ex.Message}"));
     }
 
     public static T DeserializeFromFile<T>(string filePath, [Optional] Func<T> notFoundCallback, [Optional] Func<Exception, T> errorCallback) where T : class, new()
@@ -93,7 +100,7 @@ internal static class KognitoSettings
         }
     }
 
-    private static void TryLogError(string log)
+    private static void TryLog(string log)
     {
         if (_homePage is null)
         {
@@ -102,7 +109,9 @@ internal static class KognitoSettings
 
             // Check if the home page is still null, get the reference if not
             if (HomePage.Instance is not null)
+            {
                 _homePage = HomePage.Instance;
+            }
 
             return;
         }

@@ -114,7 +114,7 @@
                 SelectionMode="Extended">
 
                 <ListView.ItemTemplate>
-                    <DataTemplate DataType="{x:Type models:DriveFolderStat}">
+                    <DataTemplate DataType="{x:Type models:FootprintInfo}">
 
                         <ui:Card>
                             <Grid>
@@ -164,7 +164,7 @@
                                         </TextBlock.Text>
                                     </TextBlock>
                                     <TextBlock Text="{Binding FormattedCreationDate}" />
-                                    <TextBlock Text="{Binding IsFile, Converter={StaticResource IsFileConverter}}" />
+                                    <TextBlock Text="{Binding ItemType, Converter={StaticResource IsFileConverter}}" />
                                 </StackPanel>
                             </Grid>
                         </ui:Card>

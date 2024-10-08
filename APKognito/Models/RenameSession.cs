@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using APKognito.Views.Pages;
+using MemoryPack;
 using System.IO;
 
 namespace APKognito.Models;
@@ -40,7 +41,7 @@ public partial record RenameSession
     {
         string[] parts = str.Split(separator);
 
-        parts[0] = parts[0] == "1"
+        parts[0] = parts[0] is "1"
             ? "✔️"
             : "❌";
 
@@ -50,14 +51,27 @@ public partial record RenameSession
 
 public static class RenameSessionManager
 {
-    private const string historyFilePath = "./config/history.bin";
+    private static readonly string historyFilePath;
 
     private static List<RenameSession>? _renameSessions;
+
+    static RenameSessionManager()
+    {
+        string configsPath = Path.Combine(App.AppData!.FullName, "./config");
+        historyFilePath = Path.Combine(configsPath, "history.bin");
+
+        if (File.Exists("./config/history.bin") && !File.Exists(historyFilePath))
+        {
+            File.Move("./config/history.bin", historyFilePath);
+        }
+    }
 
     public static List<RenameSession> GetSessions()
     {
         if (_renameSessions is null)
+        {
             LoadSessions();
+        }
 
         return _renameSessions;
     }
@@ -69,15 +83,7 @@ public static class RenameSessionManager
 
     public static void LoadSessions()
     {
-        if (!File.Exists(historyFilePath))
-        {
-            File.Create(historyFilePath);
-            _renameSessions = [];
-            return;
-        }
-
-        // Previous session failed to save... Just create a new array and don't touch the file
-        if (new FileInfo(historyFilePath).Length == 0)
+        if (!File.Exists(historyFilePath) || new FileInfo(historyFilePath).Length == 0)
         {
             _renameSessions = [];
             return;

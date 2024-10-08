@@ -30,7 +30,8 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 
         if (storedSessions.Count is 0)
         {
-            RenameSessions.Add(RenameSession.Empty);
+            //RenameSessions.Add(RenameSession.Empty);
+            return;
         }
 
         // Add a delay so the user knows something happened

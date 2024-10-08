@@ -2,9 +2,9 @@
 
 namespace APKognito.Models;
 
-public record DriveFolderStat
+public record FootprintInfo
 {
-    public static readonly DriveFolderStat Empty = new(string.Empty, "No files to cleanup!", 0, null);
+    public static readonly FootprintInfo Empty = new(string.Empty, "No files to cleanup!", 0, FootprintType.File);
 
     public string FolderPath { get; }
 
@@ -14,18 +14,18 @@ public record DriveFolderStat
 
     public int FolderSizeMegabytes => (int)(FolderSizeBytes / 1024 / 1024);
 
-    public bool? IsFile { get; }
+    public FootprintType ItemType { get; }
 
-    public DateTime CreationDate {get;}
+    public DateTime CreationDate { get; }
 
     public string FormattedCreationDate { get; }
 
 #if DEBUG
-    public DriveFolderStat(string folderPath, long folderByteSize, bool isFile = false)
+    public FootprintInfo(string folderPath, long folderByteSize, FootprintType itemType = FootprintType.Directory)
     {
         FolderPath = folderPath;
 
-        FolderName = isFile
+        FolderName = itemType is FootprintType.File
             ? Path.GetFileName(folderPath)
             : Path.GetDirectoryName(folderPath) ?? "[Unknown]";
 
@@ -34,24 +34,24 @@ public record DriveFolderStat
         CreationDate = DateTimeOffset.FromUnixTimeSeconds(Random.Shared.NextInt64(-62135596800, 253402300799)).DateTime;
         FormattedCreationDate = CreationDate.ToString();
 
-        IsFile = isFile;
+        ItemType = itemType;
     }
 #endif
 
-    public DriveFolderStat(DirectoryInfo directory, long folderByteSize)
+    public FootprintInfo(DirectoryInfo directory, long folderByteSize)
     {
         FolderPath = directory.FullName;
         FolderName = directory.Name;
 
         FolderSizeBytes = folderByteSize;
-        
+
         CreationDate = directory.CreationTime;
         FormattedCreationDate = CreationDate.ToString();
 
-        IsFile = false;
+        ItemType = FootprintType.Directory;
     }
 
-    public DriveFolderStat(FileInfo file)
+    public FootprintInfo(FileInfo file)
     {
         FolderPath = file.FullName;
         FolderName = file.Name;
@@ -61,14 +61,21 @@ public record DriveFolderStat
         CreationDate = file.CreationTime;
         FormattedCreationDate = CreationDate.ToString();
 
-        IsFile = true;
+        ItemType = FootprintType.File;
     }
 
-    private DriveFolderStat(string folderPath, string folderName, long folderByteSize, bool? isFile)
+    private FootprintInfo(string folderPath, string folderName, long folderByteSize, FootprintType itemType)
     {
         FolderPath = folderPath;
         FolderName = folderName;
         FolderSizeBytes = folderByteSize;
-        IsFile = isFile;
+        ItemType = itemType;
     }
+}
+
+public enum FootprintType
+{
+    Directory,
+    File,
+    RenamedApk,
 }

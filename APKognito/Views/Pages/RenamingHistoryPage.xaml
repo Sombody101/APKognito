@@ -36,14 +36,15 @@
                 </Grid.RowDefinitions>
 
                 <ui:Button
-                    HorizontalAlignment="Stretch"
                     Margin="6,0"
+                    HorizontalAlignment="Stretch"
                     Command="{Binding RefreshRenameSessionsCommand}"
                     Content="Refresh" />
 
                 <ui:ListView
                     x:Name="SessionList"
                     Grid.Row="1"
+                    Margin="0,10,0,0"
                     VerticalAlignment="Stretch"
                     ItemsSource="{Binding RenameSessions}"
                     SelectionMode="Extended">
@@ -79,9 +80,7 @@
                                         Grid.Column="1"
                                         Text="{Binding ApkTransforms, Converter={StaticResource RenameSessionConverter}}" />
 
-                                    <StackPanel Grid.Row="2">
-                                        <TextBlock />
-                                    </StackPanel>
+                                    <StackPanel Grid.Row="2" />
 
                                     <StackPanel
                                         Grid.Row="2"

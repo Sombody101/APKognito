@@ -28,7 +28,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         DataContext = ViewModel;
 
         InitializeComponent();
-        viewModel.AntiMvvm_ConfigureLogger(APKLogs);
+        viewModel.AntiMvvm_SetRichTextbox(APKLogs);
 
         Config = KognitoSettings.GetSettings();
 
@@ -54,13 +54,11 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
             }
 
             logs.Clear();
-            KognitoSettings.PrePageErrorLogs = null;
         }
     }
 
     private void UpdateLogs(object sender, TextChangedEventArgs e)
     {
-        // APKLogs.SelectionStart = APKLogs.Text.Length;
         APKLogs.ScrollToEnd();
     }
 

@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using APKognito.Models;
+using System.Globalization;
 using System.Windows.Data;
 
 namespace APKognito.Helpers;
@@ -7,11 +8,9 @@ internal class IsFileConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is bool isFile)
+        if (value is FootprintType fType)
         {
-            return isFile
-                ? "File"
-                : "Directory";
+            return fType.ToString();
         }
 
         return null;
