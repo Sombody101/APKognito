@@ -17,6 +17,10 @@ $ cd $path_to_apkognito_source
 $ dotnet publish
 ```
 
+# Contributing
+
+![Alt](https://repobeats.axiom.co/api/embed/845c6a1e7b56de71e80b4a2c5969f7206d1eec8c.svg "Repobeats analytics image")
+
 # License
 
 `APKognito` is distributed under the GPL license, meaning any forks of it must have their source code made public on the internet. See the [LICENSE](./LICENSE.txt) for details.
