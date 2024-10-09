@@ -1,10 +1,14 @@
-﻿using APKognito.Models;
+﻿using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Models;
 using System.Collections.ObjectModel;
 
 namespace APKognito.ViewModels.Pages;
 
 public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 {
+    private readonly KognitoConfigurationFactory configFactory;
+
     #region Properties
 
     [ObservableProperty]
@@ -19,16 +23,22 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 
     #endregion Properties
 
+    public RenamingHistoryViewModel(KognitoConfigurationFactory _configFactory)
+    {
+        configFactory = _configFactory;
+    }
+
     #region Commands
 
     [RelayCommand]
     public async Task RefreshRenameSessions()
     {
-        List<RenameSession> storedSessions = RenameSessionManager.GetSessions();
+        RenameSessionList storedSessions = configFactory.GetConfig<RenameSessionList>();
+        var sessions = storedSessions.RenameSessions;
 
         RenameSessions.Clear();
 
-        if (storedSessions.Count is 0)
+        if (sessions.Count is 0)
         {
             //RenameSessions.Add(RenameSession.Empty);
             return;
@@ -37,7 +47,7 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
         // Add a delay so the user knows something happened
         await Task.Delay(200);
 
-        foreach (RenameSession session in storedSessions)
+        foreach (RenameSession session in sessions)
         {
             RenameSessions.Add(session);
         }

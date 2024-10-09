@@ -1,5 +1,4 @@
 ﻿using APKognito.ViewModels.Pages;
-using System.Windows.Threading;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Views.Pages;
@@ -17,9 +16,9 @@ public partial class RenamingHistoryPage : INavigableView<RenamingHistoryViewMod
 
         InitializeComponent();
 
-        Loaded += (sender, e) =>
+        Application.Current.Dispatcher.Invoke((Action)async delegate
         {
-            _ = Dispatcher.BeginInvoke(new Action(() => _ = _viewModel.RefreshRenameSessions()), DispatcherPriority.ContextIdle, null);
-        };
+            await _viewModel.RefreshRenameSessions();
+        });
     }
 }

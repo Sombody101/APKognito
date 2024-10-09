@@ -1,4 +1,6 @@
-﻿using APKognito.Models.Settings;
+﻿using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
 using Microsoft.Win32;
 using System.Diagnostics.CodeAnalysis;
@@ -20,7 +22,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
     public HomeViewModel ViewModel { get; }
     public KognitoConfig Config { get; init; }
 
-    public HomePage(HomeViewModel viewModel)
+    public HomePage(HomeViewModel viewModel, KognitoConfigurationFactory configFactory)
     {
         Instance = this;
 
@@ -30,7 +32,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         InitializeComponent();
         viewModel.AntiMvvm_SetRichTextbox(APKLogs);
 
-        Config = KognitoSettings.GetSettings();
+        Config = configFactory.GetConfig<KognitoConfig>();
 
         string[]? loadedFiles = viewModel.GetFilePaths();
         if (loadedFiles is null || loadedFiles.Length is 0)
@@ -45,16 +47,16 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         }
 
         // Dump config logs
-        if (KognitoSettings.PrePageErrorLogs is not null)
-        {
-            List<string> logs = KognitoSettings.PrePageErrorLogs;
-            foreach (string log in logs)
-            {
-                viewModel.LogError(log);
-            }
-
-            logs.Clear();
-        }
+        // if (KognitoSettings.PrePageErrorLogs is not null)
+        // {
+        //     List<string> logs = KognitoSettings.PrePageErrorLogs;
+        //     foreach (string log in logs)
+        //     {
+        //         viewModel.LogError(log);
+        //     }
+        // 
+        //     logs.Clear();
+        // }
     }
 
     private void UpdateLogs(object sender, TextChangedEventArgs e)

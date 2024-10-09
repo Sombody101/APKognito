@@ -1,4 +1,5 @@
-﻿using APKognito.Models;
+﻿using APKognito.Configurations;
+using APKognito.Models;
 using APKognito.Models.Settings;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -10,7 +11,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class DriveUsageViewModel : ObservableObject, IViewable
 {
-    private static readonly KognitoConfig _config = KognitoSettings.GetSettings();
+    private readonly KognitoConfig config;
 
     #region Properties
 
@@ -59,12 +60,17 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
     #endregion Properties
 
+    public DriveUsageViewModel(KognitoConfigurationFactory configFactory)
+    {
+        config = configFactory.GetConfig<KognitoConfig>();
+    }
+
     #region Commands
 
     private CancellationTokenSource? _collectDataCancelationSource;
 
     [RelayCommand]
-    private async Task StartSearch()
+    public async Task StartSearch()
     {
         if (IsRunning == Visibility.Visible)
         {
@@ -180,7 +186,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         List<string> folders = [];
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
 
-        string apkOutputPath = _config.ApkOutputDirectory ?? string.Empty;
+        string apkOutputPath = config.ApkOutputDirectory ?? string.Empty;
         if (Directory.Exists(apkOutputPath))
         {
             apkOutputPath = Path.GetFullPath(apkOutputPath);

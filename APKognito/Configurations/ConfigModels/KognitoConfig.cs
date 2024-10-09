@@ -1,10 +1,15 @@
-﻿using Newtonsoft.Json;
+﻿using APKognito.Configurations;
+using Newtonsoft.Json;
 using System.IO;
 
 namespace APKognito.Models.Settings;
 
-public class KognitoConfig
+public class KognitoConfig : IKognitoConfiguration
 {
+    public string FileName => "settings.json";
+
+    public ConfigType ConfigType => ConfigType.JsonIndented;
+
     /// <summary>
     /// The directory to push the new files to.
     /// </summary>

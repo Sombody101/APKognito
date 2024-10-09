@@ -6,7 +6,7 @@ Rename Android APK files to prevent naming conflicts when debugging several apps
 
 # Build
 
-`APKognito` was built with [.Net Core 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0). Ensure you have the SDK for it prior to trying to build.
+`APKognito` uses [.Net Core 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0). Ensure you have the SDK for it prior to building.
 
 If you have Visual Studio installed, you can build it with that.
 
@@ -14,7 +14,7 @@ If you don't have Visual Studio but still have the .Net SDK, you can build it fr
 Powershell with this command:
 
 ```ps
-$ cd $path_to_apkognito_source
+$ cd "C:\path\to\APKognito"
 $ dotnet publish
 ```
 

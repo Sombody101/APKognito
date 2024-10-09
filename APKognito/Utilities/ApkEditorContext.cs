@@ -1,4 +1,5 @@
-﻿using APKognito.Models.Settings;
+﻿using APKognito.Configurations;
+using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
 using System.Diagnostics;
 using System.IO;
@@ -24,9 +25,14 @@ public class ApkEditorContext
     private readonly string ApkTempDirectory;
     private readonly string TempStreamDirectory;
 
-    public ApkEditorContext(HomeViewModel homeViewModel, string javaPath, string sourceApkPath)
+    public ApkEditorContext(
+        HomeViewModel homeViewModel,
+        KognitoConfigurationFactory configFactory,
+        string javaPath,
+        string sourceApkPath
+        )
     {
-        config = KognitoSettings.GetSettings();
+        config = configFactory.GetConfig<KognitoConfig>();
         viewModel = homeViewModel;
 
         JavaPath = javaPath;

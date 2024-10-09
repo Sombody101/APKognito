@@ -1,4 +1,5 @@
-﻿using APKognito.Models.Settings;
+﻿using APKognito.Configurations;
+using APKognito.Models.Settings;
 using APKognito.Services;
 using APKognito.ViewModels.Pages;
 using APKognito.ViewModels.Windows;
@@ -28,7 +29,10 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/logging
     private static readonly IHost _host = Host
         .CreateDefaultBuilder()
-        .ConfigureAppConfiguration(c => { _ = c.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)); })
+        .ConfigureAppConfiguration(c =>
+            {
+                _ = c.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!);
+            })
         .ConfigureServices((context, services) =>
         {
             _ = services.AddHostedService<ApplicationHostService>();
@@ -46,14 +50,14 @@ public partial class App
             _ = services.AddSingleton<INavigationService, NavigationService>();
 
             // Main window with navigation
-            _ = services.AddSingleton<INavigationWindow, MainWindow>().
-                AddSingleton<MainWindowViewModel>();
+            _ = services.AddSingleton<INavigationWindow, MainWindow>()
+                .AddSingleton<MainWindowViewModel>();
 
             // Exception window model
             _ = services.AddSingleton<ExceptionWindowViewModel>();
 
-            AppData = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
-            var config = KognitoSettings.GetSettings();
+            // Configuration factory
+            _ = services.AddSingleton<KognitoConfigurationFactory>();
 
             // Load all pages (any class that implements IViewable)
             IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
@@ -82,9 +86,16 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        AppData = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
+
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
-            ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [TaskScheduler]");
+            ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
+        };
+
+        Dispatcher.UnhandledException += (sender, e) =>
+        {
+            ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
         };
 
         _host.Start();
@@ -97,20 +108,11 @@ public partial class App
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
         HomeViewModel.Instance?.Log("Saving settings...");
-        KognitoSettings.SaveSettings();
+        _host.Services.GetService<KognitoConfigurationFactory>();
 
         await _host.StopAsync();
 
         _host.Dispose();
-    }
-
-    /// <summary>
-    /// Occurs when an exception is thrown by an application but not handled.
-    /// </summary>
-    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
-    {
-        // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
-        ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host,  "AppMain [Default Dispatcher]");
     }
 
     public static void OpenHyperlink(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)

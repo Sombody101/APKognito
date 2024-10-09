@@ -1,4 +1,5 @@
-﻿using APKognito.Views.Pages;
+﻿using APKognito.Configurations;
+using APKognito.Views.Pages;
 using MemoryPack;
 using System.IO;
 
@@ -46,73 +47,5 @@ public partial record RenameSession
             : "❌";
 
         return parts;
-    }
-}
-
-public static class RenameSessionManager
-{
-    private static readonly string historyFilePath;
-
-    private static List<RenameSession>? _renameSessions;
-
-    static RenameSessionManager()
-    {
-        string configsPath = Path.Combine(App.AppData!.FullName, "./config");
-        historyFilePath = Path.Combine(configsPath, "history.bin");
-
-        if (File.Exists("./config/history.bin") && !File.Exists(historyFilePath))
-        {
-            File.Move("./config/history.bin", historyFilePath);
-        }
-    }
-
-    public static List<RenameSession> GetSessions()
-    {
-        if (_renameSessions is null)
-        {
-            LoadSessions();
-        }
-
-        return _renameSessions;
-    }
-
-    /* 
-     * This is the most newbie ass implementation ever 
-     * But is it going to stay regardless? Yes. Yes it is.
-     */
-
-    public static void LoadSessions()
-    {
-        if (!File.Exists(historyFilePath) || new FileInfo(historyFilePath).Length == 0)
-        {
-            _renameSessions = [];
-            return;
-        }
-
-        byte[] packed = File.ReadAllBytes(historyFilePath);
-
-        List<RenameSession>? deserialized = MemoryPackSerializer.Deserialize<List<RenameSession>>(packed);
-
-        if (deserialized is null)
-        {
-            Wpf.Ui.Controls.MessageBox errorBox = new()
-            {
-                Title = "Failed to load rename history!",
-                Content = "Unable to load rename history. Unknown error."
-            };
-
-            errorBox.ShowDialogAsync().Wait();
-        }
-        else
-        {
-            _renameSessions = deserialized;
-        }
-    }
-
-    public static void SaveSessions()
-    {
-        byte[] packed = MemoryPackSerializer.Serialize(_renameSessions);
-
-        File.WriteAllBytes(historyFilePath, packed);
     }
 }

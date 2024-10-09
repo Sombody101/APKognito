@@ -1,4 +1,6 @@
-﻿using APKognito.Models;
+﻿using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
 using Microsoft.Win32;
@@ -16,8 +18,6 @@ using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
 
-#pragma warning disable S1075 // URIs should not be hardcoded
-
 public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 {
     private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
@@ -27,6 +27,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     public const char PathSeparator = '\n';
 
     private static readonly HttpClient httpClient = new();
+    private readonly KognitoConfigurationFactory configFactory;
     private readonly KognitoConfig config;
 
     internal DirectoryInfo TempData;
@@ -47,9 +48,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
      * Properties
      */
     #region Properties
-
-    [ObservableProperty]
-    private string _startButtonText = "Start";
 
     [ObservableProperty]
     private bool _runningJobs = false;
@@ -139,10 +137,12 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     #endregion Properties
 
-    public HomeViewModel()
+    public HomeViewModel(KognitoConfigurationFactory _configFactory)
     {
         Instance = this;
-        config = KognitoSettings.GetSettings();
+
+        configFactory = _configFactory;
+        config = _configFactory.GetConfig<KognitoConfig>();
 
         string appDataTools = Path.Combine(App.AppData!.FullName, "tools");
 
@@ -280,7 +280,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     [RelayCommand]
     private void OnSaveSettings()
     {
-        KognitoSettings.SaveSettings();
+        configFactory.SaveConfig(config);
         Log("Settings saved!");
     }
 
@@ -403,7 +403,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         elapsedTime.Start();
         taskTimer.Start();
 
-        List<RenameSession> renameHistory = RenameSessionManager.GetSessions();
+        RenameSessionList renameHistory = configFactory.GetConfig<RenameSessionList>();
         string[] pendingSession = new string[files.Length];
         string[] failedJobs = new string[files.Length];
         int completeJobs = 0;
@@ -422,7 +422,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
             JobbedApk = Path.GetFileName(sourceApkPath);
 
-            ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
+            ApkEditorContext editorContext = new(this, configFactory, javaPath, sourceApkPath);
 
             string? errorReason = null;
 
@@ -446,7 +446,14 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
                 failedJobs[jobIndex] = $"\t{Path.GetFileName(sourceApkPath)}: {errorReason}";
             }
 
-            pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? "[Unknown]", FinalName ?? "[Unknown]", apkFailed);
+
+            string? finalName = FinalName;
+            if (finalName == "Unpacking...")
+            {
+                finalName = null;
+            }
+
+            pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? "[Unknown]", finalName ?? "[Unknown]", apkFailed);
 
             ++jobIndex;
         }
@@ -461,8 +468,8 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
         // Finalize session and write it to the history file
         RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
-        renameHistory.Add(currentSession);
-        RenameSessionManager.SaveSessions();
+        renameHistory.RenameSessions.Add(currentSession);
+        configFactory.SaveConfig(renameHistory);
 
         elapsedTime.Stop();
         taskTimer.Stop();
@@ -470,7 +477,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         InvertStartButtonVisibility();
 
         JobbedApk = FinalName = "Finished all APKs";
-        StartButtonText = "Start";
 
     ChecksFailed:
         RunningJobs = false;
