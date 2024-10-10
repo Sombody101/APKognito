@@ -7,7 +7,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 {
-    private readonly KognitoConfigurationFactory configFactory;
+    private readonly ConfigurationFactory configFactory;
 
     #region Properties
 
@@ -23,7 +23,7 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 
     #endregion Properties
 
-    public RenamingHistoryViewModel(KognitoConfigurationFactory _configFactory)
+    public RenamingHistoryViewModel(ConfigurationFactory _configFactory)
     {
         configFactory = _configFactory;
     }

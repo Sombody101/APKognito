@@ -13,7 +13,7 @@ If you have Visual Studio installed, you can build it with that.
 If you don't have Visual Studio but still have the .Net SDK, you can build it from
 Powershell with this command:
 
-```ps
+```powershell
 $ cd "C:\path\to\APKognito"
 $ dotnet publish
 ```

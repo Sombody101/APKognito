@@ -1,5 +1,4 @@
 ﻿using APKognito.Configurations;
-using APKognito.Models.Settings;
 using APKognito.Services;
 using APKognito.ViewModels.Pages;
 using APKognito.ViewModels.Windows;
@@ -30,9 +29,9 @@ public partial class App
     private static readonly IHost _host = Host
         .CreateDefaultBuilder()
         .ConfigureAppConfiguration(c =>
-            {
-                _ = c.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!);
-            })
+        {
+            _ = c.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!);
+        })
         .ConfigureServices((context, services) =>
         {
             _ = services.AddHostedService<ApplicationHostService>();
@@ -57,7 +56,7 @@ public partial class App
             _ = services.AddSingleton<ExceptionWindowViewModel>();
 
             // Configuration factory
-            _ = services.AddSingleton<KognitoConfigurationFactory>();
+            _ = services.AddSingleton<ConfigurationFactory>();
 
             // Load all pages (any class that implements IViewable)
             IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
@@ -108,7 +107,7 @@ public partial class App
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
         HomeViewModel.Instance?.Log("Saving settings...");
-        _host.Services.GetService<KognitoConfigurationFactory>();
+        _host.Services.GetService<ConfigurationFactory>()?.SaveAllConfigs();
 
         await _host.StopAsync();
 

@@ -22,7 +22,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
     public HomeViewModel ViewModel { get; }
     public KognitoConfig Config { get; init; }
 
-    public HomePage(HomeViewModel viewModel, KognitoConfigurationFactory configFactory)
+    public HomePage(HomeViewModel viewModel, ConfigurationFactory configFactory)
     {
         Instance = this;
 

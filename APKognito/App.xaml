@@ -14,10 +14,13 @@
             </ResourceDictionary.MergedDictionaries>
 
             <FontFamily x:Key="FiraRegular">./Fonts/FiraCode-Medium.ttf#Fira Code Medium</FontFamily>
+
+            <!--
             <FontFamily x:Key="FiraItalic">./Fonts/FiraCode-Italic.ttf</FontFamily>
             <FontFamily x:Key="FiraBold">./Fonts/FiraCode-Bold.ttf</FontFamily>
             <FontFamily x:Key="FiraLight">./Fonts/FiraCode-Light.ttf</FontFamily>
             <FontFamily x:Key="FiraRetina">./Fonts/FiraCode-Retina.ttf</FontFamily>
+            -->
 
             <Style TargetType="Control">
                 <Setter Property="FontFamily" Value="Segoe UI Symbol" />

@@ -36,7 +36,12 @@
             Grid.Row="0"
             CloseWindowByDoubleClickOnIcon="True">
             <ui:TitleBar.Icon>
-                <ui:ImageIcon RenderSize="100,100" Source="pack://application:,,,/Assets/apkognito.png" />
+                <ui:ImageIcon
+                    Width="25"
+                    Height="25"
+                    Margin="0,-35"
+                    RenderSize="0,0"
+                    Source="pack://application:,,,/Assets/apkognito.png" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 

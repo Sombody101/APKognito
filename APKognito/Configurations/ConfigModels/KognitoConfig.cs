@@ -4,12 +4,12 @@ using System.IO;
 
 namespace APKognito.Models.Settings;
 
-public class KognitoConfig : IKognitoConfiguration
+[ConfigFile(
+    "settings.json",
+    ConfigType.Json,
+    ConfigModifier.JsonIndented)]
+public class KognitoConfig : IKognitoConfig
 {
-    public string FileName => "settings.json";
-
-    public ConfigType ConfigType => ConfigType.JsonIndented;
-
     /// <summary>
     /// The directory to push the new files to.
     /// </summary>
@@ -34,15 +34,15 @@ public class KognitoConfig : IKognitoConfiguration
     [JsonProperty("copy_when_renaming")]
     public bool CopyFilesWhenRenaming { get; set; } = true;
 
-    /// <summary>
-    /// Holds old APK paths to load (at least so there's content to present).
-    /// </summary>
-    [JsonProperty("last_apk_input--TEMP")]
-    public string? ApkSourcePath { get; set; }
-
-    /// <summary>
-    /// Specifies where to open the FileDialog to select an APK.
-    /// </summary>
-    [JsonProperty("dialog_directory--TEMP")]
-    public string? LastDialogDirectory { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
+    // /// <summary>
+    // /// Holds old APK paths to load (at least so there's content to present).
+    // /// </summary>
+    // [JsonProperty("last_apk_input--TEMP")]
+    // public string? ApkSourcePath { get; set; }
+    // 
+    // /// <summary>
+    // /// Specifies where to open the FileDialog to select an APK.
+    // /// </summary>
+    // [JsonProperty("dialog_directory--TEMP")]
+    // public string? LastDialogDirectory { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
 }

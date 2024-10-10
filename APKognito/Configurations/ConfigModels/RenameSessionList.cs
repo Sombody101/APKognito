@@ -1,19 +1,12 @@
 ﻿using APKognito.Models;
 using MemoryPack;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace APKognito.Configurations.ConfigModels;
 
 [MemoryPackable]
-public partial class RenameSessionList : IKognitoConfiguration
+[ConfigFile("history.bin", ConfigType.MemoryPacked)]
+public partial class RenameSessionList : IKognitoConfig
 {
-    [MemoryPackIgnore]
-    public string FileName => "history.bin";
-
     [MemoryPackIgnore]
     public ConfigType ConfigType => ConfigType.MemoryPacked;
 

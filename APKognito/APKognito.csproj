@@ -27,11 +27,8 @@
     <None Remove="Assets\apkognito.ico" />
     <None Remove="Assets\apkognito.png" />
     <None Remove="Assets\incognito.png" />
-    <None Remove="Fonts\FiraCode-Bold.ttf" />
-    <None Remove="Fonts\FiraCode-Light.ttf" />
     <None Remove="Fonts\FiraCode-Medium.ttf" />
     <None Remove="Fonts\FiraCode-Regular.ttf" />
-    <None Remove="Fonts\FiraCode-Retina.ttf" />
   </ItemGroup>
 
   <ItemGroup>
@@ -58,7 +55,7 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageReference Include="WPF-UI" Version="3.0.5" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0 " />
@@ -66,16 +63,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Fonts\FiraCode-Bold.ttf">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Fonts\FiraCode-Light.ttf">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Resource>
     <Resource Include="Fonts\FiraCode-Medium.ttf" />
-    <Resource Include="Fonts\FiraCode-Retina.ttf">
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Fonts\FiraCode-Bold.ttf">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Resource>
+    </None>
+    <None Update="Fonts\FiraCode-Light.ttf">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Update="Fonts\FiraCode-Retina.ttf">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

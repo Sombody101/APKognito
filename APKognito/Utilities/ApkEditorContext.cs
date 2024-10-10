@@ -27,7 +27,7 @@ public class ApkEditorContext
 
     public ApkEditorContext(
         HomeViewModel homeViewModel,
-        KognitoConfigurationFactory configFactory,
+        ConfigurationFactory configFactory,
         string javaPath,
         string sourceApkPath
         )

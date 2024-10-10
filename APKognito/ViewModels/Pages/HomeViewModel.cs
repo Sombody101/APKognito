@@ -4,7 +4,7 @@ using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
 using Microsoft.Win32;
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -27,8 +27,9 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     public const char PathSeparator = '\n';
 
     private static readonly HttpClient httpClient = new();
-    private readonly KognitoConfigurationFactory configFactory;
+    private readonly ConfigurationFactory configFactory;
     private readonly KognitoConfig config;
+    private readonly CacheItems cache;
 
     internal DirectoryInfo TempData;
 
@@ -101,10 +102,10 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     /// </summary>
     public string FilePath
     {
-        get => config?.ApkSourcePath ?? defaultPropertyMessage;
+        get => cache?.ApkSourcePath ?? defaultPropertyMessage;
         set
         {
-            config.ApkSourcePath = value;
+            cache.ApkSourcePath = value;
             OnPropertyChanged(nameof(FilePath));
         }
     }
@@ -137,12 +138,13 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     #endregion Properties
 
-    public HomeViewModel(KognitoConfigurationFactory _configFactory)
+    public HomeViewModel(ConfigurationFactory _configFactory)
     {
         Instance = this;
 
         configFactory = _configFactory;
         config = _configFactory.GetConfig<KognitoConfig>();
+        cache = _configFactory.GetConfig<CacheItems>();
 
         string appDataTools = Path.Combine(App.AppData!.FullName, "tools");
 
@@ -196,7 +198,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         {
             Filter = "APK files (*.apk)|*.apk",
             Multiselect = true,
-            DefaultDirectory = config.LastDialogDirectory
+            DefaultDirectory = cache.LastDialogDirectory
         };
 
         bool? result = openFileDialog.ShowDialog();
@@ -290,7 +292,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     {
         CanStart = false;
 
-        if (string.IsNullOrWhiteSpace(config.ApkSourcePath))
+        if (string.IsNullOrWhiteSpace(cache.ApkSourcePath))
         {
             CantStartReason = "No input APKs given. Click 'Select' and pick some.";
             return;
@@ -323,16 +325,19 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     public void Log(string log)
     {
+        FileLogger.Log(log);
         WriteGenericLog($"[INFO]    ~ {log}\n");
     }
 
     public void LogWarning(string log)
     {
+        FileLogger.LogWarning(log);
         WriteGenericLog($"[WARNING] # {log}\n", Brushes.Yellow);
     }
 
     public void LogError(string log)
     {
+        FileLogger.LogError(log);
         WriteGenericLog($"[ERROR]   ! {log}\n", Brushes.Red);
     }
 
@@ -343,7 +348,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     public string[]? GetFilePaths()
     {
-        return config?.ApkSourcePath?.Split(PathSeparator);
+        return cache?.ApkSourcePath?.Split(PathSeparator);
     }
 
     private async Task RenameApks(CancellationToken cancellationToken)
@@ -403,7 +408,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         elapsedTime.Start();
         taskTimer.Start();
 
-        RenameSessionList renameHistory = configFactory.GetConfig<RenameSessionList>();
         string[] pendingSession = new string[files.Length];
         string[] failedJobs = new string[files.Length];
         int completeJobs = 0;
@@ -446,14 +450,17 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
                 failedJobs[jobIndex] = $"\t{Path.GetFileName(sourceApkPath)}: {errorReason}";
             }
 
-
             string? finalName = FinalName;
             if (finalName == "Unpacking...")
             {
                 finalName = null;
             }
 
-            pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? "[Unknown]", finalName ?? "[Unknown]", apkFailed);
+            pendingSession[jobIndex] = RenameSession.FormatForSerializer(
+                ApkName ?? JobbedApk,
+                finalName ?? (apkFailed ? "[Rename Failed]" : "[Unknown]"),
+                apkFailed
+            );
 
             ++jobIndex;
         }
@@ -468,6 +475,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
         // Finalize session and write it to the history file
         RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
+        RenameSessionList renameHistory = configFactory.GetConfig<RenameSessionList>();
         renameHistory.RenameSessions.Add(currentSession);
         configFactory.SaveConfig(renameHistory);
 
@@ -487,31 +495,38 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     {
         try
         {
+            bool allSuccess = true;
+
             if (!File.Exists(ApktoolJar))
             {
                 Log("Installing Apktool.jar...");
-                await FetchAndDownload("https://api.github.com/repos/iBotPeaches/apktool/releases", 0, ApktoolJar);
+                if (!await FetchAndDownload("https://api.github.com/repos/iBotPeaches/apktool/releases", 0, ApktoolJar))
+                    allSuccess = false;
             }
 
             if (!File.Exists(ApktoolBat))
             {
                 Log("Installing Apktool.bat...");
-                await DownloadAsync("https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat", ApktoolBat);
+                if (!await DownloadAsync("https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat", ApktoolBat))
+                    allSuccess = false;
             }
 
             if (!File.Exists(ApksignerJar))
             {
                 Log("Installing ApkSigner.jar");
-                await FetchAndDownload("https://api.github.com/repos/patrickfav/uber-apk-signer/releases", 1, ApksignerJar);
+                if (!await FetchAndDownload("https://api.github.com/repos/patrickfav/uber-apk-signer/releases", 1, ApksignerJar))
+                    allSuccess = false;
             }
+
+            return allSuccess;
         }
-        catch
+        catch (Exception e)
         {
-            // Return false if an exception was thrown while installing the tools
+            LogError($"Unexpected error while dispatching installations: {e.Message}");
+
+            // Return false for unknown errors
             return false;
         }
-
-        return true;
     }
 
     private bool VerifyJavaInstallation(out string javaPath)
@@ -579,31 +594,47 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         return false;
     }
 
-    private async Task FetchAndDownload(string url, int num, string name)
+    private async Task<bool> FetchAndDownload(string url, int num, string name)
     {
+        string? jsonResult = null;
+
         try
         {
             HttpResponseMessage response = await httpClient.GetAsync(url);
 
-            _ = response.EnsureSuccessStatusCode();
+            response.EnsureSuccessStatusCode();
 
-            string jsonResult = await response.Content.ReadAsStringAsync();
-            dynamic dynObj = JsonConvert.DeserializeObject(jsonResult)!;
-            string browser_url = dynObj[0].assets[num].browser_download_url;
+            jsonResult = await response.Content.ReadAsStringAsync();
+            JArray releasesInfo = JArray.Parse(jsonResult);
 
-            await DownloadAsync(browser_url, name);
+            string? browser_url = releasesInfo[0]?["assets"]?[num]?["browser_download_url"]?.ToString();
+
+            if (!string.IsNullOrWhiteSpace(browser_url))
+            {
+                return await DownloadAsync(browser_url, name);
+            }
+            else
+            {
+                LogError($"Invalid JSON response, or missing 'browser_download_url'. Given URL: {browser_url ?? "[NULL]"}");
+                return false;
+            }
         }
         catch (HttpRequestException ex)
         {
             LogError($"Failed to fetch tool: {ex.Message}");
+            FileLogger.LogException(ex);
         }
         catch (Exception ex)
         {
             LogError($"An error occurred: {ex.Message}");
+            FileLogger.LogException(ex);
         }
+
+        FileLogger.LogError($"Fetched JSON snippet: {jsonResult?[0..1500].Replace("\n", string.Empty) ?? "[NULL]"}");
+        return false;
     }
 
-    private async Task DownloadAsync(string url, string name)
+    private async Task<bool> DownloadAsync(string url, string name)
     {
         try
         {
@@ -615,15 +646,21 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
             using FileStream fileStream = File.Create(name);
             Log($"Installing {fileName}");
             await response.Content.CopyToAsync(fileStream);
+
+            return true;
         }
         catch (HttpRequestException ex)
         {
             LogError($"Unable to download a tool: {ex.Message}");
+            FileLogger.LogException(ex);
         }
         catch (Exception ex)
         {
             LogError($"An error occurred: {ex.Message}");
+            FileLogger.LogException(ex);
         }
+
+        return false;
     }
 
     private void InvertStartButtonVisibility([Optional] bool? forceStartVisible)
