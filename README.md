@@ -10,7 +10,7 @@
 Rename Android APK files to prevent naming conflicts when debugging several apps on one device!
 </p>
 
-![APKognito example](./.gitassets/APKognito%20Example.png)
+![APKognito example](./gitassets/APKognito%20Example.png)
 
 
 # Build
