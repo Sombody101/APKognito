@@ -9,8 +9,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageIcon>apkognito.png</PackageIcon>
-    <AssemblyVersion>1.5.1.3</AssemblyVersion>
-    <FileVersion>1.5.1.3</FileVersion>
+    <AssemblyVersion>1.5.2.0</AssemblyVersion>
+    <FileVersion>1.5.2.0</FileVersion>
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
@@ -29,6 +29,7 @@
     <None Remove="Assets\incognito.png" />
     <None Remove="Fonts\FiraCode-Medium.ttf" />
     <None Remove="Fonts\FiraCode-Regular.ttf" />
+    <None Remove="Fonts\TechSans.ttf" />
   </ItemGroup>
 
   <ItemGroup>
@@ -64,6 +65,7 @@
 
   <ItemGroup>
     <Resource Include="Fonts\FiraCode-Medium.ttf" />
+    <Resource Include="Fonts\TechSans.ttf" />
   </ItemGroup>
 
   <ItemGroup>

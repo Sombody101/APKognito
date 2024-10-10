@@ -7,7 +7,9 @@ using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -493,6 +495,43 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     private async Task<bool> VerifyToolInstallation()
     {
+        Log("Verifying internet connection.");
+
+        try
+        {
+            (int result, IPStatus? status) = await IsConnectedToInternet();
+
+            if (result is 0)
+            {
+                goto StartDownloading;
+            }
+
+            // Windows specific error that is not listed is IPStatus
+            string? statusName = status == (IPStatus)11050
+                ? "GeneralFailure"
+                : status.ToString();
+
+            switch (result)
+            {
+                case 1:
+                    LogError("No network device found. A WiFi adapter or ethernet is required.");
+                    return false;
+
+                case 2:
+                    LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
+                    return false;
+
+                case 3:
+                    LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
+                    return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+        }
+
+    StartDownloading:
         try
         {
             bool allSuccess = true;
@@ -630,7 +669,18 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
             FileLogger.LogException(ex);
         }
 
-        FileLogger.LogError($"Fetched JSON snippet: {jsonResult?[0..1500].Replace("\n", string.Empty) ?? "[NULL]"}");
+        string jsonData = "[NULL]";
+
+        if (jsonResult is not null)
+        {
+            int snipLength = jsonResult.Length <= 1500
+                ? jsonResult.Length
+                : 1500;
+
+            jsonData = jsonResult[0..snipLength].Replace("\n", string.Empty);
+        }
+
+        FileLogger.LogError($"Fetched JSON snippet: {jsonData}");
         return false;
     }
 
@@ -677,6 +727,54 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         }
     }
 
+    /// <summary></summary>
+    /// <param name="failedStatus"></param>
+    /// <returns>
+    ///     <list type="bullet|number|table">
+    ///         <listheader>
+    ///             <term>0</term>
+    ///             <description>No issues; Internet connection works.</description>
+    ///         </listheader>
+    ///         <item>
+    ///             <term>1</term>
+    ///             <description>Got a <see langword="false"/> return from <see cref="InternetGetConnectedState"/>.</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>2</term>
+    ///             <description>IP Cloudflare ping test failed</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>3</term>
+    ///             <description>DNS Cloudflare ping test failed</description>
+    ///         </item>
+    ///     </list>
+    /// </returns>
+    private static async Task<(int, IPStatus?)> IsConnectedToInternet()
+    {
+        // This was added as an attempt to resolve this issue: https://github.com/Sombody101/APKognito/issues/2
+
+        if (!InternetGetConnectedState(out _, 0))
+        {
+            return (1, null);
+        }
+
+        Ping ping = new();
+
+        PingReply reply = await ping.SendPingAsync(new IPAddress([1, 1, 1, 1]), 3000);
+        if (reply.Status is not IPStatus.Success)
+        {
+            return (2, reply.Status);
+        }
+
+        reply = await ping.SendPingAsync("https://www.cloudflare.com/", 3000);
+        if (reply.Status is not IPStatus.Success)
+        {
+            return (3, reply.Status);
+        }
+
+        return (0, null);
+    }
+
     private static bool ValidCompanyName(string segment)
     {
         return ApkCompanyCheck().IsMatch(segment);
@@ -693,4 +791,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         logBox = rtb;
         logBox.Document.FontFamily = firaRegular;
     }
+
+    [DllImport("wininet.dll")]
+    private extern static bool InternetGetConnectedState(out int Description, int ReservedValue);
 }

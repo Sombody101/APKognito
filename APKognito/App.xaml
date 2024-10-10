@@ -14,6 +14,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <FontFamily x:Key="FiraRegular">./Fonts/FiraCode-Medium.ttf#Fira Code Medium</FontFamily>
+            <FontFamily x:Key="TechSans">./Fonts/TechSans.ttf#Watatsuki Tech Sans</FontFamily>
 
             <!--
             <FontFamily x:Key="FiraItalic">./Fonts/FiraCode-Italic.ttf</FontFamily>

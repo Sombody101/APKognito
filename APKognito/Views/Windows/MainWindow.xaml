@@ -34,7 +34,8 @@
             x:Name="TitleBar"
             Title="{Binding ViewModel.ApplicationTitle}"
             Grid.Row="0"
-            CloseWindowByDoubleClickOnIcon="True">
+            CloseWindowByDoubleClickOnIcon="True"
+            FontFamily="{StaticResource TechSans}">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon
                     Width="25"
@@ -47,7 +48,7 @@
 
         <ui:NavigationView
             x:Name="RootNavigation"
-            Padding="42,0,42,0"
+            Padding="42,0"
             FooterMenuItemsSource="{Binding ViewModel.FooterMenuItems, Mode=OneWay}"
             FrameMargin="0"
             IsBackButtonVisible="Visible"

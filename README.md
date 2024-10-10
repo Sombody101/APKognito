@@ -27,6 +27,7 @@ $ cd "C:\path\to\APKognito"
 $ dotnet publish
 ```
 
+
 # Contributing
 
 ![Alt](https://repobeats.axiom.co/api/embed/845c6a1e7b56de71e80b4a2c5969f7206d1eec8c.svg "Repobeats analytics image")
