@@ -1,8 +1,17 @@
-# APKognito
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" src="./APKognito/Assets/Logos/light-wide.png">
+    <img width="50%" alt="Shows a black logo in light color mode and a white one in dark color mode" src="./APKognito/Assets/Logos/dark-wide.png">
+  </picture>
+</p>
+
+<p align="center">
 Rename Android APK files to prevent naming conflicts when debugging several apps on one device!
+</p>
 
 ![APKognito example](./.gitassets/APKognito%20Example.png)
+
 
 # Build
 
@@ -21,6 +30,7 @@ $ dotnet publish
 # Contributing
 
 ![Alt](https://repobeats.axiom.co/api/embed/845c6a1e7b56de71e80b4a2c5969f7206d1eec8c.svg "Repobeats analytics image")
+
 
 # License
 
