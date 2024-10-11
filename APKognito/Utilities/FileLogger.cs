@@ -1,7 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿using APKognito.Views.Pages;
+using Newtonsoft.Json;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
+using System.Windows.Documents;
 
 namespace APKognito.Utilities;
 
@@ -22,12 +25,10 @@ public static class FileLogger
 {
     private static readonly object lockObject = new object();
     private static readonly string sensitiveName = Environment.UserName;
-    private static string? logFilePath;
+    private static string logFilePath = Path.Combine(App.AppData!.FullName, "applog.log");
 
     public static bool LogGeneric(string text, LogLevel logLevel = LogLevel.INFO, bool ret = true)
     {
-        logFilePath ??= Path.Combine(App.AppData!.FullName, "applog.log");
-
         if (string.IsNullOrWhiteSpace(text) || text.Length <= 5)
         {
             return ret;
@@ -89,6 +90,42 @@ public static class FileLogger
     public static bool LogException(Exception exception, bool ret = false)
     {
         return LogGeneric(JsonConvert.SerializeObject(exception.InnerException ?? exception), LogLevel.TRACE, ret);
+    }
+
+    public static string CreateLogpack()
+    {
+        string packPath = Path.Combine(App.AppData!.FullName, "logpack");
+        _ = Directory.CreateDirectory(packPath);
+
+        File.Copy(logFilePath!, $"{packPath}\\applog.log", true);
+
+        string logBoxPath = Path.Combine(packPath, "logbox.txt");
+        var hmv = HomePage.Instance;
+
+        if (hmv is null)
+        {
+            File.WriteAllText(logBoxPath, "[Null]");
+        }
+        else
+        {
+            var lines = ((Paragraph)hmv.APKLogs.Document.Blocks.LastBlock).Inlines
+                .Select(line => line.ContentStart.GetTextInRun(LogicalDirection.Forward).Replace(sensitiveName, "[:USER:]"));
+
+            File.WriteAllText(logBoxPath, string.Join("\r\n", lines));
+        }
+
+        string outputPack = Path.Combine(App.AppData.FullName, "logpack.zip");
+
+        if (File.Exists(outputPack))
+        {
+            File.Delete(outputPack);
+        }
+
+        ZipFile.CreateFromDirectory(packPath, outputPack);
+
+        Directory.Delete(packPath, true);
+
+        return outputPack;
     }
 
     private static string GetCallerInfo()

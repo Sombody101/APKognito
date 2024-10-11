@@ -1,7 +1,11 @@
-﻿using System.IO;
+﻿using APKognito.Utilities;
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using MessageBox = Wpf.Ui.Controls.MessageBox;
+using MessageBoxResult = Wpf.Ui.Controls.MessageBoxResult;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -90,6 +94,12 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         ClearedSize = $"Deleted {directories.Length} temp folders. ({calculatedSize / 1024 / 1024} MB)";
     }
 
+    [RelayCommand]
+    private static void OnCreateLogpack()
+    {
+        _ = SettingsViewModel.CreateLogPack();
+    }
+
     private static long DirSize(DirectoryInfo d)
     {
         long size = 0;
@@ -106,5 +116,37 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
             size += DirSize(di);
         }
         return size;
+    }
+
+    public static string CreateLogPack()
+    {
+        try
+        {
+            string logpackPath = FileLogger.CreateLogpack();
+
+            var result = new MessageBox()
+            {
+                Title = "Logpack Created",
+                Content = $"A logpack has been created at:\n{logpackPath}",
+                PrimaryButtonText = "Open"
+            }.ShowDialogAsync().Result;
+
+            if (result == MessageBoxResult.Primary)
+            {
+                _ = Process.Start("explorer", Path.GetDirectoryName(logpackPath)!);
+            }
+
+            return logpackPath;
+        }
+        catch (Exception ex)
+        {
+            new MessageBox()
+            {
+                Title = "Logpack Failed",
+                Content = $"Failed to create logpack.\n\n{ex.Message}",
+            }.ShowDialogAsync();
+        }
+
+        return string.Empty;
     }
 }

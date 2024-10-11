@@ -1,10 +1,16 @@
 ﻿using APKognito.Utilities;
+using APKognito.ViewModels.Pages;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Documents;
 using Wpf.Ui.Controls;
+using MessageBox = Wpf.Ui.Controls.MessageBox;
+using MessageBoxResult = Wpf.Ui.Controls.MessageBoxResult;
 
 namespace APKognito.ViewModels.Windows;
+
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
 public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRTB
 {
@@ -37,23 +43,15 @@ public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRTB
     #region Commands
 
     [RelayCommand]
-    private void OnCopyExceptionDetails()
+    private static void OnCreateLogpack()
     {
-        try
-        {
-            Clipboard.Clear();
-            Clipboard.SetText(exceptionDetails);
-        }
-        catch (Exception e)
-        {
-            Debug.WriteLine(e);
-        }
+        _ = SettingsViewModel.CreateLogPack();
     }
 
     [RelayCommand]
     private void OnOpenGithubIssue()
     {
-        App.OpenHyperlink(this, new(new Uri("https://github.com/Sombody101/APKognito/issues"), string.Empty));
+        App.OpenHyperlink(this, new(new Uri("https://github.com/Sombody101/APKognito/issues/new/choose"), string.Empty));
     }
 
     [RelayCommand]
@@ -69,7 +67,7 @@ public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRTB
         ThrownException = exception;
         ExceptionTypeName = string.IsNullOrWhiteSpace(exceptionSource)
             ? exception.GetType().Name
-            : $"{exception.GetType().Name}, from {exceptionSource} ({exception.Source})";
+            : $"{exception.GetType().Name}, caught by {exceptionSource}, from {exception.Source ?? "[NULL]"}";
 
         IsFailure = (exception.HResult & 0x80000000) is not 0;
         Facility = (exception.HResult & 0x7FFF0000) >> 16;
@@ -77,7 +75,18 @@ public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRTB
 
         ExceptionStackTrace = exception.StackTrace ?? "[No stack trace]";
 
-        exceptionDetails = $"Failure: \t{IsFailure}\nFacility: \t0x{Facility:x0} ({Facility})\nCode: \t0x{ExceptionCode:x00} ({ExceptionCode})\n{exception.GetType().Name}: {exception.Message}\n{exception.StackTrace}";
+        try
+        {
+            FileLogger.LogFatal("Fatal exception details:");
+            FileLogger.LogFatal(exception);
+        }
+        catch (Exception ex)
+        {
+            exceptionDetails = $"[Failed to log exception to %APPDATA%\\applog.log]: File Log Exception Details:\n\tType:\t{ex.GetType().Name}\n\tReason:\t{ex.Message}\n\n";
+        }
+
+        exceptionDetails = $"{exceptionDetails}[Main Exception Details]\n\tFailure: \t{IsFailure}\n\tFacility: \t0x{Facility:x0} ({Facility})\n\tCode: \t0x{ExceptionCode:x00} ({ExceptionCode})\n" +
+            $"{exception.GetType().Name}: {exception.Message}\n{exception.StackTrace}";
         ((Paragraph)_exceptionBox.Document.Blocks.LastBlock).Inlines.Add(exceptionDetails);
         _exceptionBox.ScrollToEnd();
     }

@@ -43,18 +43,6 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
             viewModel.ApkName = Path.GetFileName(viewModel.FilePath);
             viewModel.UpdateCanStart();
         }
-
-        // Dump config logs
-        // if (KognitoSettings.PrePageErrorLogs is not null)
-        // {
-        //     List<string> logs = KognitoSettings.PrePageErrorLogs;
-        //     foreach (string log in logs)
-        //     {
-        //         viewModel.LogError(log);
-        //     }
-        //
-        //     logs.Clear();
-        // }
     }
 
     private void UpdateLogs(object sender, TextChangedEventArgs e)

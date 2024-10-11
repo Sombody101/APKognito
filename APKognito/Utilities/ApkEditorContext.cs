@@ -117,6 +117,10 @@ public class ApkEditorContext
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            return "Job canceled.";
+        }
         catch (Exception ex)
         {
             // All methods called in this try/catch will not handle their own exceptions.

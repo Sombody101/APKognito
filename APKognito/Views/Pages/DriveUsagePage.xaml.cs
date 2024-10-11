@@ -15,7 +15,7 @@ public partial class DriveUsagePage : INavigableView<DriveUsageViewModel>, IView
         InitializeComponent();
         DataContext = ViewModel = viewModel;
 
-        Application.Current.Dispatcher.Invoke((Action)async delegate
+        Task.Run(async () =>
         {
             await viewModel.StartSearch();
         });

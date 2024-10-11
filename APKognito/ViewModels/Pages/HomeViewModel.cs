@@ -20,38 +20,41 @@ using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+
 public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 {
-    private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
-    private const string defaultPropertyMessage = "No APK loaded";
-    private const string defaultJobMessage = "No jobs started";
+    private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36",
+            defaultPropertyMessage = "No APK loaded",
+            defaultJobMessage      = "No jobs started";
 
     public const char PathSeparator = '\n';
 
-    private static readonly HttpClient httpClient = new();
+    private readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
+
+    // Configs
     private readonly ConfigurationFactory configFactory;
     private readonly KognitoConfig config;
     private readonly CacheItems cache;
 
-    internal DirectoryInfo TempData;
 
     // Tool paths
-    public readonly string ApktoolJar;
-
-    public readonly string ApktoolBat;
-    public readonly string ApksignerJar;
+    internal DirectoryInfo TempData;
+    public readonly string
+            ApktoolJar,
+            ApktoolBat,
+            ApksignerJar;
 
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel? Instance { get; private set; }
+    private static HttpClient httpClient;
 
-    private readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
     private RichTextBox logBox;
     private CancellationTokenSource? _renameApksCancelationSource;
 
     /*
      * Properties
      */
-
     #region Properties
 
     [ObservableProperty]
@@ -157,7 +160,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         ApktoolBat = Path.Combine(appDataTools, "apktool.bat");
         ApksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
 
-        httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
+        // throw new DebugOnlyException();
     }
 
     #region Commands
@@ -167,18 +170,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     [RelayCommand]
     private async Task OnStartApkRename()
     {
-        if (_renameApksCancelationSource is not null && !__handlingRenameExitDebounce)
-        {
-            __handlingRenameExitDebounce = true;
-
-            // Cancel the job(s)
-            await _renameApksCancelationSource.CancelAsync();
-            InvertStartButtonVisibility();
-
-            __handlingRenameExitDebounce = false;
-            return;
-        }
-
         using CancellationTokenSource renameApksCancelationSource = new();
         _renameApksCancelationSource = renameApksCancelationSource;
         CancellationToken cancellationToken = _renameApksCancelationSource.Token;
@@ -191,8 +182,17 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     [RelayCommand]
     private async Task OnCancelApkRename()
     {
-        // This is fucking stupid. The "Cancel" button will not work otherwise. L WPF.
-        await OnStartApkRename();
+        if (_renameApksCancelationSource is null || __handlingRenameExitDebounce)
+        {
+            return;
+        }
+
+        __handlingRenameExitDebounce = true;
+
+        // Cancel the job(s)
+        await _renameApksCancelationSource.CancelAsync();
+
+        __handlingRenameExitDebounce = false;
     }
 
     [RelayCommand]
@@ -305,9 +305,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         CanStart = true;
     }
 
-    // This is NOT the correct way to do this, but I don't want to setup
-    // a convoluted converter for any of this
-
     public void WriteGenericLog(string text, [Optional] Brush color)
     {
         logBox.Dispatcher.Invoke(() =>
@@ -347,7 +344,10 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     public void ClearLogs()
     {
-        ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.Clear();
+        logBox.Dispatcher.Invoke(() =>
+        {
+            logBox.Document.Blocks.Clear();
+        });
     }
 
     public string[]? GetFilePaths()
@@ -639,6 +639,13 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     {
         string? jsonResult = null;
 
+        if (httpClient is null)
+        {
+            // Moving it down here prevents an allocation that might not be used
+            httpClient = new();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
+        }
+
         try
         {
             HttpResponseMessage response = await httpClient.GetAsync(url);
@@ -722,14 +729,13 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
             StartButtonVisibility = Visibility.Collapsed;
             CancelButtonVisibility = Visibility.Visible;
         }
-        else if (forceStartVisible is true)
+        else
         {
             StartButtonVisibility = Visibility.Visible;
             CancelButtonVisibility = Visibility.Collapsed;
         }
     }
 
-    /// <summary></summary>
     /// <param name="failedStatus"></param>
     /// <returns>
     ///     <list type="bullet|number|table">
@@ -782,17 +788,17 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         return ApkCompanyCheck().IsMatch(segment);
     }
 
-    [GeneratedRegex("[^a-zA-Z0-9]")]
-    private static partial Regex ApkNameFixerRegex();
-
-    [GeneratedRegex("^[a-zA-Z0-9_]+$")]
-    private static partial Regex ApkCompanyCheck();
-
     public void AntiMvvm_SetRichTextbox(RichTextBox rtb)
     {
         logBox = rtb;
         logBox.Document.FontFamily = firaRegular;
     }
+
+    [GeneratedRegex("[^a-zA-Z0-9]")]
+    private static partial Regex ApkNameFixerRegex();
+
+    [GeneratedRegex("^[a-zA-Z0-9_]+$")]
+    private static partial Regex ApkCompanyCheck();
 
     [DllImport("wininet.dll")]
     private static extern bool InternetGetConnectedState(out int Description, int ReservedValue);

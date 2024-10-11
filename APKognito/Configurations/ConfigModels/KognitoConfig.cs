@@ -33,16 +33,4 @@ public class KognitoConfig : IKognitoConfig
     /// </summary>
     [JsonProperty("copy_when_renaming")]
     public bool CopyFilesWhenRenaming { get; set; } = true;
-
-    // /// <summary>
-    // /// Holds old APK paths to load (at least so there's content to present).
-    // /// </summary>
-    // [JsonProperty("last_apk_input--TEMP")]
-    // public string? ApkSourcePath { get; set; }
-    //
-    // /// <summary>
-    // /// Specifies where to open the FileDialog to select an APK.
-    // /// </summary>
-    // [JsonProperty("dialog_directory--TEMP")]
-    // public string? LastDialogDirectory { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
 }
