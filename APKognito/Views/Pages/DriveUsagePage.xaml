@@ -168,12 +168,9 @@
                                 </StackPanel>
                             </Grid>
                         </ui:Card>
-
                     </DataTemplate>
                 </ListView.ItemTemplate>
-
             </ui:ListView>
         </ui:Card>
-
     </Grid>
 </Page>

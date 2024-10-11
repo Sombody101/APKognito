@@ -143,7 +143,7 @@ public class ApkEditorContext
         {
             if (!config.CopyFilesWhenRenaming)
             {
-                // No need to move the source, if it's already unpacked 
+                // No need to move the source, if it's already unpacked
                 File.Delete(FullSourceApkPath);
             }
 

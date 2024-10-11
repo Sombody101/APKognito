@@ -1,11 +1,8 @@
 ﻿using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
 using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
-using Microsoft.Win32;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Text;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -19,6 +16,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
 {
     [MemberNotNull]
     public static HomePage? Instance { get; private set; }
+
     public HomeViewModel ViewModel { get; }
     public KognitoConfig Config { get; init; }
 
@@ -54,7 +52,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         //     {
         //         viewModel.LogError(log);
         //     }
-        // 
+        //
         //     logs.Clear();
         // }
     }
@@ -80,11 +78,9 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
 
     private void Page_DragOver(object sender, DragEventArgs e)
     {
-
     }
 
     private void Page_Drop(object sender, DragEventArgs e)
     {
-
     }
 }

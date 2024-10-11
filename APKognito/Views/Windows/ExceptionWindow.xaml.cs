@@ -1,7 +1,6 @@
 ﻿using APKognito.ViewModels.Windows;
 using Microsoft.Extensions.Hosting;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.JavaScript;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -18,14 +17,13 @@ public partial class ExceptionWindow : FluentWindow
     {
         DataContext = this;
         ViewModel = exceptionViewModel;
-        
+
         InitializeComponent();
 
         exceptionViewModel.AntiMvvm_SetRichTextbox(ExceptionDetailsBox);
 
         SystemThemeWatcher.Watch(this);
         ApplicationAccentColorManager.ApplySystemAccent();
-
     }
 
     public static bool? CreateNewExceptionWindow(Exception exception, IHost host, [Optional] string exceptionSource)
@@ -33,7 +31,7 @@ public partial class ExceptionWindow : FluentWindow
         ExceptionWindowViewModel evm = (ExceptionWindowViewModel)host.Services.GetService(typeof(ExceptionWindowViewModel))!;
         ExceptionWindow exceptionWindow = new(evm);
         evm.SetException(exception.InnerException ?? exception, exceptionSource);
-        
+
         return exceptionWindow.ShowDialog();
     }
 }

@@ -2,7 +2,7 @@
 
 public class AppConfig
 {
-    public required string ConfigurationsFolder { get; set; }
+    public string ConfigurationsFolder { get; set; }
 
-    public required string AppPropertiesFileName { get; set; }
+    public string AppPropertiesFileName { get; set; }
 }

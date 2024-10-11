@@ -1,5 +1,4 @@
 ﻿using APKognito.ViewModels.Pages;
-using System.Windows.Threading;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Views.Pages;

@@ -1,5 +1,5 @@
 ﻿namespace APKognito;
 
-class RenameFailedException(string errorMessage) : Exception(errorMessage)
+internal class RenameFailedException(string errorMessage) : Exception(errorMessage)
 {
 }

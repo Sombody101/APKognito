@@ -19,6 +19,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private Visibility _isRunning =
 #if DEBUG
         Visibility.Visible;
+
 #else
         Visibility.Hidden;
 #endif
@@ -179,7 +180,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         await StartSearch();
     }
 
-    #endregion
+    #endregion Commands
 
     public async Task CollectDiskUsage(CancellationToken cancellation)
     {

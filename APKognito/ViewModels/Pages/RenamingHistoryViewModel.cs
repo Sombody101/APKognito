@@ -53,5 +53,5 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
         }
     }
 
-    #endregion
+    #endregion Commands
 }

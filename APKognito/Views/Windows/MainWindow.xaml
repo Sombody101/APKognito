@@ -63,10 +63,8 @@
                     <ui:SnackbarPresenter x:Name="SnackbarPresenter" />
                 </Grid>
             </ui:NavigationView.ContentOverlay>
-
         </ui:NavigationView>
 
         <ContentPresenter x:Name="RootContentDialog" Grid.Row="1" />
-
     </Grid>
 </ui:FluentWindow>

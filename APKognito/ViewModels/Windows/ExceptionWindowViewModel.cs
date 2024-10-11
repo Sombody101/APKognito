@@ -1,7 +1,6 @@
 ﻿using APKognito.Utilities;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Windows.Documents;
 using Wpf.Ui.Controls;
 

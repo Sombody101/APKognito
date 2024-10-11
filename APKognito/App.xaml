@@ -26,7 +26,6 @@
             <Style TargetType="Control">
                 <Setter Property="FontFamily" Value="Segoe UI Symbol" />
             </Style>
-
         </ResourceDictionary>
     </Application.Resources>
 </Application>

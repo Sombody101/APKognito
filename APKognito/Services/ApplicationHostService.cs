@@ -1,6 +1,4 @@
-﻿using APKognito.Views.Pages;
-using APKognito.Views.Windows;
-using Microsoft.Extensions.DependencyInjection;
+﻿using APKognito.Views.Windows;
 using Microsoft.Extensions.Hosting;
 using Wpf.Ui;
 

@@ -29,7 +29,8 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         }
     }
 
-    public void OnNavigatedFrom() { }
+    public void OnNavigatedFrom()
+    { }
 
     private void InitializeViewModel()
     {

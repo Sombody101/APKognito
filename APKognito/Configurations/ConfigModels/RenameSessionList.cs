@@ -12,7 +12,8 @@ public partial class RenameSessionList : IKognitoConfig
 
     public List<RenameSession> RenameSessions = [];
 
-    public RenameSessionList() { }
+    public RenameSessionList()
+    { }
 
     [MemoryPackConstructor]
     private RenameSessionList(List<RenameSession> renameSessions)

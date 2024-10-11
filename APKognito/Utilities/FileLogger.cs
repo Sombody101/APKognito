@@ -1,9 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Http.Headers;
 using System.Reflection;
-using System.Text;
 
 namespace APKognito.Utilities;
 
@@ -97,14 +95,14 @@ public static class FileLogger
     {
         System.Diagnostics.StackTrace stackTrace = new(true);
 
-       if (stackTrace.FrameCount >= 3)
+        if (stackTrace.FrameCount >= 3)
         {
             int frameDepth = 2;
 
-            Retry:
+        Retry:
             StackFrame frame = stackTrace.GetFrame(frameDepth)!;
             MethodBase? method = frame!.GetMethod();
-            
+
             // Prevents Log aliases from being selected as the caller
             if (method?.DeclaringType == typeof(FileLogger))
             {

@@ -37,6 +37,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     // Tool paths
     public readonly string ApktoolJar;
+
     public readonly string ApktoolBat;
     public readonly string ApksignerJar;
 
@@ -50,6 +51,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     /*
      * Properties
      */
+
     #region Properties
 
     [ObservableProperty]
@@ -793,5 +795,5 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     }
 
     [DllImport("wininet.dll")]
-    private extern static bool InternetGetConnectedState(out int Description, int ReservedValue);
+    private static extern bool InternetGetConnectedState(out int Description, int ReservedValue);
 }

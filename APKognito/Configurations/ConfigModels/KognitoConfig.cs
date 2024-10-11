@@ -39,7 +39,7 @@ public class KognitoConfig : IKognitoConfig
     // /// </summary>
     // [JsonProperty("last_apk_input--TEMP")]
     // public string? ApkSourcePath { get; set; }
-    // 
+    //
     // /// <summary>
     // /// Specifies where to open the FileDialog to select an APK.
     // /// </summary>

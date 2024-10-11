@@ -66,7 +66,6 @@ public partial class App
             {
                 _ = services.AddSingleton(type);
             }
-
         }).Build();
 
     /// <summary>
