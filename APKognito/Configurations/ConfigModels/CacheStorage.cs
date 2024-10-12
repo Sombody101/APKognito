@@ -4,7 +4,7 @@ namespace APKognito.Configurations.ConfigModels;
 
 [MemoryPackable]
 [ConfigFile("misc.cache", ConfigType.MemoryPacked)]
-internal partial class CacheItems : IKognitoConfig
+internal partial class CacheStorage : IKognitoConfig
 {
     /// <summary>
     /// Holds old APK paths to load (at least so there's content to present).
@@ -16,14 +16,20 @@ internal partial class CacheItems : IKognitoConfig
     /// </summary>
     public string? LastDialogDirectory { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
 
-    public CacheItems()
+    /// <summary>
+    /// The newest update location (Stored here as a poor attempt of preventing user tampering)
+    /// </summary>
+    public string? UpdateSourceLocation { get; set; }
+
+    public CacheStorage()
     {
     }
 
     [MemoryPackConstructor]
-    private CacheItems(string? apkSourcePath, string? lastDialogDirectory)
+    private CacheStorage(string? apkSourcePath, string? lastDialogDirectory, string? updateSourceLocation)
     {
         ApkSourcePath = apkSourcePath;
         LastDialogDirectory = lastDialogDirectory;
+        UpdateSourceLocation = updateSourceLocation;
     }
 }

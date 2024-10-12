@@ -35,11 +35,11 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         string[]? loadedFiles = viewModel.GetFilePaths();
         if (loadedFiles is null || loadedFiles.Length is 0)
         {
-            viewModel.WriteGenericLog("\n@ Welcome! Load an APK to get started! @\n");
+            HomeViewModel.WriteGenericLog("\n@ Welcome! Load an APK to get started! @\n");
         }
         else
         {
-            viewModel.WriteGenericLog($"@ Press 'Start' to rename your APK{(loadedFiles.Length is 1 ? string.Empty : 's')}! @\n");
+            HomeViewModel.WriteGenericLog($"@ Press 'Start' to rename your APK{(loadedFiles.Length is 1 ? string.Empty : 's')}! @\n");
             viewModel.ApkName = Path.GetFileName(viewModel.FilePath);
             viewModel.UpdateCanStart();
         }

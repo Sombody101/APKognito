@@ -1,15 +1,17 @@
-﻿namespace APKognito.Utilities;
+﻿using System.Diagnostics;
 
+namespace APKognito.Utilities;
+
+// Using a preprocessor statement encourages cleanup since all usages will be errors.
+#if DEBUG
 /// <summary>
 /// This exception is only to test how APKognito handles random exceptions. 
-/// It will prevent compilation on release builds.
+/// It will prevent compilation on release builds. 
 /// </summary>
-
-#if DEBUG
 public class DebugOnlyException : Exception 
 {
     public DebugOnlyException()
-        : base("This exception can only be used while debugging. This is a filler message.")
+        : base("This exception can only be used while debugging. If you see this message, you are using a debug build which will be more prone to bugs or errors.")
     {
     }
 }

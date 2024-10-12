@@ -5,8 +5,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using Wpf.Ui.Controls;
 
-using MessageBoxResult = Wpf.Ui.Controls.MessageBoxResult;
-
 namespace APKognito.ViewModels.Pages;
 
 public partial class DriveUsageViewModel : ObservableObject, IViewable

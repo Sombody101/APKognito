@@ -12,7 +12,7 @@
     Title="DashboardPage"
     d:DataContext="{d:DesignInstance pages:HomeViewModel,
                                      IsDesignTimeCreatable=True}"
-    d:DesignHeight="450"
+    d:DesignHeight="600"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -239,7 +239,7 @@
                             Margin="0,12"
                             HorizontalAlignment="Right"
                             Command="{Binding SaveSettingsCommand}"
-                            Content="Save Settings"
+                            Content="Save APK Settings"
                             ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
                     </Grid>
                 </Expander>
@@ -304,7 +304,7 @@
             <ui:RichTextBox
                 x:Name="APKLogs"
                 Grid.Row="0"
-                Height="300"
+                Height="500"
                 Margin="0,5"
                 FontFamily="{StaticResource FiraRegular}"
                 FontSize="12"

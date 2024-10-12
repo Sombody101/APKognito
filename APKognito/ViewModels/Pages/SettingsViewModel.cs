@@ -1,17 +1,22 @@
-﻿using APKognito.Utilities;
+﻿using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Utilities;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
-using MessageBox = Wpf.Ui.Controls.MessageBox;
-using MessageBoxResult = Wpf.Ui.Controls.MessageBoxResult;
 
 namespace APKognito.ViewModels.Pages;
 
 public partial class SettingsViewModel : ObservableObject, INavigationAware, IViewable
 {
+    private readonly ConfigurationFactory configFactory;
+    private readonly UpdateConfig updateConfig;
+
     private bool _isInitialized = false;
+
+    #region Properties
 
     [ObservableProperty]
     private string _appVersion = string.Empty;
@@ -25,28 +30,36 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     [ObservableProperty]
     private string _clearedSize = string.Empty;
 
-    public void OnNavigatedTo()
+    /* Update properties */
+
+    public bool AutomaticUpdatesEnabled
     {
-        if (!_isInitialized)
+        get => updateConfig.CheckForUpdates;
+        set
         {
-            InitializeViewModel();
+            OnPropertyChanging(nameof(AutomaticUpdatesEnabled));
+            updateConfig.CheckForUpdates = value;
+            OnPropertyChanged(nameof(AutomaticUpdatesEnabled));
         }
     }
 
-    public void OnNavigatedFrom()
-    { }
-
-    private void InitializeViewModel()
+    public int UpdateDelay
     {
-        CurrentTheme = ApplicationThemeManager.GetAppTheme();
+        get => updateConfig.CheckDelay;
+        set
+        {
+            OnPropertyChanging(nameof(UpdateDelay));
+            updateConfig.CheckDelay= value;
+            OnPropertyChanged(nameof(UpdateDelay));
+        }
+    }
 
-        AppDescription = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyDescriptionAttribute>()?.Description ?? "No description found.";
+    #endregion Properties
 
-        string appName = Assembly.GetExecutingAssembly().GetName().Name ?? string.Empty;
-        string appVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty;
-        AppVersion = $"{appName} - {appVersion}";
-
-        _isInitialized = true;
+    public SettingsViewModel(ConfigurationFactory factory)
+    {
+        configFactory = factory;
+        updateConfig = factory.GetConfig<UpdateConfig>();
     }
 
     [RelayCommand]
@@ -79,43 +92,46 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     }
 
     [RelayCommand]
-    private void ClearTempFiles()
-    {
-        string[] directories = Directory.GetDirectories(Path.GetTempPath(), "APKognito-*");
-
-        long calculatedSize = 0;
-
-        foreach (string directory in directories)
-        {
-            calculatedSize += DirSize(new DirectoryInfo(directory));
-            Directory.Delete(directory, true);
-        }
-
-        ClearedSize = $"Deleted {directories.Length} temp folders. ({calculatedSize / 1024 / 1024} MB)";
-    }
-
-    [RelayCommand]
     private static void OnCreateLogpack()
     {
         _ = SettingsViewModel.CreateLogPack();
     }
 
-    private static long DirSize(DirectoryInfo d)
+    [RelayCommand]
+    private void OnSaveUpdatesSettings()
     {
-        long size = 0;
-        // Add file sizes.
-        FileInfo[] fis = d.GetFiles();
-        foreach (FileInfo fi in fis)
+        configFactory.SaveConfig(updateConfig);
+    }
+
+    [RelayCommand]
+    private void OnOpenAppData()
+    {
+        App.OpenDirectory(App.AppData!.FullName);
+    }
+
+    public void OnNavigatedTo()
+    {
+        if (!_isInitialized)
         {
-            size += fi.Length;
+            InitializeViewModel();
         }
-        // Add subdirectory sizes.
-        DirectoryInfo[] dis = d.GetDirectories();
-        foreach (DirectoryInfo di in dis)
-        {
-            size += DirSize(di);
-        }
-        return size;
+    }
+
+    public void OnNavigatedFrom()
+    {
+    }
+
+    private void InitializeViewModel()
+    {
+        CurrentTheme = ApplicationThemeManager.GetAppTheme();
+
+        AppDescription = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyDescriptionAttribute>()?.Description ?? "No description found.";
+
+        string appName = Assembly.GetExecutingAssembly().GetName().Name ?? string.Empty;
+        string appVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty;
+        AppVersion = $"{appName} - {appVersion}";
+
+        _isInitialized = true;
     }
 
     public static string CreateLogPack()

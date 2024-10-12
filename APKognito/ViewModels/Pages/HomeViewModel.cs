@@ -4,11 +4,9 @@ using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
 using Microsoft.Win32;
-using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
-using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -24,18 +22,17 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 {
-    private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36",
-            defaultPropertyMessage = "No APK loaded",
-            defaultJobMessage      = "No jobs started";
+    private const string defaultPropertyMessage = "No APK loaded";
+    private const string defaultJobMessage = "No jobs started";
 
     public const char PathSeparator = '\n';
 
-    private readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
+    readonly static FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
 
     // Configs
     private readonly ConfigurationFactory configFactory;
     private readonly KognitoConfig config;
-    private readonly CacheItems cache;
+    private readonly CacheStorage cache;
 
 
     // Tool paths
@@ -47,9 +44,8 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel? Instance { get; private set; }
-    private static HttpClient httpClient;
 
-    private RichTextBox logBox;
+    private static RichTextBox logBox;
     private CancellationTokenSource? _renameApksCancelationSource;
 
     /*
@@ -151,12 +147,12 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
         configFactory = _configFactory;
         config = _configFactory.GetConfig<KognitoConfig>();
-        cache = _configFactory.GetConfig<CacheItems>();
+        cache = _configFactory.GetConfig<CacheStorage>();
 
         string appDataTools = Path.Combine(App.AppData!.FullName, "tools");
 
         _ = Directory.CreateDirectory(appDataTools);
-        ApktoolJar = Path.Combine(appDataTools, "apktoo.jar");
+        ApktoolJar = Path.Combine(appDataTools, "apktool.jar");
         ApktoolBat = Path.Combine(appDataTools, "apktool.bat");
         ApksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
 
@@ -303,51 +299,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         }
 
         CanStart = true;
-    }
-
-    public void WriteGenericLog(string text, [Optional] Brush color)
-    {
-        logBox.Dispatcher.Invoke(() =>
-        {
-            Run log = new(text)
-            {
-                FontFamily = firaRegular
-            };
-
-            if (color is not null)
-            {
-                log.Foreground = color;
-            }
-
-            ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.Add(log);
-            logBox.ScrollToEnd();
-        });
-    }
-
-    public void Log(string log)
-    {
-        FileLogger.Log(log);
-        WriteGenericLog($"[INFO]    ~ {log}\n");
-    }
-
-    public void LogWarning(string log)
-    {
-        FileLogger.LogWarning(log);
-        WriteGenericLog($"[WARNING] # {log}\n", Brushes.Yellow);
-    }
-
-    public void LogError(string log)
-    {
-        FileLogger.LogError(log);
-        WriteGenericLog($"[ERROR]   ! {log}\n", Brushes.Red);
-    }
-
-    public void ClearLogs()
-    {
-        logBox.Dispatcher.Invoke(() =>
-        {
-            logBox.Document.Blocks.Clear();
-        });
     }
 
     public string[]? GetFilePaths()
@@ -541,21 +492,21 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
             if (!File.Exists(ApktoolJar))
             {
                 Log("Installing Apktool.jar...");
-                if (!await FetchAndDownload("https://api.github.com/repos/iBotPeaches/apktool/releases", 0, ApktoolJar))
+                if (!await Installer.FetchAndDownload("https://api.github.com/repos/iBotPeaches/apktool/releases", ApktoolJar))
                     allSuccess = false;
             }
 
             if (!File.Exists(ApktoolBat))
             {
                 Log("Installing Apktool.bat...");
-                if (!await DownloadAsync("https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat", ApktoolBat))
+                if (!await Installer.DownloadAsync("https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat", ApktoolBat))
                     allSuccess = false;
             }
 
             if (!File.Exists(ApksignerJar))
             {
                 Log("Installing ApkSigner.jar");
-                if (!await FetchAndDownload("https://api.github.com/repos/patrickfav/uber-apk-signer/releases", 1, ApksignerJar))
+                if (!await Installer.FetchAndDownload("https://api.github.com/repos/patrickfav/uber-apk-signer/releases", ApksignerJar, 1))
                     allSuccess = false;
             }
 
@@ -635,93 +586,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         return false;
     }
 
-    private async Task<bool> FetchAndDownload(string url, int num, string name)
-    {
-        string? jsonResult = null;
-
-        if (httpClient is null)
-        {
-            // Moving it down here prevents an allocation that might not be used
-            httpClient = new();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
-        }
-
-        try
-        {
-            HttpResponseMessage response = await httpClient.GetAsync(url);
-
-            response.EnsureSuccessStatusCode();
-
-            jsonResult = await response.Content.ReadAsStringAsync();
-            JArray releasesInfo = JArray.Parse(jsonResult);
-
-            string? browser_url = releasesInfo[0]?["assets"]?[num]?["browser_download_url"]?.ToString();
-
-            if (!string.IsNullOrWhiteSpace(browser_url))
-            {
-                return await DownloadAsync(browser_url, name);
-            }
-            else
-            {
-                LogError($"Invalid JSON response, or missing 'browser_download_url'. Given URL: {browser_url ?? "[NULL]"}");
-                return false;
-            }
-        }
-        catch (HttpRequestException ex)
-        {
-            LogError($"Failed to fetch tool: {ex.Message}");
-            FileLogger.LogException(ex);
-        }
-        catch (Exception ex)
-        {
-            LogError($"An error occurred: {ex.Message}");
-            FileLogger.LogException(ex);
-        }
-
-        string jsonData = "[NULL]";
-
-        if (jsonResult is not null)
-        {
-            int snipLength = jsonResult.Length <= 1500
-                ? jsonResult.Length
-                : 1500;
-
-            jsonData = jsonResult[0..snipLength].Replace("\n", string.Empty);
-        }
-
-        FileLogger.LogError($"Fetched JSON snippet: {jsonData}");
-        return false;
-    }
-
-    private async Task<bool> DownloadAsync(string url, string name)
-    {
-        try
-        {
-            string fileName = Path.GetFileName(name);
-            Log($"Fetching {fileName}");
-            using HttpResponseMessage response = await httpClient.GetAsync(url);
-            _ = response.EnsureSuccessStatusCode();
-
-            using FileStream fileStream = File.Create(name);
-            Log($"Installing {fileName}");
-            await response.Content.CopyToAsync(fileStream);
-
-            return true;
-        }
-        catch (HttpRequestException ex)
-        {
-            LogError($"Unable to download a tool: {ex.Message}");
-            FileLogger.LogException(ex);
-        }
-        catch (Exception ex)
-        {
-            LogError($"An error occurred: {ex.Message}");
-            FileLogger.LogException(ex);
-        }
-
-        return false;
-    }
-
     private void InvertStartButtonVisibility([Optional] bool? forceStartVisible)
     {
         if (StartButtonVisibility is Visibility.Visible || forceStartVisible is false)
@@ -734,6 +598,58 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
             StartButtonVisibility = Visibility.Visible;
             CancelButtonVisibility = Visibility.Collapsed;
         }
+    }
+
+    private static readonly List<Run> _runLogBuffer = [];
+    public static void WriteGenericLog(string text, [Optional] Brush color)
+    {
+        logBox.Dispatcher.Invoke(() =>
+        {
+            Run log = new(text)
+            {
+                FontFamily = firaRegular
+            };
+
+            if (color is not null)
+            {
+                log.Foreground = color;
+            }
+
+            if (logBox is null)
+            {
+                _runLogBuffer.Add(log);
+                return;
+            }
+
+            ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.Add(log);
+            logBox.ScrollToEnd();
+        });
+    }
+
+    public static void Log(string log)
+    {
+        FileLogger.Log(log);
+        WriteGenericLog($"[INFO]    ~ {log}\n");
+    }
+
+    public static void LogWarning(string log)
+    {
+        FileLogger.LogWarning(log);
+        WriteGenericLog($"[WARNING] # {log}\n", Brushes.Yellow);
+    }
+
+    public static void LogError(string log)
+    {
+        FileLogger.LogError(log);
+        WriteGenericLog($"[ERROR]   ! {log}\n", Brushes.Red);
+    }
+
+    public static void ClearLogs()
+    {
+        logBox.Dispatcher.Invoke(() =>
+        {
+            logBox.Document.Blocks.Clear();
+        });
     }
 
     /// <param name="failedStatus"></param>
@@ -792,6 +708,13 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     {
         logBox = rtb;
         logBox.Document.FontFamily = firaRegular;
+
+        // Dump all logs
+        foreach (var run in _runLogBuffer)
+        {
+            ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.AddRange(_runLogBuffer);
+            _runLogBuffer.Clear();
+        }
     }
 
     [GeneratedRegex("[^a-zA-Z0-9]")]

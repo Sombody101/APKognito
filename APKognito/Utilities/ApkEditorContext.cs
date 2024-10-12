@@ -44,7 +44,8 @@ public class ApkEditorContext
         // Temporary directories
 
         ApkTempDirectory = Path.Combine(viewModel.TempData.FullName, $"{FullSourceApkFileName[..^4]}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
-        TempStreamDirectory = Path.Combine(ApkTempDirectory, "$streamdata");
+        _ = Directory.CreateDirectory(ApkTempDirectory);
+        TempStreamDirectory = Path.Combine(viewModel.TempData.FullName, "$streamdata");
         _ = Directory.CreateDirectory(TempStreamDirectory);
     }
 
@@ -60,14 +61,14 @@ public class ApkEditorContext
         {
             viewModel.FinalName = "Unpacking...";
 
-            viewModel.WriteGenericLog("------------------\n");
+            HomeViewModel.WriteGenericLog("------------------\n");
 
             // Unpack
-            viewModel.Log($"Unpacking {FullSourceApkFileName}");
+            HomeViewModel.Log($"Unpacking {FullSourceApkFileName}");
             await UnpackApk(ApkTempDirectory, cancellationToken);
 
             // Replace package name
-            viewModel.Log("Getting package name...");
+            HomeViewModel.Log("Getting package name...");
             string androidManifest = Path.Combine(ApkTempDirectory, "AndroidManifest.xml");
             string packageName = GetApkPackageName(androidManifest);
 
@@ -76,7 +77,7 @@ public class ApkEditorContext
 
             string finalOutputDirectory = Path.Combine(OutputDirectory, $"{newPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
 
-            viewModel.Log($"Changing '{packageName}'  →  '{newPackageName}'");
+            HomeViewModel.Log($"Changing '{packageName}'  →  '{newPackageName}'");
             await Task.WhenAll(
                 ReplaceTextInFileAsync(androidManifest, oldCompanyName, ReplacementCompanyName, cancellationToken),
                 ReplaceTextInFileAsync(Path.Combine(ApkTempDirectory, "apktool.yml"), oldCompanyName, ReplacementCompanyName, cancellationToken)
@@ -87,17 +88,17 @@ public class ApkEditorContext
             await ReplaceAllNameInstancesAsync(oldCompanyName, ReplacementCompanyName, cancellationToken);
 
             // Repack
-            viewModel.Log("Packing APK...");
+            HomeViewModel.Log("Packing APK...");
             string unsignedApk = await PackApk(newPackageName, cancellationToken);
 
             // Sign
-            viewModel.Log("Singing APK...");
+            HomeViewModel.Log("Singing APK...");
             await SignApkTool(unsignedApk, finalOutputDirectory, cancellationToken);
 
             // Copy to output and cleanup
-            viewModel.Log($"Finished APK {newPackageName}.");
+            HomeViewModel.Log($"Finished APK {newPackageName}.");
 
-            viewModel.Log("Cleaning up...");
+            HomeViewModel.Log("Cleaning up...");
             Directory.Delete(ApkTempDirectory, true);
 
             if (!config.CopyFilesWhenRenaming)
@@ -113,7 +114,7 @@ public class ApkEditorContext
                 }
                 catch (Exception ex)
                 {
-                    viewModel.LogWarning($"Failed to clear source APK (CopyWhenRenaming=Enabled): {ex.Message}");
+                    HomeViewModel.LogWarning($"Failed to clear source APK (CopyWhenRenaming=Enabled): {ex.Message}");
                 }
             }
         }
@@ -155,7 +156,7 @@ public class ApkEditorContext
         }
 
         string error = await process.StandardError.ReadToEndAsync(cToken);
-        viewModel.LogError($"Failed to unpack {FullSourceApkFileName}. Error: {error}");
+        HomeViewModel.LogError($"Failed to unpack {FullSourceApkFileName}. Error: {error}");
         throw new RenameFailedException(error);
     }
 
@@ -219,7 +220,7 @@ public class ApkEditorContext
 
         if (sourceDirectory is null)
         {
-            viewModel.LogError("Failed to get APK source directory. No OBB files will be renamed even if they're present.");
+            HomeViewModel.LogError("Failed to get APK source directory. No OBB files will be renamed even if they're present.");
             return;
         }
 
@@ -252,7 +253,7 @@ public class ApkEditorContext
 
                 if (fileNameWithoutExtension.Contains(sourcePackageName))
                 {
-                    viewModel.Log($"Renaming app file {Path.GetFileName(filePath)}");
+                    HomeViewModel.Log($"Renaming app file {Path.GetFileName(filePath)}");
 
                     string newFileName = fileNameWithoutExtension.Replace(originalCompanyName, newApkCompany);
                     string newFilePath = Path.Combine(finalPath, $"{newFileName}{Path.GetExtension(filePath)}");
@@ -267,8 +268,7 @@ public class ApkEditorContext
 
     private async Task ReplaceTextInFileAsync(string filePath, string searchText, string replaceText, CancellationToken cToken)
     {
-        string tempFile = $"${Path.GetFileName(filePath)}-{Random.Shared.Next():x00}.tmp.strm";
-        _ = Path.Combine(TempStreamDirectory, tempFile);
+        string tempFile = Path.Combine(TempStreamDirectory, $"${Path.GetFileName(filePath)}-{Random.Shared.Next():x00}.tmp.strm");
 
         using (StreamReader input = File.OpenText(filePath))
         using (StreamWriter output = new(tempFile))

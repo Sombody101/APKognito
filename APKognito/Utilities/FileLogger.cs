@@ -92,6 +92,11 @@ public static class FileLogger
         return LogGeneric(JsonConvert.SerializeObject(exception.InnerException ?? exception), LogLevel.TRACE, ret);
     }
 
+    public static bool LogException(string log, Exception exception, bool ret = false)
+    {
+        return LogGeneric($"{log}: {JsonConvert.SerializeObject(exception.InnerException ?? exception)}", LogLevel.TRACE, ret);
+    }
+
     public static string CreateLogpack()
     {
         string packPath = Path.Combine(App.AppData!.FullName, "logpack");

@@ -7,7 +7,7 @@ namespace APKognito.Configurations;
 
 public class ConfigurationFactory
 {
-    private readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
+    private static readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
 
     /// <summary>
     /// Loads the given config type from file. If the file doesn't exist, a default config is returned and no file is created, edited, or destroyed.
@@ -39,7 +39,7 @@ public class ConfigurationFactory
     }
 
     /// <summary>
-    /// Saves the given configuration to a file, and adds it to the config cache if it wasn't there already.
+    /// Saves the given configuration to it's respective file.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="config"></param>
@@ -61,8 +61,6 @@ public class ConfigurationFactory
                 Save_MemoryPack(config, fileName);
                 break;
         }
-
-        // _cachedConfigs[typeof(T)] = config;
     }
 
     /// <summary>
@@ -134,8 +132,8 @@ public class ConfigurationFactory
         {
             NullValueHandling = NullValueHandling.Ignore,
             MissingMemberHandling = modifier.HasFlag(ConfigModifier.JsonIgnoreMissing)
-                ? MissingMemberHandling.Error
-                : MissingMemberHandling.Ignore,
+                ? MissingMemberHandling.Ignore
+                : MissingMemberHandling.Error,
         };
 
         return serializer.Deserialize<T>(jsonReader)!;
@@ -150,7 +148,7 @@ public class ConfigurationFactory
             NullValueHandling = NullValueHandling.Ignore,
             Formatting = modifier.HasFlag(ConfigModifier.JsonIndented)
                 ? Formatting.Indented
-                : Formatting.None
+                : Formatting.None,
         };
 
         serializer.Serialize(jsonWriter, config);
