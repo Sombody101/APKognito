@@ -45,3 +45,5 @@ $ dotnet publish
 
 > [!CAUTION]
 This application is meant for Android package debugging environments and workflows only. I am not responsible for the way `APKognito` is used or where it is used.
+
+Expect all updates under the `[Beta]` tag to have bugs.
