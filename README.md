@@ -1,16 +1,19 @@
-
+<!-- Light/dark mode -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: light)" src="./APKognito/Assets/Logos/light-wide.png">
-    <img width="50%" alt="Shows a black logo in light color mode and a white one in dark color mode" src="./APKognito/Assets/Logos/dark-wide.png">
-  </picture>
+  <img align="center" width="50%" src="./APKognito/Assets/Logos/dark-wide.png#gh-dark-mode-only">
+  <img align="center" width="50%" src="./APKognito/Assets/Logos/light-wide.png#gh-light-mode-only">
 </p>
 
 <p align="center">
-Rename Android APK files to prevent naming conflicts when debugging several apps on one device!
+  Rename Android APK files to prevent naming conflicts when debugging several apps on one device!
 </p>
 
 ![APKognito example](./gitassets/APKognito%20Example.png)
+
+
+> [!IMPORTANT]
+Version numbering is going to change after `v1.5`. So, starting with `v1.6`, versions will look like this: `v1.6.9051.33421`.
+Debug builds will be constant at `d1.0.0.0` (using a `d` prefix to prevent debug releases from updating on user machines using a publish).
 
 
 # Build
@@ -39,5 +42,6 @@ $ dotnet publish
 
 
 # Notice
+
 > [!CAUTION]
 This application is meant for Android package debugging environments and workflows only. I am not responsible for the way `APKognito` is used or where it is used.
