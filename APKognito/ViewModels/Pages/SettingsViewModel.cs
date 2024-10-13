@@ -49,7 +49,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         set
         {
             OnPropertyChanging(nameof(UpdateDelay));
-            updateConfig.CheckDelay= value;
+            updateConfig.CheckDelay = value;
             OnPropertyChanged(nameof(UpdateDelay));
         }
     }

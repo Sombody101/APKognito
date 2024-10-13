@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Windows.Documents;
 
 namespace APKognito.Utilities;
@@ -152,10 +153,23 @@ public static class FileLogger
                 goto Retry;
             }
 
-            string className = method?.DeclaringType?.Name ?? "[Unknown]";
-            string methodName = method?.Name ?? "[Unknown]";
-            string callerInfo = $"{className}.{methodName}";
-            return callerInfo;
+            string className;
+            string methodName;
+
+            if (typeof(IAsyncStateMachine).IsAssignableFrom(method?.DeclaringType))
+            {
+                // Fix async methods (RealClassName.<AwaitedMethodName>d__10.MoveNext -> RealClassName.AwaitedMethodName)
+                className = method.DeclaringType.DeclaringType?.Name ?? "[Unknown]";
+                methodName = method.DeclaringType.Name.TrimStart('<');
+                methodName = methodName[0..(methodName.IndexOf('>'))];
+            }
+            else
+            {
+                className = method?.DeclaringType?.Name ?? "[Unknown]";
+                methodName = method?.Name ?? "[Unknown]";
+            }
+
+            return $"{className}.{methodName}";
         }
 
         return string.Empty;

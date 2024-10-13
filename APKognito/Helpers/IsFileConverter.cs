@@ -6,7 +6,7 @@ namespace APKognito.Helpers;
 
 internal class IsFileConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is FootprintType fType)
         {

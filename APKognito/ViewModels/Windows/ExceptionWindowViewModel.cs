@@ -1,7 +1,5 @@
 ﻿using APKognito.Utilities;
 using APKognito.ViewModels.Pages;
-using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Documents;
 using Wpf.Ui.Controls;

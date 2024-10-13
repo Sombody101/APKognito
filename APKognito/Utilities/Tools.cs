@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace APKognito.Utilities;
+﻿namespace APKognito.Utilities;
 
 internal static class Tools
 {
-    public static string ?Truncate(this string? str, int maxLength)
+    public static string? Truncate(this string? str, int maxLength)
     {
         if (str is not null)
         {

@@ -1,5 +1,4 @@
 ﻿using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
 using APKognito.Services;
 using APKognito.Utilities;
 using APKognito.ViewModels.Pages;
@@ -12,6 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using Wpf.Ui;
 
@@ -96,7 +96,7 @@ public partial class App
             _ = services.AddHostedService<AutoUpdaterService>();
 
             // Load all pages (any class that implements IViewable)
-            IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
+            var types = typeof(App).Assembly.GetTypes()
                 .Where(t => t != typeof(IViewable) && typeof(IViewable).IsAssignableFrom(t));
 
             foreach (Type? type in types)
@@ -149,12 +149,13 @@ public partial class App
     private async void OnExit(object sender, ExitEventArgs e)
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
-        HomeViewModel.Log("Saving settings...");
+        HomeViewModel.Log("Saving all settings...");
         _host.Services.GetService<ConfigurationFactory>()?.SaveAllConfigs();
 
         await _host.StopAsync();
 
         _host.Dispose();
+        FileLogger.Log("App exit.");
     }
 
     /// <summary>
@@ -206,5 +207,18 @@ public partial class App
         {
             FileLogger.LogException(ex);
         }
+    }
+
+    /// <summary>
+    /// Application Entry Point.
+    /// </summary>
+    [System.STAThreadAttribute()]
+    [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "8.0.8.0")]
+    public static void Main(string[] args)
+    {
+        APKognito.App app = new APKognito.App();
+        app.InitializeComponent();
+        app.Run();
     }
 }

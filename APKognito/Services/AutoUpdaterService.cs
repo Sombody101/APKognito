@@ -7,6 +7,8 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace APKognito.Services;
 
@@ -41,7 +43,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
             try
             {
-                //Directory.Delete(AutoUpdaterService.UpdatesFolder, true);
+                Directory.Delete(AutoUpdaterService.UpdatesFolder, true);
             }
             catch (Exception ex)
             {
@@ -73,7 +75,6 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         if (inUpdate)
         {
             // Controlled by ImplementUpdate.
-            // If true, a request for a previous update that was ignored is active.
             return;
         }
 
@@ -91,7 +92,12 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         // Only accept debug releases for debug builds, public releases for release builds
         if (!jsonData[0]!.StartsWith(App.IsDebugRelease ? 'd' : 'v'))
         {
-            FileLogger.Log($"Most recent release isn't public: {jsonData[0]}");
+#if DEBUG
+            FileLogger.Log($"Most recent release isn't a debug build: {jsonData[0]}");
+#else
+            FileLogger.Log($"Most recent release isn't a public build: {jsonData[0]}");
+#endif
+
             goto LogUpdate;
         }
 
@@ -198,18 +204,15 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         ZipFile.ExtractToDirectory(updateFilePath, UpdatesFolder, true);
         string unpackedPath = Path.Combine(UpdatesFolder, Path.GetFileNameWithoutExtension(updateFilePath));
 
-        const string script = "-c \"Start-Sleep -Seconds 2; Copy-Item -Verbose -Recurse -Path '{0}\\*' -Destination '{1}'; Start-Process -FilePath '{1}\\APKognito.exe' -Args '{2}'\"";
+        const string script = "-c \"Start-Sleep -Seconds 2; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; Start-Process -FilePath '{1}\\APKognito.exe' -Args '{2}'\"";
 
         string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, App.UpdateInstalledArgument);
 
         _ = Process.Start(new ProcessStartInfo()
         {
             Arguments = command,
-            WindowStyle = ProcessWindowStyle.Maximized,
-            CreateNoWindow = false,
+            CreateNoWindow = true,
             FileName = "powershell.exe",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
         });
 
         Environment.Exit(0);
