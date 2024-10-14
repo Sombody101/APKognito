@@ -11,7 +11,7 @@
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="SettingsPage"
     d:DataContext="{d:DesignInstance local:SettingsPage,
-                                     IsDesignTimeCreatable=True}"
+                                     IsDesignTimeCreatable=False}"
     d:DesignHeight="450"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
@@ -72,9 +72,15 @@
         <ui:CardExpander Margin="0,25,0,0" Header="Debugging">
             <StackPanel>
 
-                <ui:Button Margin="0,10" Command="{Binding ViewModel.CreateLogpackCommand}" Content="Create Logpack" />
+                <ui:Button
+                    Margin="0,10"
+                    Command="{Binding ViewModel.CreateLogpackCommand}"
+                    Content="Create Logpack" />
 
-                <ui:Button Margin="0,10" Command="{Binding ViewModel.OpenAppDataCommand}" Content="Open AppData" />
+                <ui:Button
+                    Margin="0,10"
+                    Command="{Binding ViewModel.OpenAppDataCommand}"
+                    Content="Open AppData" />
 
             </StackPanel>
         </ui:CardExpander>
@@ -86,10 +92,6 @@
             Text="About APKognito" />
 
         <TextBlock Margin="0,12,0,0" Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
-        <TextBlock
-            Margin="0,12,0,0"
-            Text="{Binding ViewModel.AppDescription}"
-            TextWrapping="WrapWithOverflow" />
 
         <TextBlock
             Margin="0,24,0,0"

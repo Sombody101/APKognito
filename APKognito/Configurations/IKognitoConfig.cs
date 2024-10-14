@@ -1,4 +1,6 @@
-﻿namespace APKognito.Configurations;
+﻿using System.IO;
+
+namespace APKognito.Configurations;
 
 /// <summary>
 /// The name of the file for a config. (e.g. <see langword="specific-config.json"/>).
@@ -13,6 +15,8 @@ public class ConfigFileAttribute : Attribute
 
     public ConfigModifier ConfigModifier { get; }
 
+    public bool LoadedFromCurrentDirectory { get; private set; }
+
     public ConfigFileAttribute(
         string fileName,
         ConfigType configType = ConfigType.Json,
@@ -21,6 +25,18 @@ public class ConfigFileAttribute : Attribute
         FileName = fileName;
         ConfigType = configType;
         ConfigModifier = configModifier;
+    }
+
+    public string CompletePath()
+    {
+        string configs = Path.Combine(App.AppData!.FullName, "config");
+        _ = Directory.CreateDirectory(configs);
+        return Path.Combine(configs, FileName);
+    }
+
+    public void LoadedFromCurrent()
+    {
+        LoadedFromCurrentDirectory = true;
     }
 }
 

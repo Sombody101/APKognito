@@ -59,9 +59,9 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
     #endregion Properties
 
-    public DriveUsageViewModel(ConfigurationFactory configFactory)
+    public DriveUsageViewModel()
     {
-        config = configFactory.GetConfig<KognitoConfig>();
+        config = ConfigurationFactory.GetConfig<KognitoConfig>();
     }
 
     #region Commands

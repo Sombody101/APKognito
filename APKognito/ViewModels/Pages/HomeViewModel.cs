@@ -30,7 +30,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     readonly static FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
 
     // Configs
-    private readonly ConfigurationFactory configFactory;
     private readonly KognitoConfig config;
     private readonly CacheStorage cache;
 
@@ -141,13 +140,12 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
     #endregion Properties
 
-    public HomeViewModel(ConfigurationFactory _configFactory)
+    public HomeViewModel()
     {
         Instance = this;
 
-        configFactory = _configFactory;
-        config = _configFactory.GetConfig<KognitoConfig>();
-        cache = _configFactory.GetConfig<CacheStorage>();
+        config = ConfigurationFactory.GetConfig<KognitoConfig>();
+        cache = ConfigurationFactory.GetConfig<CacheStorage>();
 
         string appDataTools = Path.Combine(App.AppData!.FullName, "tools");
 
@@ -282,7 +280,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
     [RelayCommand]
     private void OnSaveSettings()
     {
-        configFactory.SaveConfig(config);
+        ConfigurationFactory.SaveConfig(config);
         Log("Settings saved!");
     }
 
@@ -381,7 +379,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
             JobbedApk = Path.GetFileName(sourceApkPath);
 
-            ApkEditorContext editorContext = new(this, configFactory, javaPath, sourceApkPath);
+            ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
 
             string? errorReason = null;
 
@@ -430,9 +428,9 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
 
         // Finalize session and write it to the history file
         RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
-        RenameSessionList renameHistory = configFactory.GetConfig<RenameSessionList>();
+        RenameSessionList renameHistory = ConfigurationFactory.GetConfig<RenameSessionList>();
         renameHistory.RenameSessions.Add(currentSession);
-        configFactory.SaveConfig(renameHistory);
+        ConfigurationFactory.SaveConfig(renameHistory);
 
         elapsedTime.Stop();
         taskTimer.Stop();

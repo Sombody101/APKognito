@@ -12,6 +12,8 @@ public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRTB
 {
     private RichTextBox _exceptionBox;
 
+    private string exceptionDetails;
+
     #region Properties
 
     [ObservableProperty]
@@ -33,8 +35,6 @@ public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRTB
     private int _exceptionCode;
 
     #endregion Properties
-
-    private string exceptionDetails;
 
     #region Commands
 

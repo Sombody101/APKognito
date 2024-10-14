@@ -15,4 +15,9 @@ internal static class Tools
 
         return null;
     }
+
+    public static string Redact(this string? data)
+    {
+        return data?.Replace(Environment.UserName, FileLogger.ReplacmentUsername) ?? string.Empty;
+    }
 }

@@ -16,23 +16,36 @@ internal static class MainOverride
     [STAThread]
     public static int Main(string[] args)
     {
-        // Check basic input argument first (mostly used for auto publish script)
-        if (args.Any(arg => arg is "--version" or "-v"))
+        if (args.Length > 0)
         {
             if (!AttachConsole(-1))
             {
                 // No console handle from the parent
-                return 5012;
+                return (int)ExitCode.ParentConsoleHandleNotFound;
             }
 
-            Console.WriteLine(Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString() ?? "[Null]");
-            return 0;
+            // Check basic input argument first (mostly used for auto publish script)
+            if (args.Any(arg => arg is "--version" or "-v"))
+            {
+                Console.WriteLine(Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString() ?? "[Null]");
+                return (int)ExitCode.NoError;
+            }
+
+            if (args[0] == "--getcode" && args.Length > 1)
+            {
+                if (!int.TryParse(args[1], out int i32))
+                {
+                    return (int)ExitCode.InvalidInputArgument;
+                }
+
+                Console.WriteLine($"{(ExitCode)i32}");
+            }
+
+            return (int)ExitCode.NoError;
         }
 
-        APKognito.App app = new APKognito.App();
+        APKognito.App app = new();
         app.InitializeComponent();
-        app.Run();
-
-        return 0;
+        return app.Run();
     }
 }

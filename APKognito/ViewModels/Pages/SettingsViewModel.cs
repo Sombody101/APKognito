@@ -11,7 +11,6 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class SettingsViewModel : ObservableObject, INavigationAware, IViewable
 {
-    private readonly ConfigurationFactory configFactory;
     private readonly UpdateConfig updateConfig;
 
     private bool _isInitialized = false;
@@ -20,9 +19,6 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
 
     [ObservableProperty]
     private string _appVersion = string.Empty;
-
-    [ObservableProperty]
-    private string _appDescription = string.Empty;
 
     [ObservableProperty]
     private ApplicationTheme _currentTheme = ApplicationTheme.Unknown;
@@ -56,10 +52,9 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
 
     #endregion Properties
 
-    public SettingsViewModel(ConfigurationFactory factory)
+    public SettingsViewModel()
     {
-        configFactory = factory;
-        updateConfig = factory.GetConfig<UpdateConfig>();
+        updateConfig = ConfigurationFactory.GetConfig<UpdateConfig>();
     }
 
     [RelayCommand]
@@ -100,7 +95,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     [RelayCommand]
     private void OnSaveUpdatesSettings()
     {
-        configFactory.SaveConfig(updateConfig);
+        ConfigurationFactory.SaveConfig(updateConfig);
     }
 
     [RelayCommand]
@@ -121,14 +116,15 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     {
     }
 
-    private void InitializeViewModel()
+    private void InitializeViewModel() 
     {
         CurrentTheme = ApplicationThemeManager.GetAppTheme();
 
-        AppDescription = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyDescriptionAttribute>()?.Description ?? "No description found.";
+        Assembly assembly = Assembly.GetExecutingAssembly();
+        AssemblyName assemblyName = assembly.GetName();
 
-        string appName = Assembly.GetExecutingAssembly().GetName().Name ?? string.Empty;
-        string appVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty;
+        string appName = assemblyName.Name ?? "[Unknown]";
+        string appVersion = $"{assemblyName.Version?.ToString() ?? "[Unknown]"} - {assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "[Unknown]"}";
         AppVersion = $"{appName} - {appVersion}";
 
         _isInitialized = true;

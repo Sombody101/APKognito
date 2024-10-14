@@ -11,7 +11,7 @@
 }
 
 # Safe Change Directory
-function scd() {
+scd() {
     pushd "$*" || {
         echo "Failed to cd into '$*'"
         exit
@@ -19,7 +19,7 @@ function scd() {
 }
 
 # Safe Change Back
-function scb() {
+scb() {
     popd || {
         echo "Failed to cd back into '$OLDPWD'"
         dirs -c

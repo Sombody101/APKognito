@@ -30,6 +30,11 @@ public partial class App
 
     public static DirectoryInfo? AppData { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
 
+    public static string GetVersion()
+    {
+        return $"{(IsDebugRelease ? 'd' : 'v')}{Assembly.GetExecutingAssembly().GetName().Version}";
+    }
+
     public static bool IsDebugRelease =>
 #if DEBUG
             true;
@@ -90,7 +95,7 @@ public partial class App
             _ = services.AddSingleton<ExceptionWindowViewModel>();
 
             // Configuration factory
-            _ = services.AddSingleton<ConfigurationFactory>();
+            // _ = services.AddSingleton<ConfigurationFactory>();
 
             // Auto update service
             _ = services.AddHostedService<AutoUpdaterService>();
@@ -150,7 +155,7 @@ public partial class App
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
         HomeViewModel.Log("Saving all settings...");
-        _host.Services.GetService<ConfigurationFactory>()?.SaveAllConfigs();
+        ConfigurationFactory.SaveAllConfigs();
 
         await _host.StopAsync();
 

@@ -27,12 +27,11 @@ public class ApkEditorContext
 
     public ApkEditorContext(
         HomeViewModel homeViewModel,
-        ConfigurationFactory configFactory,
         string javaPath,
         string sourceApkPath
         )
     {
-        config = configFactory.GetConfig<KognitoConfig>();
+        config = ConfigurationFactory.GetConfig<KognitoConfig>();
         viewModel = homeViewModel;
 
         JavaPath = javaPath;

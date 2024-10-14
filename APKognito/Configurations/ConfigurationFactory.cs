@@ -5,7 +5,7 @@ using System.IO;
 
 namespace APKognito.Configurations;
 
-public class ConfigurationFactory
+public static class ConfigurationFactory
 {
     private static readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
 
@@ -14,12 +14,13 @@ public class ConfigurationFactory
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public T GetConfig<T>() where T : IKognitoConfig, new()
+    public static T GetConfig<T>() where T : IKognitoConfig, new()
     {
         Type configType = typeof(T);
 
         if (_cachedConfigs.ContainsKey(configType))
         {
+            FileLogger.Log($"Fetch cached {configType.Name}");
             return (T)_cachedConfigs[configType];
         }
 
@@ -32,10 +33,20 @@ public class ConfigurationFactory
             throw exception;
         }
 
-        FileLogger.Log($"Loading config file '{configAttribute.FileName}' for {configType.Name}");
+        FileLogger.Log($"'{configAttribute.FileName}' for {configType.Name}, caching");
         var config = LoadConfig<T>(configAttribute);
         _cachedConfigs[configType] = config;
         return config;
+    }
+
+    /// <summary>
+    /// Get the <see cref="ConfigFileAttribute"/> for the given config <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static ConfigFileAttribute GetConfigInfo<T>()
+    {
+        return GetConfigAttribute(typeof(T));
     }
 
     /// <summary>
@@ -43,22 +54,31 @@ public class ConfigurationFactory
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="config"></param>
-    public void SaveConfig(IKognitoConfig config)
+    public static void SaveConfig(IKognitoConfig config)
     {
         var configAttribute = GetConfigAttribute(config.GetType())!;
 
-        var fileName = configAttribute.FileName;
+        string filePath = configAttribute.FileName;
 
-        FileLogger.Log($"Saving config file '{fileName}' for {config.GetType().Name}");
+        if (!configAttribute.LoadedFromCurrentDirectory)
+        {
+            FileLogger.Log($"'{filePath}' for {config.GetType().Name}");
+            filePath = configAttribute.CompletePath();
+        }
+        else
+        {
+            FileLogger.Log($"Sv CurDir file: ./{filePath}");
+
+        }
 
         switch (configAttribute.ConfigType)
         {
             case ConfigType.Json:
-                Save_Json(config, fileName, configAttribute.ConfigModifier);
+                Save_Json(config, filePath, configAttribute.ConfigModifier);
                 break;
 
             case ConfigType.MemoryPacked:
-                Save_MemoryPack(config, fileName);
+                Save_MemoryPack(config, filePath);
                 break;
         }
     }
@@ -66,7 +86,7 @@ public class ConfigurationFactory
     /// <summary>
     /// Saves all configs in the config cache to their respective files. Should only be called by <see cref="App.OnExit"/>
     /// </summary>
-    public void SaveAllConfigs()
+    public static void SaveAllConfigs()
     {
         foreach (var config in _cachedConfigs.Select(cfg => cfg.Value))
         {
@@ -74,26 +94,35 @@ public class ConfigurationFactory
         }
     }
 
-    private T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
+    private static T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
     {
-        string fileName = configAttribute.FileName;
+        string filePath = configAttribute.FileName;
+
+        // Check if the file was moved into the same directory as the app
+        if (!File.Exists(filePath))
+        {
+            filePath = configAttribute.CompletePath();
+        }
+        else
+        {
+            FileLogger.Log($"Ld CurDir file: ./{filePath}");
+            configAttribute.LoadedFromCurrent();
+        }
 
         switch (configAttribute.ConfigType)
         {
             case ConfigType.Json:
-                return Load_Json<T>(fileName, configAttribute.ConfigModifier) ?? new();
+                return Load_Json<T>(filePath, configAttribute.ConfigModifier) ?? new();
 
             case ConfigType.MemoryPacked:
-                return Load_MemoryPack<T>(fileName) ?? new();
+                return Load_MemoryPack<T>(filePath) ?? new();
         }
 
         return new T();
     }
 
-    private T? Load_MemoryPack<T>(string fileName) where T : IKognitoConfig, new()
+    private static T? Load_MemoryPack<T>(string filePath) where T : IKognitoConfig, new()
     {
-        string filePath = GetAppdataFile(fileName);
-
         if (!File.Exists(filePath))
         {
             return default;
@@ -106,10 +135,8 @@ public class ConfigurationFactory
         return loadedConfig!;
     }
 
-    private void Save_MemoryPack(IKognitoConfig config, string fileName)
+    private static void Save_MemoryPack(IKognitoConfig config, string filePath)
     {
-        string filePath = GetAppdataFile(fileName);
-
         Type type = config.GetType();
 
         byte[] packed = MemoryPackSerializer.Serialize(type, config);
@@ -117,10 +144,8 @@ public class ConfigurationFactory
         File.WriteAllBytes(filePath, packed);
     }
 
-    private T? Load_Json<T>(string fileName, ConfigModifier modifier) where T : IKognitoConfig, new()
+    private static T? Load_Json<T>(string filePath, ConfigModifier modifier) where T : IKognitoConfig, new()
     {
-        string filePath = GetAppdataFile(fileName);
-
         if (!File.Exists(filePath))
         {
             return default;
@@ -139,9 +164,9 @@ public class ConfigurationFactory
         return serializer.Deserialize<T>(jsonReader)!;
     }
 
-    private void Save_Json<T>(T config, string fileName, ConfigModifier modifier) where T : IKognitoConfig
+    private static void Save_Json<T>(T config, string filePath, ConfigModifier modifier) where T : IKognitoConfig
     {
-        using StreamWriter writer = new(GetAppdataFile(fileName));
+        using StreamWriter writer = new(filePath);
         using JsonTextWriter jsonWriter = new(writer);
         JsonSerializer serializer = new()
         {
@@ -154,17 +179,10 @@ public class ConfigurationFactory
         serializer.Serialize(jsonWriter, config);
     }
 
-    private static ConfigFileAttribute? GetConfigAttribute(Type configType)
+    private static ConfigFileAttribute GetConfigAttribute(Type configType)
     {
         return configType.GetCustomAttributes(typeof(ConfigFileAttribute), true)
             .Cast<ConfigFileAttribute>()
-            .FirstOrDefault();
-    }
-
-    private static string GetAppdataFile(string filename)
-    {
-        string configs = Path.Combine(App.AppData!.FullName, "config");
-        _ = Directory.CreateDirectory(configs);
-        return Path.Combine(configs, filename);
+            .First();
     }
 }

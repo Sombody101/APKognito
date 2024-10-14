@@ -25,10 +25,10 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
     private Timer? _timer = null;
 
-    public AutoUpdaterService(ConfigurationFactory factory)
+    public AutoUpdaterService()
     {
-        config = factory.GetConfig<UpdateConfig>();
-        cache = factory.GetConfig<CacheStorage>();
+        config = ConfigurationFactory.GetConfig<UpdateConfig>();
+        cache = ConfigurationFactory.GetConfig<CacheStorage>();
         currentVersion = Assembly.GetExecutingAssembly().GetName().Version!;
     }
 
@@ -65,7 +65,6 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        FileLogger.Log("Update service exiting.");
         _timer?.Change(Timeout.Infinite, 0);
         return Task.CompletedTask;
     }
@@ -114,7 +113,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
         else if (newVersion < currentVersion)
         {
-            FileLogger.LogWarning($"Found new release version {jsonData[0]}, but currently using v{currentVersion}. No need to update.");
+            FileLogger.Log($"Found new release version {jsonData[0]}, but currently using v{currentVersion}. No need to update.");
             goto LogUpdate;
         }
         else if (cache.UpdateSourceLocation is not null)
@@ -223,6 +222,6 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
     private static void LogNextUpdate(int minuteCount)
     {
-        FileLogger.Log($"Next update will be at {DateTime.UtcNow.AddMinutes(minuteCount)}");
+        FileLogger.Log($"Next update check will be at {DateTime.UtcNow.AddMinutes(minuteCount)}");
     }
 }

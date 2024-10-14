@@ -7,7 +7,6 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 {
-    private readonly ConfigurationFactory configFactory;
 
     #region Properties
 
@@ -23,17 +22,12 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 
     #endregion Properties
 
-    public RenamingHistoryViewModel(ConfigurationFactory _configFactory)
-    {
-        configFactory = _configFactory;
-    }
-
     #region Commands
 
     [RelayCommand]
     public async Task RefreshRenameSessions()
     {
-        RenameSessionList storedSessions = configFactory.GetConfig<RenameSessionList>();
+        RenameSessionList storedSessions = ConfigurationFactory.GetConfig<RenameSessionList>();
         var sessions = storedSessions.RenameSessions;
 
         RenameSessions.Clear();

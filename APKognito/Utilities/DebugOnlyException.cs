@@ -1,4 +1,6 @@
-﻿namespace APKognito.Utilities;
+﻿using System.Diagnostics;
+
+namespace APKognito.Utilities;
 
 // Using a preprocessor statement encourages cleanup since all usages will be errors.
 #if DEBUG
