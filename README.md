@@ -8,6 +8,14 @@
   Rename Android APK files to prevent naming conflicts when debugging several apps on one device!
 </p>
 
+<p align="center">
+  <a href="https://github.com/Sombody101/APKognito/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Sombody101/APKognito" alt="GitHub release badge">
+  </a>
+  <img src="https://img.shields.io/github/downloads/Sombody101/APKognito/total.svg" alt="Downloads badge">
+  <img src="https://img.shields.io/github/issues/Sombody101/APKognito" alt="Open Issues badge">
+</p>
+
 ![APKognito example](./gitassets/APKognito%20Example.png)
 
 
