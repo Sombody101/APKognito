@@ -1,9 +1,12 @@
 #!/bin/bash
 
-[[ ! "$(which hub)" ]] && {
-    echo "hub is not installed. Cannot create release."
-    exit 1
-}
+###
+# Exit codes:
+#   1: Generic erro
+#   2: Invalid or missing input argument
+#   3: Failed to change directory
+#   4: Dependency is missing (jq, hub, etc)
+###
 
 [[ ! "$1" ]] && {
     echo "No github token provided."
@@ -13,6 +16,16 @@
 [[ ! "$2" ]] && {
     echo "No VirusTotal API key provided."
     echo 2
+}
+
+[[ ! "$(which jq)" ]] && {
+    echo "jq is required to run."
+    exit 4
+}
+
+[[ ! "$(which hub)" ]] && {
+    echo "hub is required to run."
+    exit 4
 }
 
 # Safe Change Directory
@@ -91,3 +104,5 @@ echo "$commit_messages"
 ! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" && exit "$?"
 
 echo "Release created with the tag $release_tag"
+echo "Syncing remote tags..."
+git pull
