@@ -39,7 +39,6 @@
   <ItemGroup>
     <None Remove="Assets\apkognito.ico" />
     <None Remove="Assets\apkognito.png" />
-    <None Remove="Assets\incognito.png" />
     <None Remove="Fonts\FiraCode-Medium.ttf" />
     <None Remove="Fonts\FiraCode-Regular.ttf" />
     <None Remove="Fonts\TechSans.ttf" />

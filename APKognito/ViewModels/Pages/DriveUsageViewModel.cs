@@ -23,6 +23,12 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 #endif
 
     [ObservableProperty]
+    private Visibility _noFilesPanelVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private Visibility _fileListVisibility = Visibility.Visible;
+
+    [ObservableProperty]
     private string _startButtonText = "Refresh";
 
     [ObservableProperty]
@@ -230,11 +236,14 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         if (FoundFolders.Count is 0)
         {
-            FoundFolders.Add(FootprintInfo.Empty);
+            NoFilesPanelVisibility = Visibility.Visible;
+            FileListVisibility = Visibility.Collapsed;
             CanDelete = false;
         }
         else
         {
+            NoFilesPanelVisibility = Visibility.Collapsed;
+            FileListVisibility = Visibility.Visible;
             CanDelete = true;
         }
     }

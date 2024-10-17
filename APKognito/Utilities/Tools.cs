@@ -20,4 +20,15 @@ internal static class Tools
     {
         return data?.Replace(Environment.UserName, FileLogger.ReplacmentUsername) ?? string.Empty;
     }
+
+    public static void InvertVisibility(this UIElement elm)
+    {
+        if (elm.Visibility is Visibility.Visible)
+        {
+            elm.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        elm.Visibility = Visibility.Visible;
+    }
 }

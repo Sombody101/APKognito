@@ -40,7 +40,7 @@ public static class FileLogger
             return;
         }
 
-        string time = DateTime.UtcNow.ToString("hh:mm:ss.fff tt (UTC): ");
+        string time = DateTime.UtcNow.ToString("hh:mm:ss.fff tt: ");
 
         string newline = text.Length > 40 && text.Contains('\n')
             ? "\n\n"
@@ -186,7 +186,7 @@ public static class FileLogger
 
             if (typeof(IAsyncStateMachine).IsAssignableFrom(method?.DeclaringType))
             {
-                // Fix async methods (RealClassName.<AwaitedMethodName>d__10.MoveNext -> RealClassName.AwaitedMethodName)
+                // Fix async methods (<AwaitedMethodName>d__10.MoveNext -> RealClassName.AwaitedMethodName)
                 className = method.DeclaringType.DeclaringType?.Name ?? "[Unknown]";
                 methodName = method.DeclaringType.Name.TrimStart('<');
                 methodName = methodName[0..(methodName.IndexOf('>'))];

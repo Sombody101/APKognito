@@ -11,6 +11,12 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
     #region Properties
 
     [ObservableProperty]
+    private Visibility _noHistoryPanelVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private Visibility _historyPanelVisibility = Visibility.Visible;
+
+    [ObservableProperty]
     private ObservableCollection<RenameSession> _renameSessions = [
 #if DEBUG
         new(["1;;com.google.idk;;com.apkognito.idk", "0;;com.facebook.spooky;;com.apkognito.spooky"], 1098234423),
@@ -32,14 +38,19 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 
         RenameSessions.Clear();
 
-        if (sessions.Count is 0)
-        {
-            //RenameSessions.Add(RenameSession.Empty);
-            return;
-        }
-
         // Add a delay so the user knows something happened
         await Task.Delay(200);
+
+        if (sessions.Count is 0)
+        {
+            NoHistoryPanelVisibility = Visibility.Visible;
+            HistoryPanelVisibility = Visibility.Collapsed;
+        }
+        else
+        {
+            NoHistoryPanelVisibility = Visibility.Collapsed;
+            HistoryPanelVisibility = Visibility.Visible;
+        }
 
         foreach (RenameSession session in sessions)
         {

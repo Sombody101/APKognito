@@ -106,71 +106,80 @@
             VerticalAlignment="Top"
             VerticalContentAlignment="Top">
 
-            <ui:ListView
-                x:Name="FolderList"
-                Margin="0,10,0,0"
-                VerticalAlignment="Stretch"
-                ItemsSource="{Binding FoundFolders}"
-                SelectionMode="Extended">
+            <Grid>
+                <ui:Card Visibility="{Binding NoFilesPanelVisibility}">
+                    <ui:TextBlock HorizontalAlignment="Center" FontSize="18">
+                        No files to cleanup!
+                    </ui:TextBlock>
+                </ui:Card>
 
-                <ListView.ItemTemplate>
-                    <DataTemplate DataType="{x:Type models:FootprintInfo}">
+                <ui:ListView
+                    x:Name="FolderList"
+                    Margin="0,10,0,0"
+                    VerticalAlignment="Stretch"
+                    ItemsSource="{Binding FoundFolders}"
+                    SelectionMode="Extended"
+                    Visibility="{Binding FileListVisibility}">
 
-                        <ui:Card>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="150" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                    <ListView.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:FootprintInfo}">
 
-                                <Grid.RowDefinitions>
-                                    <RowDefinition />
-                                    <RowDefinition />
-                                </Grid.RowDefinitions>
+                            <ui:Card>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                <TextBlock
-                                    Grid.ColumnSpan="2"
-                                    Margin="0,0,0,5"
-                                    FontSize="16"
-                                    FontWeight="Bold"
-                                    Text="{Binding FolderName}" />
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition />
+                                        <RowDefinition />
+                                    </Grid.RowDefinitions>
 
-                                <StackPanel Grid.Row="1">
-                                    <TextBlock FontWeight="Bold">
-                                        Path:
-                                    </TextBlock>
-                                    <TextBlock FontWeight="Bold">
-                                        Size:
-                                    </TextBlock>
-                                    <TextBlock FontWeight="Bold">
-                                        Creation Date:
-                                    </TextBlock>
-                                    <TextBlock FontWeight="Bold">
-                                        Item Type:
-                                    </TextBlock>
-                                </StackPanel>
+                                    <TextBlock
+                                        Grid.ColumnSpan="2"
+                                        Margin="0,0,0,5"
+                                        FontSize="16"
+                                        FontWeight="Bold"
+                                        Text="{Binding FolderName}" />
 
-                                <StackPanel
-                                    Grid.Row="1"
-                                    Grid.Column="1"
-                                    VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding FolderPath}" />
-                                    <TextBlock>
-                                        <TextBlock.Text>
-                                            <MultiBinding StringFormat="{}{0:n0}    ({1:n0} bytes)">
-                                                <Binding Converter="{StaticResource GBConverter}" Path="FolderSizeMegabytes" />
-                                                <Binding Path="FolderSizeBytes" />
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding FormattedCreationDate}" />
-                                    <TextBlock Text="{Binding ItemType, Converter={StaticResource IsFileConverter}}" />
-                                </StackPanel>
-                            </Grid>
-                        </ui:Card>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ui:ListView>
+                                    <StackPanel Grid.Row="1">
+                                        <TextBlock FontWeight="Bold">
+                                            Path:
+                                        </TextBlock>
+                                        <TextBlock FontWeight="Bold">
+                                            Size:
+                                        </TextBlock>
+                                        <TextBlock FontWeight="Bold">
+                                            Creation Date:
+                                        </TextBlock>
+                                        <TextBlock FontWeight="Bold">
+                                            Item Type:
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <StackPanel
+                                        Grid.Row="1"
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding FolderPath}" />
+                                        <TextBlock>
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}{0:n0}    ({1:n0} bytes)">
+                                                    <Binding Converter="{StaticResource GBConverter}" Path="FolderSizeMegabytes" />
+                                                    <Binding Path="FolderSizeBytes" />
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding FormattedCreationDate}" />
+                                        <TextBlock Text="{Binding ItemType, Converter={StaticResource IsFileConverter}}" />
+                                    </StackPanel>
+                                </Grid>
+                            </ui:Card>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ui:ListView>
+            </Grid>
         </ui:Card>
     </Grid>
 </Page>
