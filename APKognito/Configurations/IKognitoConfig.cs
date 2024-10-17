@@ -13,14 +13,14 @@ public class ConfigFileAttribute : Attribute
 
     public ConfigType ConfigType { get; }
 
-    public ConfigModifier ConfigModifier { get; }
+    public ConfigModifiers ConfigModifier { get; }
 
     public bool LoadedFromCurrentDirectory { get; private set; }
 
     public ConfigFileAttribute(
         string fileName,
         ConfigType configType = ConfigType.Json,
-        ConfigModifier configModifier = ConfigModifier.None)
+        ConfigModifiers configModifier = ConfigModifiers.None)
     {
         FileName = fileName;
         ConfigType = configType;

@@ -8,7 +8,7 @@ namespace APKognito.ViewModels.Windows;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRTB
+public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRtb
 {
     private RichTextBox _exceptionBox;
 

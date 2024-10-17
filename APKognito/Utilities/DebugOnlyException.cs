@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace APKognito.Utilities;
 
@@ -14,5 +15,25 @@ public class DebugOnlyException : Exception
         : base("This exception can only be used while debugging. If you see this message, you are using a debug build which will be more prone to bugs or errors.")
     {
     }
+    
+    public DebugOnlyException(string l)
+        : base(l)
+    {
+    }
 }
 #endif
+
+public static class Utils
+{
+    public static void Assert([DoesNotReturnIf(true)] this bool check, string l)
+    {
+        if (!check)
+        {
+#if DEBUG
+            throw new DebugOnlyException(l);
+#else
+            throw new InvalidOperationException(l);
+#endif
+        }
+    }
+}

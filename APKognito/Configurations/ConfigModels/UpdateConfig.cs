@@ -2,7 +2,7 @@
 
 namespace APKognito.Configurations.ConfigModels;
 
-[ConfigFile("update.json", ConfigType.Json, ConfigModifier.JsonIndented | ConfigModifier.JsonIgnoreMissing)]
+[ConfigFile("update.json", ConfigType.Json, ConfigModifiers.JsonIndented | ConfigModifiers.JsonIgnoreMissing)]
 internal class UpdateConfig : IKognitoConfig
 {
     /// <summary>

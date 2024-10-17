@@ -14,8 +14,6 @@ namespace APKognito.Services
     {
         private readonly IServiceProvider _serviceProvider;
 
-        private INavigationWindow _navigationWindow;
-
         public ApplicationHostService(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
@@ -44,6 +42,8 @@ namespace APKognito.Services
         /// </summary>
         private async Task HandleActivationAsync()
         {
+            INavigationWindow _navigationWindow;
+
             if (!Application.Current.Windows.OfType<MainWindow>().Any())
             {
                 _navigationWindow = (

@@ -1,12 +1,21 @@
 ﻿using APKognito.ViewModels.Pages;
 using Newtonsoft.Json.Linq;
+using System;
 using System.IO;
 using System.Net.Http;
 
 namespace APKognito.Utilities;
 
-internal class Installer
+internal static class Installer
 {
+    public class InvalidJsonIndexerException : Exception
+    {
+        public InvalidJsonIndexerException(object indexValue)
+            : base($"Invalid JSON index type {indexValue.GetType().Name} [Developer error]")
+        {
+        }
+    }
+
     /// <summary>
     /// Fetches a JSON document and retrieves values from the given paths.
     /// </summary>
@@ -107,7 +116,7 @@ internal class Installer
                     {
                         int intValue => currentToken[intValue],
                         string stringValue => currentToken[stringValue],
-                        _ => throw new Exception($"Invalid JSON index type {index.GetType().Name} [Developer error]")
+                        _ => throw new InvalidJsonIndexerException(index)
                     };
 
                     if (currentToken is null)

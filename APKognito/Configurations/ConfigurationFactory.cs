@@ -144,7 +144,7 @@ public static class ConfigurationFactory
         File.WriteAllBytes(filePath, packed);
     }
 
-    private static T? Load_Json<T>(string filePath, ConfigModifier modifier) where T : IKognitoConfig, new()
+    private static T? Load_Json<T>(string filePath, ConfigModifiers modifier) where T : IKognitoConfig, new()
     {
         if (!File.Exists(filePath))
         {
@@ -156,7 +156,7 @@ public static class ConfigurationFactory
         JsonSerializer serializer = new()
         {
             NullValueHandling = NullValueHandling.Ignore,
-            MissingMemberHandling = modifier.HasFlag(ConfigModifier.JsonIgnoreMissing)
+            MissingMemberHandling = modifier.HasFlag(ConfigModifiers.JsonIgnoreMissing)
                 ? MissingMemberHandling.Ignore
                 : MissingMemberHandling.Error,
         };
@@ -164,14 +164,14 @@ public static class ConfigurationFactory
         return serializer.Deserialize<T>(jsonReader)!;
     }
 
-    private static void Save_Json<T>(T config, string filePath, ConfigModifier modifier) where T : IKognitoConfig
+    private static void Save_Json<T>(T config, string filePath, ConfigModifiers modifier) where T : IKognitoConfig
     {
         using StreamWriter writer = new(filePath);
         using JsonTextWriter jsonWriter = new(writer);
         JsonSerializer serializer = new()
         {
             NullValueHandling = NullValueHandling.Ignore,
-            Formatting = modifier.HasFlag(ConfigModifier.JsonIndented)
+            Formatting = modifier.HasFlag(ConfigModifiers.JsonIndented)
                 ? Formatting.Indented
                 : Formatting.None,
         };

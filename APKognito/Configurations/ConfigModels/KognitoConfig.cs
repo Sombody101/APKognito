@@ -7,7 +7,7 @@ namespace APKognito.Models.Settings;
 [ConfigFile(
     "settings.json",
     ConfigType.Json,
-    ConfigModifier.JsonIndented | ConfigModifier.JsonIgnoreMissing)]
+    ConfigModifiers.JsonIndented | ConfigModifiers.JsonIgnoreMissing)]
 public class KognitoConfig : IKognitoConfig
 {
     /// <summary>

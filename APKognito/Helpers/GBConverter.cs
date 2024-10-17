@@ -7,11 +7,14 @@ public class GBConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        return value is int totalUsedSpace
-            ? totalUsedSpace >= 1024
+        if (value is int totalUsedSpace)
+        {
+            return totalUsedSpace >= 1024
                 ? $"{totalUsedSpace / 1024f:0.00} GB"
-                : $"{totalUsedSpace:n0} MB"
-            : value;
+                : $"{totalUsedSpace:n0} MB";
+        }
+
+        return value;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

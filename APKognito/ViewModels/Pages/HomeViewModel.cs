@@ -20,7 +20,7 @@ namespace APKognito.ViewModels.Pages;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
+public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 {
     private const string defaultPropertyMessage = "No APK loaded";
     private const string defaultJobMessage = "No jobs started";
@@ -153,8 +153,6 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         ApktoolJar = Path.Combine(appDataTools, "apktool.jar");
         ApktoolBat = Path.Combine(appDataTools, "apktool.bat");
         ApksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
-
-        // throw new DebugOnlyException();
     }
 
     #region Commands
@@ -519,7 +517,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRTB
         }
     }
 
-    private bool VerifyJavaInstallation(out string javaPath)
+    private static bool VerifyJavaInstallation(out string javaPath)
     {
         static bool VerifyVersion(string versionStr)
         {

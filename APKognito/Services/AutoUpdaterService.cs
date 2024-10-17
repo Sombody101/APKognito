@@ -9,6 +9,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using static CommunityToolkit.Mvvm.ComponentModel.__Internals.__TaskExtensions.TaskAwaitableWithoutEndValidation;
 
 namespace APKognito.Services;
 
@@ -80,9 +81,10 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         if (!config.CheckForUpdates)
         {
             FileLogger.Log("Check for updates disabled. Skipping.");
-            goto LogUpdate;
+            goto LogUpdateAndExit;
         }
 
+        // Fetch the download URL and release tag
         string?[] jsonData = await Installer.FetchAsync(releaseUrl, [
             [latest, "tag_name"],
             [latest, "assets", 0, "browser_download_url"],
@@ -97,25 +99,29 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             FileLogger.Log($"Most recent release isn't a public build: {jsonData[0]}");
 #endif
 
-            goto LogUpdate;
+            goto LogUpdateAndExit;
         }
 
+        // Check that the release tag is valid (for teh current build)
         if (!Version.TryParse( /* Remove the 'v' (v.1.5.1.1) */ jsonData[0]?[1..], out Version? newVersion))
         {
             // The version isn't viable
             FileLogger.LogError($"Aborting update, invalid release tag: {jsonData[0]}");
-            goto LogUpdate;
+            goto LogUpdateAndExit;
         }
 
+        // Already running the newest version
         if (newVersion == currentVersion)
         {
             FileLogger.Log("Currently using newest release.");
         }
+        // New release is older than current (?)
         else if (newVersion < currentVersion)
         {
             FileLogger.Log($"Found new release version {jsonData[0]}, but currently using v{currentVersion}. No need to update.");
-            goto LogUpdate;
+            goto LogUpdateAndExit;
         }
+        // New release has already been downloaded and is ready to install
         else if (cache.UpdateSourceLocation is not null)
         {
             FileLogger.Log("Comparing fetched release with fetch from previous session.");
@@ -125,7 +131,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             if (!File.Exists(updateInfo[0]))
             {
                 FileLogger.LogError("Previously downloaded update files are gone, proceeding with new release fetch.");
-                goto FetchNew;
+                goto FetchAndDownloadNew;
             }
 
             if (updateInfo.Length is 2
@@ -142,21 +148,21 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             }
         }
 
-    FetchNew:
+    FetchAndDownloadNew:
         FileLogger.Log($"Downloading release {jsonData[0]}");
 
         _ = Directory.CreateDirectory(UpdatesFolder);
         string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{jsonData[0]![1..]}.zip");
         if (!await Installer.DownloadAsync(jsonData[1]!, downloadZip))
         {
-            goto LogUpdate;
+            goto LogUpdateAndExit;
         }
 
         cache.UpdateSourceLocation = $"{downloadZip}\0{jsonData[0]}";
 
         await ImplementUpdate(downloadZip);
 
-    LogUpdate:
+    LogUpdateAndExit:
         LogNextUpdate(config.CheckDelay);
     }
 
@@ -166,7 +172,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
     }
 
     private static bool inUpdate = false;
-    private async Task ImplementUpdate(string updateFilePath)
+    private static async Task ImplementUpdate(string updateFilePath)
     {
         if (inUpdate)
         {
@@ -175,6 +181,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
         inUpdate = true;
 
+        // Using 'is true' because RunningJobs is a 'bool?' when using a null conditional
         while (HomeViewModel.Instance?.RunningJobs is true)
         {
             // Wait for any jobs to finish, then prompt

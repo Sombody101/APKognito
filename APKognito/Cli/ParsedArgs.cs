@@ -1,14 +1,18 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Permissions;
 using System.Windows.Media.Animation;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace APKognito.Cli;
 
 internal class ParsedArgs
 {
+    private readonly List<string> ErroredSwitches = [];
+
     public bool RunningCli { get; }
 
     [CliArg("getcode", typeof(int))]
@@ -34,14 +38,12 @@ internal class ParsedArgs
 
     private void StartArgParse(string[] args)
     {
-        Dictionary<PropertyInfo, CliArgAttribute> argTypes = typeof(ParsedArgs).GetProperties()
+        var argTypes = typeof(ParsedArgs).GetProperties()
             .Where(field => Attribute.IsDefined(field, typeof(CliArgAttribute)))
             .ToDictionary(
                 prop => prop,
-                prop => (CliArgAttribute)prop.GetCustomAttribute<CliArgAttribute>()!
+                prop => prop.GetCustomAttribute<CliArgAttribute>()!
             );
-
-        List<string> errorSwitches = [];
 
         for (int i = 0; i < args.Length; ++i)
         {
@@ -50,7 +52,7 @@ internal class ParsedArgs
             if (arg == "--")
             {
                 // Ignore everything after
-                return;
+                break;
             }
 
             KeyValuePair<PropertyInfo, CliArgAttribute> wantedArg;
@@ -70,41 +72,22 @@ internal class ParsedArgs
             }
             else
             {
-                errorSwitches.Add($"Unexpected value '{arg}' at arg index {i}");
+                ErroredSwitches.Add($"Unexpected value '{arg}' at arg index {i}");
                 continue;
             }
 
             if (wantedArg.Key is null)
             {
-                errorSwitches.Add($"Unknown switch '{fixedArg}'");
+                ErroredSwitches.Add($"Unknown switch '{fixedArg}'");
                 continue;
             }
 
-            // Check if switch has input value
-            if (wantedArg.Value.SwitchValueType is not null)
-            {
-                if (i + 1 >= args.Length)
-                {
-                    errorSwitches.Add($"No value given for switch '{arg}'");
-                    break;
-                }
-
-                string? error = TrySetPropertyValue(wantedArg.Key, wantedArg.Value.SwitchValueType, args[++i]);
-
-                if (error is not null)
-                {
-                    errorSwitches.Add($"Invalid value '{arg}' for switch {wantedArg.Value.Switch ?? wantedArg.Value.ShorthandSwitch.ToString()}: {error}");
-                }
-            }
-            else
-            {
-                wantedArg.Key.SetValue(this, true);
-            }
+            ApplyPropertyValue(wantedArg.Key, wantedArg.Value, args, ref i);
         }
 
-        if (errorSwitches.Count > 0)
+        if (ErroredSwitches.Count > 0)
         {
-            foreach (string error in errorSwitches)
+            foreach (string error in ErroredSwitches)
             {
                 Console.WriteLine(error);
             }
@@ -113,18 +96,32 @@ internal class ParsedArgs
         }
     }
 
-    private string? TrySetPropertyValue(PropertyInfo property, Type type, string value)
+    private void ApplyPropertyValue(PropertyInfo property, CliArgAttribute attribute, string[] args, ref int index)
     {
-        try
-        {
-            object? propValue = TypeDescriptor.GetConverter(type).ConvertFromString(value);
-            property.SetValue(this, propValue);
+        string arg = args[index];
 
-            return null;
-        }
-        catch (Exception ex)
+        // Check if switch has input value
+        if (attribute.SwitchValueType is not null)
         {
-            return ex.Message;
+            if (index + 1 >= args.Length)
+            {
+                ErroredSwitches.Add($"No value given for switch '{arg}'");
+                return;
+            }
+
+            try
+            {
+                object? propValue = TypeDescriptor.GetConverter(attribute.SwitchValueType).ConvertFromString(args[++index]);
+                property.SetValue(this, propValue);
+            }
+            catch (Exception ex)
+            {
+                ErroredSwitches.Add($"Invalid value '{arg}' for switch {attribute.Switch ?? attribute.ShorthandSwitch.ToString()}: {ex.Message}");
+            }
+        }
+        else
+        {
+            property.SetValue(this, true);
         }
     }
 }

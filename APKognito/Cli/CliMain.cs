@@ -1,4 +1,6 @@
-﻿using APKognito.Utilities;
+﻿#define DEBUG_WITHOUT_CONSOLE
+
+using APKognito.Utilities;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -17,11 +19,14 @@ internal static class CliMain
             return;
         }
 
+        // This should always be active for a release build, even if disabled for debugging.
+#if (DEBUG && !DEBUG_WITHOUT_CONSOLE) || RELEASE
         AttachConsole();
+#endif
 
         if (args.GetCode is not null)
         {
-            Console.WriteLine($"Code: {(ExitCode)args.GetCode}\nValue: {args.GetCode}/{(int)Enum.GetValues<ExitCode>().Cast<ExitCode>().Max()}");
+            Console.WriteLine($"Code: {(ExitCode)args.GetCode}\nValue: {args.GetCode}/{(int)Enum.GetValues<ExitCode>().Max()}");
         }
 
         // Check basic input argument first (mostly used for auto publish script)

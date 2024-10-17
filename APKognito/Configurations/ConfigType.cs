@@ -10,7 +10,7 @@ public enum ConfigType
 }
 
 [Flags]
-public enum ConfigModifier
+public enum ConfigModifiers
 {
     None = 0,
     JsonIndented = 1,

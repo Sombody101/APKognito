@@ -10,7 +10,7 @@ public partial class RenameSessionList : IKognitoConfig
     [MemoryPackIgnore]
     public ConfigType ConfigType => ConfigType.MemoryPacked;
 
-    public List<RenameSession> RenameSessions = [];
+    public List<RenameSession> RenameSessions { get; set; } = [];
 
     public RenameSessionList()
     { }
