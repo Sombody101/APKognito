@@ -18,10 +18,24 @@
 
 ![APKognito example](./gitassets/APKognito%20Example.png)
 
-
 > [!IMPORTANT]
-Version numbering is going to change after `v1.5`. So, starting with `v1.6`, versions will look like this: `v1.6.9051.33421`.
-Debug builds will be constant at `d1.0.0.0` (using a `d` prefix to prevent debug releases from updating on user machines using a publish).
+Version numbering is going to change after `v1.5`. So, starting with `v1.6`, versions will look like this: `v1.6.9051.33421`. Debug builds will be constant at `d1.0.0.0` (using a `d` prefix to prevent debug releases from updating on user machines using a publish).
+
+
+# Requirements
+
+`APKongnito` is precompiled for a *64 bit operating system*. If you're running 32 bit Windows 10, you need to compile `APKognito` yourself (which requires the SDK, see [build](#build) for more instructions).
+
+`APKognito` requires the .Net Core 8.0 runtime to be installed on your machine prior to use and can be found [here (for v8.0.10-x64)](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.10-windows-x64-installer).
+
+
+# Basic Usage
+
+Open `APKognito` and click `Select APKs`. A File Explorer window will open for you to select one or many APK files.
+
+Once your APK files are selected, click `Start` and wait for them to be renamed. The default output path for all APKs and their OBBs is `%APPDATA%\APKognito\output`. This can be changed by accessing the "APK Settings" dropdown on the main renaming page.
+
+If you experience any issues, please submit one at [the issues page](https://github.com/Sombody101/APKognito/issues/new/choose).
 
 
 # Build
@@ -30,8 +44,7 @@ Debug builds will be constant at `d1.0.0.0` (using a `d` prefix to prevent debug
 
 If you have Visual Studio installed, you can build it with that.
 
-If you don't have Visual Studio but still have the .Net SDK, you can build it from
-Powershell with this command:
+If you don't have Visual Studio but still have the .Net SDK, you can build it from Powershell with this command:
 
 ```powershell
 $ cd "C:\path\to\APKognito"
