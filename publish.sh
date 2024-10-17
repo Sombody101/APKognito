@@ -7,14 +7,19 @@
 
 [[ ! "$1" ]] && {
     echo "No github token provided."
-    exit 1
+    exit 2
+}
+
+[[ ! "$2" ]] && {
+    echo "No VirusTotal API key provided."
+    echo 2
 }
 
 # Safe Change Directory
 scd() {
     pushd "$*" || {
         echo "Failed to cd into '$*'"
-        exit
+        exit 3
     }
 }
 
@@ -23,7 +28,7 @@ scb() {
     popd || {
         echo "Failed to cd back into '$OLDPWD'"
         dirs -c
-        exit
+        exit 3
     }
 }
 
@@ -40,6 +45,10 @@ readonly appversion
 
 echo
 echo "Build version: |$appversion|"
+
+echo "Uploading to VirusTotal"
+permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll"| jq -r '.data.id')"
+readonly permlink
 
 readonly zip_file="APKognito-$appversion.zip"
 
@@ -66,7 +75,7 @@ for message in "${split[@]}"; do
     commit_messages="${commit_messages} - [${splitMessage[0]}]($git_remote_url/tree/${splitMessage[0]}): ${splitMessage[*]:1}${NL}"
 done
 
-commit_messages="${commit_messages}${NL}###### This was created by an auto publish script @ $(date -u)"
+commit_messages="${commit_messages}${NL}[VirusTotal for v${appversion}](${permlink})${NL}${NL}###### This was created by an auto publish script @ $(date -u)"
 
 readonly commit_messages
 readonly release_title="[$release_type] Release $appversion"
