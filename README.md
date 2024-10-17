@@ -33,7 +33,7 @@
   <!-- Lines of Code -->
   <a href="https://sonarcloud.io/summary/new_code?id=Sombody101_APKognito"><img src="https://sonarcloud.io/api/project_badges/measure?project=Sombody101_APKognito&amp;metric=ncloc" alt="Lines of Code"></a>
   <!-- Quality Gate -->
-  <a href="https://sonarcloud.io/summary/new_code?id=Sombody101_APKognito"><img src="https://sonarcloud.io/api/project_badges/quality_gate?project=Sombody101_APKognito" alt="Quality gate"></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=Sombody101_APKognito"><img src="https://sonarcloud.io/api/project_badges/measure?project=Sombody101_APKognito&amp;metric=alert_status" alt="Quality Gate Status"></a>
 </p>
 
 ![APKognito example](./gitassets/APKognito%20Example.png)
