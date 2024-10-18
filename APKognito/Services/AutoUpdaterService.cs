@@ -7,9 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-using static CommunityToolkit.Mvvm.ComponentModel.__Internals.__TaskExtensions.TaskAwaitableWithoutEndValidation;
+using System.Runtime.Serialization;
 
 namespace APKognito.Services;
 
@@ -208,17 +206,17 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         FileLogger.Log("User accepted update installation, unpacking then restarting.");
 
         ZipFile.ExtractToDirectory(updateFilePath, UpdatesFolder, true);
+
         string unpackedPath = Path.Combine(UpdatesFolder, Path.GetFileNameWithoutExtension(updateFilePath));
 
         const string script = "-c \"Start-Sleep -Seconds 2; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; Start-Process -FilePath '{1}\\APKognito.exe' -Args '{2}'\"";
-
         string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, App.UpdateInstalledArgument);
 
         _ = Process.Start(new ProcessStartInfo()
         {
             Arguments = command,
             CreateNoWindow = true,
-            FileName = "powershell.exe",
+            FileName = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
         });
 
         Environment.Exit(0);

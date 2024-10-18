@@ -213,17 +213,4 @@ public partial class App
             FileLogger.LogException(ex);
         }
     }
-
-    /// <summary>
-    /// Application Entry Point.
-    /// </summary>
-    [System.STAThreadAttribute()]
-    [System.Diagnostics.DebuggerNonUserCodeAttribute()]
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "8.0.8.0")]
-    public static void Main(string[] args)
-    {
-        APKognito.App app = new APKognito.App();
-        app.InitializeComponent();
-        app.Run();
-    }
 }

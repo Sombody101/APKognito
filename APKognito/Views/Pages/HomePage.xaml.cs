@@ -71,4 +71,9 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
     private void Page_Drop(object sender, DragEventArgs e)
     {
     }
+
+    private void CheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        ViewModel.OnRenameCopyChecked();
+    }
 }

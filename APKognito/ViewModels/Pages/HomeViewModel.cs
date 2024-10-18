@@ -85,6 +85,9 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
     [ObservableProperty]
     private Visibility _cancelButtonVisibility = Visibility.Collapsed;
 
+    [ObservableProperty]
+    private long _footprintSizeBytes = 0;
+    
     /// <summary>
     /// Creates a copy of the source files rather than moving them.
     /// Can help with data protection when a renaming session fails as APKognito cannot reverse the changes.
@@ -153,6 +156,11 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         ApktoolJar = Path.Combine(appDataTools, "apktool.jar");
         ApktoolBat = Path.Combine(appDataTools, "apktool.bat");
         ApksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
+
+        if (FilePath.Length != 0)
+        {
+            UpdateFootprintInfo();
+        }
     }
 
     #region Commands
@@ -229,6 +237,8 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
                 Log(sb.ToString());
             }
+
+            UpdateFootprintInfo();
         }
         else
         {
@@ -272,7 +282,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
             return;
         }
 
-        _ = Process.Start("explorer", Path.GetFullPath(directory));
+        App.OpenDirectory(Path.GetFullPath(directory));
     }
 
     [RelayCommand]
@@ -280,6 +290,11 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
     {
         ConfigurationFactory.SaveConfig(config);
         Log("Settings saved!");
+    }
+
+    public void OnRenameCopyChecked()
+    {
+        UpdateFootprintInfo();
     }
 
     #endregion Commands
@@ -297,9 +312,9 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         CanStart = true;
     }
 
-    public string[]? GetFilePaths()
+    public string[] GetFilePaths()
     {
-        return cache?.ApkSourcePath?.Split(PathSeparator);
+        return cache?.ApkSourcePath?.Split(PathSeparator) ?? [];
     }
 
     private async Task RenameApks(CancellationToken cancellationToken)
@@ -409,7 +424,9 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
             pendingSession[jobIndex] = RenameSession.FormatForSerializer(
                 ApkName ?? JobbedApk,
-                finalName ?? (apkFailed ? "[Rename Failed]" : "[Unknown]"),
+                finalName ?? (apkFailed 
+                    ? "[Rename Failed]" 
+                    : "[Unknown]"),
                 apkFailed
             );
 
@@ -422,6 +439,16 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         if (completeJobs != files.Length)
         {
             LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
+        }
+
+        try
+        {
+            // Remove temp directory
+            TempData.Delete(true);
+        }
+        catch
+        {
+            // A file in the temp directory is still being used
         }
 
         // Finalize session and write it to the history file
@@ -582,6 +609,30 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         return false;
     }
 
+    private void UpdateFootprintInfo()
+    {
+        FootprintSizeBytes = 0;
+
+        foreach (string file in GetFilePaths())
+        {
+            if (!File.Exists(file))
+            {
+                continue;
+            }
+
+            FootprintSizeBytes += ApkEditorContext.CalculateApkSize(file, CopyWhenRenaming);
+
+            string apkFileName = Path.GetFileNameWithoutExtension(file);
+            string obbDirectory = Path.Combine(Path.GetDirectoryName(file)!, apkFileName);
+
+            string[] foundFiles = Directory.GetFiles(obbDirectory, $"*{apkFileName}.obb");
+            if (foundFiles.Length > 0)
+            {
+                FootprintSizeBytes += new FileInfo(foundFiles[0]).Length;
+            }
+        }
+    }
+
     private void InvertStartButtonVisibility([Optional] bool? forceStartVisible)
     {
         if (StartButtonVisibility is Visibility.Visible || forceStartVisible is false)
@@ -680,12 +731,14 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
         Ping ping = new();
 
+        // Internet check
         PingReply reply = await ping.SendPingAsync(new IPAddress([1, 1, 1, 1]), 3000);
         if (reply.Status is not IPStatus.Success)
         {
             return (2, reply.Status);
         }
 
+        // DNS check
         reply = await ping.SendPingAsync("https://www.cloudflare.com/", 3000);
         if (reply.Status is not IPStatus.Success)
         {

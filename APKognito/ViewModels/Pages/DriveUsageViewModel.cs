@@ -3,6 +3,7 @@ using APKognito.Models;
 using APKognito.Models.Settings;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Text;
 using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
@@ -32,7 +33,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private string _startButtonText = "Refresh";
 
     [ObservableProperty]
-    private int _totalUsedSpace = 0;
+    private long _totalUsedSpace = 0;
 
     [ObservableProperty]
     private bool _canDelete = false;
@@ -150,8 +151,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         Wpf.Ui.Controls.MessageBox confirmation = new()
         {
-            Title = $"Delete all {FoundFolders.Count} files and folders?",
-            Content = "All files and folders created by APKognito, but not the app itself, will be deleted. \nContinue?",
+            Title = $"Delete {GetFormattedItems()}?",
+            Content = "All renamed APKs, OBBs, remaining temporary directories, tools, etc, will be deleted.\n\nContinue?",
             PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel",
         };
@@ -232,7 +233,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             FoundFolders.Add(folderStat);
         }
 
-        TotalUsedSpace = folderStats.Sum(f => (int)(f.FolderSizeBytes / 1024 / 1024));
+        TotalUsedSpace = folderStats.Sum(f => f.FolderSizeBytes);
 
         if (FoundFolders.Count is 0)
         {
@@ -246,6 +247,52 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             FileListVisibility = Visibility.Visible;
             CanDelete = true;
         }
+    }
+
+    private string GetFormattedItems()
+    {
+        int folderCount = 0, fileCount = 0, apkCount = 0;
+
+        foreach (var item in FoundFolders)
+        {
+            switch (item.ItemType)
+            {
+                case FootprintType.Directory:
+                    folderCount++;
+                    break;
+                case FootprintType.File:
+                    fileCount++;
+                    break;
+                case FootprintType.RenamedApk:
+                    apkCount++;
+                    break;
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        if (folderCount > 0)
+        {
+            sb.Append($"{folderCount} folder{(folderCount != 1 ? "s" : string.Empty)}, ");
+        }
+
+        if (fileCount > 0)
+        {
+            sb.Append($"{fileCount} file{(fileCount != 1 ? "s" : string.Empty)}, ");
+        }
+
+        if (apkCount > 0)
+        {
+            if (sb.Length > 0)
+            {
+                sb.Append("and ");
+            }
+
+            string plural = (apkCount != 1 ? "s" : string.Empty);
+            sb.Append($"{apkCount} renamed APK{plural} and OBB{plural}");
+        }
+
+        return sb.ToString();
     }
 
     private static async Task<long> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation)

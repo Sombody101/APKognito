@@ -1,8 +1,10 @@
 ﻿using APKognito.Configurations;
 using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Xml;
 
 namespace APKognito.Utilities;
@@ -56,6 +58,9 @@ public class ApkEditorContext
     /// <exception cref="RenameFailedException"></exception>
     public async Task<string?> RenameApk(CancellationToken cancellationToken)
     {
+        // This method is a big mess due to the usage of Path.Combine(). I've tried to clean it up as
+        // much as I can without defining so many strings.
+
         try
         {
             viewModel.FinalName = "Unpacking...";
@@ -83,7 +88,6 @@ public class ApkEditorContext
             );
 
             await ReplaceObbFiles(packageName, ReplacementCompanyName, finalOutputDirectory, cancellationToken);
-
             await ReplaceAllNameInstancesAsync(oldCompanyName, ReplacementCompanyName, cancellationToken);
 
             // Repack
@@ -353,5 +357,23 @@ public class ApkEditorContext
         string newPackageName = string.Join('.', split);
 
         return (oldCompanyName, newPackageName);
+    }
+
+    public static long CalculateApkSize(string apkPath, bool copyingFile = true)
+    {
+        long estimatedUnpackedSize = 0;
+
+        using (ZipArchive archive = ZipFile.OpenRead(apkPath))
+        {
+            estimatedUnpackedSize = archive.Entries.Sum(entry => entry.Length);
+        }
+
+        if (!copyingFile)
+        {
+            // The source APK is deleted after being renamed
+            estimatedUnpackedSize -= new FileInfo(apkPath).Length;
+        }
+
+        return estimatedUnpackedSize;
     }
 }

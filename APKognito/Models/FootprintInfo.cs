@@ -12,8 +12,6 @@ public record FootprintInfo
 
     public long FolderSizeBytes { get; }
 
-    public int FolderSizeMegabytes => (int)(FolderSizeBytes / 1024 / 1024);
-
     public FootprintType ItemType { get; }
 
     public DateTime CreationDate { get; }
@@ -48,7 +46,10 @@ public record FootprintInfo
         CreationDate = directory.CreationTime;
         FormattedCreationDate = CreationDate.ToString();
 
-        ItemType = FootprintType.Directory;
+        // Check if the directory has an APK file
+        ItemType = Directory.GetFiles(directory.FullName, "*.apk").Any()
+            ? FootprintType.RenamedApk
+            : FootprintType.Directory;
     }
 
     public FootprintInfo(FileInfo file)

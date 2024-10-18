@@ -145,7 +145,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
 
             if (result == MessageBoxResult.Primary)
             {
-                _ = Process.Start("explorer", Path.GetDirectoryName(logpackPath)!);
+                App.OpenDirectory(Path.GetDirectoryName(logpackPath)!);
             }
 
             return logpackPath;

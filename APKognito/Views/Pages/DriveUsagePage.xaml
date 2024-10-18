@@ -166,7 +166,7 @@
                                         <TextBlock>
                                             <TextBlock.Text>
                                                 <MultiBinding StringFormat="{}{0:n0}    ({1:n0} bytes)">
-                                                    <Binding Converter="{StaticResource GBConverter}" Path="FolderSizeMegabytes" />
+                                                    <Binding Converter="{StaticResource GBConverter}" Path="FolderSizeBytes" />
                                                     <Binding Path="FolderSizeBytes" />
                                                 </MultiBinding>
                                             </TextBlock.Text>
