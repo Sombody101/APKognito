@@ -47,9 +47,18 @@ public record FootprintInfo
         FormattedCreationDate = CreationDate.ToString();
 
         // Check if the directory has an APK file
-        ItemType = Directory.GetFiles(directory.FullName, "*.apk").Any()
-            ? FootprintType.RenamedApk
-            : FootprintType.Directory;
+        if (Directory.GetFiles(directory.FullName, "*.apk").Any())
+        {
+            ItemType = FootprintType.RenamedApk;
+        }
+        else if (directory.FullName.StartsWith(Path.GetTempPath()))
+        {
+            ItemType = FootprintType.TempDirectory;
+        }
+        else
+        {
+            ItemType = FootprintType.Directory;
+        }
     }
 
     public FootprintInfo(FileInfo file)
@@ -76,7 +85,9 @@ public record FootprintInfo
 
 public enum FootprintType
 {
-    Directory,
-    File,
-    RenamedApk,
+    Directory = 1,
+    TempDirectory = 2,
+    File = 4,
+    TempFile = 8,
+    RenamedApk = 16,
 }

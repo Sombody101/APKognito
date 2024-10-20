@@ -10,7 +10,15 @@ internal class IsFileConverter : IValueConverter
     {
         if (value is FootprintType fType)
         {
-            return fType.ToString();
+            return fType switch
+            {
+                FootprintType.RenamedApk => "Renamed APK",
+                FootprintType.Directory => "Directory",
+                FootprintType.TempDirectory => "Temporary Directory",
+                FootprintType.File => "File",
+                FootprintType.TempFile => "Temporary File",
+                _ => "[Unknown]"
+            };
         }
 
         return null;
