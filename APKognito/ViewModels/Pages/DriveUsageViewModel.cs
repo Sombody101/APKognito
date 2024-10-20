@@ -4,6 +4,7 @@ using APKognito.Models.Settings;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
+using System.Windows.Threading;
 using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
@@ -12,15 +13,16 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 {
     private readonly KognitoConfig config;
 
+    private List<FootprintInfo> cachedFootprints = [];
+
     #region Properties
 
     [ObservableProperty]
-    private Visibility _isRunning =
+    private bool _isRunning =
 #if DEBUG
-        Visibility.Visible;
-
+        true;
 #else
-        Visibility.Hidden;
+        false;
 #endif
 
     [ObservableProperty]
@@ -36,7 +38,88 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private long _totalUsedSpace = 0;
 
     [ObservableProperty]
+    private long _totalFilteredSpace = 0;
+
+    [ObservableProperty]
+    private long _totalSelectedSpace = 0;
+
+    [ObservableProperty]
     private bool _canDelete = false;
+
+    [ObservableProperty]
+    private bool _canModifyFilter = false;
+
+    uint filter = 0;
+
+    private bool _filterInRenamedApks;
+    public bool FilterInRenamedApks
+    {
+        get => _filterInRenamedApks;
+        set {
+            if (value)
+            {
+                filter |= (uint)FootprintType.RenamedApk;
+            }
+            else
+            {
+                filter &= ~(uint)FootprintType.RenamedApk;
+            }
+
+            OnPropertyChanging(nameof(FilterInRenamedApks));
+            _filterInRenamedApks = value;
+            OnPropertyChanging(nameof(FilterInRenamedApks));
+
+            UpdateItemsList();
+        }
+    }
+    
+    private bool _filterInDirectories;
+    public bool FilterInDirectories
+    {
+        get => _filterInDirectories;
+        set {
+            uint flag = (uint)(FootprintType.Directory | FootprintType.TempDirectory);
+
+            if (value)
+            {
+                filter |= flag;
+            }
+            else
+            {
+                filter &= ~flag;
+            }
+            
+            OnPropertyChanging(nameof(FilterInDirectories));
+            _filterInDirectories = value;
+            OnPropertyChanged(nameof(FilterInDirectories));
+
+            UpdateItemsList();
+        }
+    }
+    
+    private bool _filterInFiles;
+    public bool FilterInFiles
+    {
+        get => _filterInFiles;
+        set {
+            uint flag = (uint)(FootprintType.File | FootprintType.TempFile);
+
+            if (value)
+            {
+                filter |= flag;
+            }
+            else
+            {
+                filter &= ~flag;
+            }
+
+            OnPropertyChanging(nameof(FilterInFiles));
+            _filterInFiles = value;
+            OnPropertyChanged(nameof(FilterInFiles));
+
+            UpdateItemsList();
+        }
+    }
 
     [ObservableProperty]
     private ObservableCollection<FootprintInfo> _foundFolders = [
@@ -69,6 +152,9 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     public DriveUsageViewModel()
     {
         config = ConfigurationFactory.GetConfig<KognitoConfig>();
+
+        FilterInRenamedApks = false;
+        FilterInFiles = FilterInDirectories = true;
     }
 
     #region Commands
@@ -78,25 +164,26 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     [RelayCommand]
     public async Task StartSearch()
     {
-        if (IsRunning == Visibility.Visible)
+        if (IsRunning)
         {
             StartButtonText = "Refresh";
-            IsRunning = Visibility.Hidden;
+            IsRunning = false;
 
             _ = (_collectDataCancelationSource?.CancelAsync());
         }
         else
         {
             StartButtonText = "Cancel";
-            IsRunning = Visibility.Visible;
+            IsRunning = true;
 
-            FoundFolders.Clear();
+            cachedFootprints.Clear();
             TotalUsedSpace = 0;
             _collectDataCancelationSource ??= new();
 
             try
             {
                 await CollectDiskUsage(_collectDataCancelationSource.Token);
+                UpdateItemsList();
             }
             catch (OperationCanceledException)
             {
@@ -107,7 +194,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
                 _collectDataCancelationSource.Dispose();
                 _collectDataCancelationSource = null;
                 StartButtonText = "Refresh";
-                IsRunning = Visibility.Hidden;
+                IsRunning = false;
             }
         }
     }
@@ -116,7 +203,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private async Task DeleteSelectedItems(ListView folderList)
     {
         CanDelete = false;
-        IsRunning = Visibility.Visible;
+        IsRunning = true;
 
         List<FootprintInfo> itemsToDelete = folderList.SelectedItems.Cast<FootprintInfo>().ToList();
 
@@ -132,13 +219,14 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             }
         }
 
+        // Get all item references that apply to the filter
         foreach (FootprintInfo? item in itemsToDelete)
         {
             _ = FoundFolders.Remove(item);
         }
 
         CanDelete = true;
-        IsRunning = Visibility.Hidden;
+        IsRunning = false;
 
         await StartSearch();
     }
@@ -147,12 +235,12 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private async Task DeleteAllItems()
     {
         CanDelete = false;
-        IsRunning = Visibility.Visible;
+        IsRunning = true;
 
         Wpf.Ui.Controls.MessageBox confirmation = new()
         {
             Title = $"Delete {GetFormattedItems()}?",
-            Content = "All renamed APKs, OBBs, remaining temporary directories, tools, etc, will be deleted.\n\nContinue?",
+            Content = "All items displayed will be deleted (Click 'Cancel' to view once more if needed).\n\nContinue?",
             PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel",
         };
@@ -164,6 +252,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             goto Exit;
         }
 
+        // Get all item references that apply to the filter
         foreach (FootprintInfo item in FoundFolders)
         {
             if (item.ItemType is FootprintType.File)
@@ -180,12 +269,47 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
     Exit:
         CanDelete = true;
-        IsRunning = Visibility.Hidden;
+        IsRunning = false;
 
         await StartSearch();
     }
 
     #endregion Commands
+
+    public void UpdateItemsList()
+    {
+        Dispatcher.CurrentDispatcher.Invoke(() =>
+        {
+            FoundFolders.Clear();
+            TotalFilteredSpace = 0;
+
+            if (cachedFootprints.Count is 0)
+            {
+                return;
+            }
+
+            // The filter is just a generic mask. Each item checks if the flag is set within the filter.
+            foreach (var item in cachedFootprints.Where(fp => filter == 0 
+                || ((FootprintType)filter).HasFlag(fp.ItemType)))
+            {
+                FoundFolders.Add(item);
+                TotalFilteredSpace += item.FolderSizeBytes;
+            }
+
+            if (cachedFootprints.Count is 0)
+            {
+                NoFilesPanelVisibility = Visibility.Visible;
+                FileListVisibility = Visibility.Collapsed;
+                CanDelete = false;
+            }
+            else
+            {
+                NoFilesPanelVisibility = Visibility.Collapsed;
+                FileListVisibility = Visibility.Visible;
+                CanDelete = true;
+            }
+        });
+    }
 
     public async Task CollectDiskUsage(CancellationToken cancellation)
     {
@@ -207,7 +331,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             {
                 break;
             }
-
+        
             tasks.Add(Task.Run(async () =>
             {
                 FileAttributes attrs = await Task.Run(() => File.GetAttributes(folderName), cancellation);
@@ -227,26 +351,13 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         FootprintInfo[] folderStats = await Task.WhenAll(tasks);
 
-        // Use a loop to add items individually to the ObservableCollection
         foreach (FootprintInfo? folderStat in folderStats)
         {
-            FoundFolders.Add(folderStat);
+            // Not have AddRange is irritating
+            cachedFootprints.Add(folderStat);
         }
 
         TotalUsedSpace = folderStats.Sum(f => f.FolderSizeBytes);
-
-        if (FoundFolders.Count is 0)
-        {
-            NoFilesPanelVisibility = Visibility.Visible;
-            FileListVisibility = Visibility.Collapsed;
-            CanDelete = false;
-        }
-        else
-        {
-            NoFilesPanelVisibility = Visibility.Collapsed;
-            FileListVisibility = Visibility.Visible;
-            CanDelete = true;
-        }
     }
 
     private string GetFormattedItems()
@@ -258,9 +369,11 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             switch (item.ItemType)
             {
                 case FootprintType.Directory:
+                case FootprintType.TempDirectory:
                     folderCount++;
                     break;
                 case FootprintType.File:
+                case FootprintType.TempFile:
                     fileCount++;
                     break;
                 case FootprintType.RenamedApk:
@@ -291,13 +404,17 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             string plural = (apkCount != 1 ? "s" : string.Empty);
             sb.Append($"{apkCount} renamed APK{plural} and OBB{plural}");
         }
+        else
+        {
+            // Trim the ", " from the last element
+            return sb.ToString()[..^2];
+        }
 
         return sb.ToString();
     }
 
     private static async Task<long> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation)
     {
-        long size = 0;
 
         List<Task<long>> tasks = [];
         foreach (FileInfo fi in d.GetFiles())
@@ -311,12 +428,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         }
 
         _ = await Task.WhenAll(tasks);
+        long[] results = await Task.WhenAll(tasks);
 
-        foreach (Task<long> task in tasks)
-        {
-            size += await task;
-        }
-
-        return size;
+        return results.Sum();
     }
 }

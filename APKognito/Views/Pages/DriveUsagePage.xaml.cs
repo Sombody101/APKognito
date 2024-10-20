@@ -1,4 +1,5 @@
-﻿using APKognito.ViewModels.Pages;
+﻿using APKognito.Models;
+using APKognito.ViewModels.Pages;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Views.Pages;
@@ -15,9 +16,14 @@ public partial class DriveUsagePage : INavigableView<DriveUsageViewModel>, IView
         InitializeComponent();
         DataContext = ViewModel = viewModel;
 
-        Task.Run(async () =>
+        Dispatcher.Invoke(async () =>
         {
             await viewModel.StartSearch();
         });
+    }
+
+    private void FolderList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        ViewModel.TotalSelectedSpace = FolderList.SelectedItems.Cast<FootprintInfo>().Sum(item => item.FolderSizeBytes);
     }
 }

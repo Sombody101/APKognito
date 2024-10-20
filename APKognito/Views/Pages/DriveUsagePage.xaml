@@ -13,7 +13,7 @@
     Title="DriveUsage"
     d:DataContext="{d:DesignInstance pages:DriveUsageViewModel,
                                      IsDesignTimeCreatable=True}"
-    d:DesignHeight="450"
+    d:DesignHeight="800"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -39,63 +39,146 @@
             <Grid>
 
                 <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
+                    <RowDefinition Height="auto" />
                     <RowDefinition />
                 </Grid.RowDefinitions>
 
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="160" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
                 </Grid.ColumnDefinitions>
 
-                <ui:Button
-                    Width="143"
-                    Height="32"
-                    Command="{Binding StartSearchCommand}"
-                    Content="{Binding StartButtonText}"
-                    ToolTip="Show all data currently on your drive that was created by APKognito" />
+                <ui:Card>
+                    <StackPanel>
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="18"
+                            Text="Summary" />
 
-                <TextBlock
-                    Grid.Column="1"
-                    Margin="10,0,0,0"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
-                    FontWeight="Bold">
-                    <TextBlock.Inlines>
-                        <Run FontWeight="Bold">Total footprint:</Run>
-                        <Run FontWeight="Normal">
-                            <Binding Converter="{StaticResource GBConverter}" Path="TotalUsedSpace" />
-                        </Run>
-                    </TextBlock.Inlines>
-                </TextBlock>
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="0,0,0,10"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            FontWeight="Bold"
+                            ToolTip="The total disk space of all found items.">
+                            <TextBlock.Inlines>
+                                <Run FontWeight="Bold" Text="Total Footprint" />
+                                <ui:SymbolIcon Symbol="QuestionCircle24" />
+                                <Run Text=": " />
+                                <Run FontWeight="Normal">
+                                    <Binding Converter="{StaticResource GBConverter}" Path="TotalUsedSpace" />
+                                </Run>
+                            </TextBlock.Inlines>
+                        </TextBlock>
+
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="0,0,0,10"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            FontWeight="Bold"
+                            ToolTip="The total disk space of the items filtered from all other found items.">
+                            <TextBlock.Inlines>
+                                <Run FontWeight="Bold" Text="Total Filtered" />
+                                <ui:SymbolIcon Symbol="QuestionCircle24" />
+                                <Run Text=": " />
+                                <Run FontWeight="Normal">
+                                    <Binding Converter="{StaticResource GBConverter}" Path="TotalFilteredSpace" />
+                                </Run>
+                            </TextBlock.Inlines>
+                        </TextBlock>
+
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="0,0,0,10"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            FontWeight="Bold"
+                            ToolTip="The total disk space of all selected items below.">
+                            <TextBlock.Inlines>
+                                <Run FontWeight="Bold" Text="Total Selected" />
+                                <ui:SymbolIcon Symbol="QuestionCircle24" />
+                                <Run Text=": " />
+                                <Run FontWeight="Normal">
+                                    <Binding Converter="{StaticResource GBConverter}" Path="TotalSelectedSpace" />
+                                </Run>
+                            </TextBlock.Inlines>
+                        </TextBlock>
+
+                        <ui:Button
+                            Width="143"
+                            Height="32"
+                            Command="{Binding StartSearchCommand}"
+                            Content="{Binding StartButtonText}"
+                            ToolTip="Show all data currently on your drive that was created by APKognito" />
+                    </StackPanel>
+                </ui:Card>
+
+                <ui:Card
+                    Grid.Column="2"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Top">
+                    <Grid VerticalAlignment="Top">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="18"
+                            Text="Footprint Manipulation" />
+
+                        <!--  Filters  -->
+                        <StackPanel Grid.Row="1">
+                            <CheckBox
+                                Content="Renamed APKs"
+                                IsChecked="{Binding FilterInRenamedApks, Mode=TwoWay}"
+                                ToolTip="Includes all found renamed APKs" />
+                            <CheckBox
+                                Content="Directories"
+                                IsChecked="{Binding FilterInDirectories, Mode=TwoWay}"
+                                ToolTip="Includes all found directories, including temporary directories." />
+                            <CheckBox
+                                Content="Files"
+                                IsChecked="{Binding FilterInFiles, Mode=TwoWay}"
+                                ToolTip="Includes all found files, including temporary files." />
+                        </StackPanel>
+
+                        <!--  Deletion buttons  -->
+                        <StackPanel
+                            Grid.Row="1"
+                            Grid.Column="2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top">
+                            <ui:Button
+                                Margin="0,5"
+                                Command="{Binding DeleteSelectedItemsCommand}"
+                                CommandParameter="{Binding ElementName=FolderList}"
+                                Content="Delete Selected"
+                                IsEnabled="{Binding CanDelete}" />
+
+                            <ui:Button
+                                Margin="0,5"
+                                Command="{Binding DeleteAllItemsCommand}"
+                                CommandParameter="{Binding ElementName=FolderList}"
+                                Content="Delete All Items"
+                                IsEnabled="{Binding CanDelete}" />
+                        </StackPanel>
+                    </Grid>
+                </ui:Card>
 
                 <ProgressBar
                     Grid.Row="1"
                     Grid.ColumnSpan="2"
-                    Margin="0,5"
-                    IsIndeterminate="True"
-                    Visibility="{Binding IsRunning}" />
-
-                <!--  Deletion buttons  -->
-                <StackPanel
-                    Grid.Row="3"
-                    Grid.ColumnSpan="5"
-                    Orientation="Horizontal">
-                    <ui:Button
-                        Margin="0,0,5,0"
-                        Command="{Binding DeleteSelectedItemsCommand}"
-                        CommandParameter="{Binding ElementName=FolderList}"
-                        Content="Delete Selected"
-                        IsEnabled="{Binding CanDelete}" />
-
-                    <ui:Button
-                        Margin="5,0"
-                        Command="{Binding DeleteAllItemsCommand}"
-                        CommandParameter="{Binding ElementName=FolderList}"
-                        Content="Delete All Items"
-                        IsEnabled="{Binding CanDelete}" />
-                </StackPanel>
+                    Margin="0,13,0,0"
+                    IsIndeterminate="{Binding IsRunning}" />
             </Grid>
         </ui:Card>
 
@@ -118,6 +201,7 @@
                     Margin="0,10,0,0"
                     VerticalAlignment="Stretch"
                     ItemsSource="{Binding FoundFolders}"
+                    SelectionChanged="FolderList_SelectionChanged"
                     SelectionMode="Extended"
                     Visibility="{Binding FileListVisibility}">
 
@@ -138,12 +222,23 @@
 
                                     <TextBlock
                                         Grid.ColumnSpan="2"
-                                        Margin="0,0,0,5"
-                                        FontSize="16"
+                                        FontSize="18"
                                         FontWeight="Bold"
                                         Text="{Binding FolderName}" />
 
                                     <StackPanel Grid.Row="1">
+                                        <StackPanel.Resources>
+                                            <Style TargetType="{x:Type TextBlock}">
+                                                <Setter Property="Margin" Value="0,1,0,0" />
+                                            </Style>
+                                        </StackPanel.Resources>
+
+                                        <TextBlock
+                                            Margin="0,0,0,5"
+                                            FontSize="16"
+                                            FontWeight="Medium"
+                                            Text="{Binding ItemType, Converter={StaticResource IsFileConverter}}" />
+
                                         <TextBlock FontWeight="Bold">
                                             Path:
                                         </TextBlock>
@@ -153,15 +248,15 @@
                                         <TextBlock FontWeight="Bold">
                                             Creation Date:
                                         </TextBlock>
-                                        <TextBlock FontWeight="Bold">
-                                            Item Type:
-                                        </TextBlock>
                                     </StackPanel>
 
                                     <StackPanel
                                         Grid.Row="1"
                                         Grid.Column="1"
                                         VerticalAlignment="Center">
+
+                                        <TextBlock Margin="0,0,0,5" FontSize="16" />
+
                                         <TextBlock Text="{Binding FolderPath}" />
                                         <TextBlock>
                                             <TextBlock.Text>
@@ -172,7 +267,6 @@
                                             </TextBlock.Text>
                                         </TextBlock>
                                         <TextBlock Text="{Binding FormattedCreationDate}" />
-                                        <TextBlock Text="{Binding ItemType, Converter={StaticResource IsFileConverter}}" />
                                     </StackPanel>
                                 </Grid>
                             </ui:Card>
