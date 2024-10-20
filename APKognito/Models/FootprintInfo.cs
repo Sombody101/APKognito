@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Reflection;
 
 namespace APKognito.Models;
 
@@ -83,6 +84,7 @@ public record FootprintInfo
     }
 }
 
+[Flags]
 public enum FootprintType
 {
     Directory = 1,

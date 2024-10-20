@@ -2,6 +2,7 @@
 using MemoryPack;
 using Newtonsoft.Json;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace APKognito.Configurations;
 
@@ -9,6 +10,7 @@ public static class ConfigurationFactory
 {
     // Keeps the configs "secure" (classes will still have references to each instance, but this ensures there can only be one instance in use at a time)
     private static readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
+    private static readonly Dictionary<Type, ConfigFileAttribute> _cachedAttributes = [];
 
     /// <summary>
     /// Loads the given config type from file. If the file doesn't exist, a default config is returned and no file is created, edited, or destroyed.
@@ -55,11 +57,11 @@ public static class ConfigurationFactory
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="config"></param>
-    public static void SaveConfig(IKognitoConfig config, bool forceAppdataSave = false)
+    public static void SaveConfig(IKognitoConfig config, [Optional] ConfigFileAttribute? configAttribute, [Optional] bool forceAppdataSave)
     {
-        var configAttribute = GetConfigAttribute(config.GetType())!;
+        configAttribute ??= GetConfigAttribute(config.GetType())!;
 
-        string filePath = configAttribute.FileName;
+        string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configAttribute.FileName);
 
         if (!configAttribute.LoadedFromCurrentDirectory || forceAppdataSave)
         {
@@ -104,12 +106,12 @@ public static class ConfigurationFactory
             var attr = GetConfigAttribute(config.Key);
             if (attr.LoadedFromCurrentDirectory)
             {
-                SaveConfig(config.Value, true);
+                SaveConfig(config.Value, attr, true);
 
                 try
                 {
                     // Remove the file once transfered
-                    File.Delete(attr.GetCompletePath());
+                    File.Delete(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, attr.FileName));
                 }
                 catch (Exception ex)
                 {
@@ -121,7 +123,7 @@ public static class ConfigurationFactory
 
     private static T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
     {
-        string filePath = configAttribute.FileName;
+        string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configAttribute.FileName);
 
         // Check if the file was moved into the same directory as the app
         if (!File.Exists(filePath))
@@ -206,8 +208,17 @@ public static class ConfigurationFactory
 
     private static ConfigFileAttribute GetConfigAttribute(Type configType)
     {
-        return configType.GetCustomAttributes(typeof(ConfigFileAttribute), true)
+        if (_cachedAttributes.TryGetValue(configType, out var attribute))
+        {
+            return attribute;
+        }
+
+        attribute = configType.GetCustomAttributes(typeof(ConfigFileAttribute), true)
             .Cast<ConfigFileAttribute>()
             .First();
+
+        _cachedAttributes.Add(configType, attribute);
+
+        return attribute;
     }
 }

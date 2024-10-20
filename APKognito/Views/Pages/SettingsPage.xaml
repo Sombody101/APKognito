@@ -129,7 +129,7 @@
             Margin="0,12,0,0"
             Command="{Binding ViewModel.TransferConfigsCommand}"
             Content="Transfer Local Configurations"
-            ToolTip="Overwrites the configurations stored in %APPDATA%\configs with any valid configuration files found in the same directory as APKognito. If a file is not found for a configuration, it is not overwritten in %APPDATA%." />
+            ToolTip="Overwrites the configurations stored in %APPDATA%\configs with any loaded configuration files found in the same directory as APKognito." />
 
         <Separator Margin="0,10" />
         <TextBlock Margin="0,0,0,30" HorizontalAlignment="Center">
