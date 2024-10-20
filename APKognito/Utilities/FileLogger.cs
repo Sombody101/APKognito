@@ -28,10 +28,26 @@ public enum LogLevel
 /// </summary>
 public static class FileLogger
 {
-    public const string ReplacmentUsername = "[:USER:]";
+    public const string ReplacementUsername = "[:USER:]";
 
     private static readonly object lockObject = new object();
     private static string logFilePath = Path.Combine(App.AppData!.FullName, "applog.log");
+
+    static FileLogger()
+    {
+        try
+        {
+            FileInfo logFile = new(logFilePath);
+            if (logFile.Length >= (1024 * 1024 * 4)) // 4MB
+            {
+                logFile.Delete();
+            }
+        }
+        catch
+        {
+            // Probably doesn't exist yet
+        }
+    }
 
     public static void LogGeneric(string text, LogLevel logLevel = LogLevel.INFO)
     {
@@ -105,7 +121,7 @@ public static class FileLogger
     {
         string[] filesToPack = [
             logFilePath,
-            ConfigurationFactory.GetConfigInfo<RenameSessionList>().CompletePath()
+            ConfigurationFactory.GetConfigInfo<RenameSessionList>().GetCompletePath()
         ];
 
         string packPath = Path.Combine(App.AppData!.FullName, "logpack");
