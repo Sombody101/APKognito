@@ -321,13 +321,7 @@
                             Cursor="Hand"
                             IsEnabled="{Binding CanEdit}" />
 
-                        <Button
-                            Margin="0,5"
-                            HorizontalAlignment="Stretch"
-                            Command="{Binding ShowOutputFolderCommand}"
-                            Content="See Output"
-                            Cursor="Hand"
-                            ToolTip="{Binding CantStartReason}" />
+
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Margin="5,10,0,0" />
@@ -353,8 +347,15 @@
                         <ProgressBar
                             Grid.Row="1"
                             Grid.ColumnSpan="2"
-                            Margin="0,5,0,0"
                             IsIndeterminate="{Binding RunningJobs}" />
+
+                        <Button
+                            Margin="0,5"
+                            HorizontalAlignment="Stretch"
+                            Command="{Binding ShowOutputFolderCommand}"
+                            Content="See Output"
+                            Cursor="Hand"
+                            ToolTip="{Binding CantStartReason}" />
                     </StackPanel>
 
                 </Grid>

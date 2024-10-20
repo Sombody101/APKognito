@@ -39,7 +39,13 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
             Content = "Settings",
             Icon = new SymbolIcon { Symbol = SymbolRegular.Settings24 },
             TargetPageType = typeof(Views.Pages.SettingsPage)
-        }
+        },
+        // new NavigationViewItem()
+        // {
+        //     Content = "How To",
+        //     Icon = new SymbolIcon { Symbol = SymbolRegular.QuestionCircle24 },
+        //     TargetPageType = typeof(Views.Pages.HowToPage)
+        // }
     ];
 
     [ObservableProperty]

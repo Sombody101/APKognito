@@ -14,6 +14,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using Wpf.Ui;
+using Wpf.Ui.Appearance;
 
 namespace APKognito;
 
@@ -146,6 +147,8 @@ public partial class App
         };
 
         _host.Start();
+
+        ApplicationAccentColorManager.ApplySystemAccent();
     }
 
     /// <summary>
