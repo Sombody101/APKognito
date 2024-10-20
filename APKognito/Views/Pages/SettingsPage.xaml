@@ -89,9 +89,35 @@
             Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
-            Text="About APKognito" />
+            Text="Tips" />
 
-        <TextBlock Margin="0,12,0,0" Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
+        <ui:Card Margin="0,12,0,0">
+            <TextBlock TextWrapping="WrapWithOverflow" ToolTip="Now you know how to use a tooltip!">
+                <Run Text="Any text containing" />
+                <ui:SymbolIcon Symbol="QuestionCircle24" />
+                <Run Text="means that it has a tooltip. Hover your cursor over it to get extra details for the context. Give it a try here!" />
+            </TextBlock>
+        </ui:Card>
+
+        <ui:Card>
+            <StackPanel>
+                <TextBlock Text="Have you seen a bar like this, but never knew what it does?" />
+                <ProgressBar Margin="0,5" />
+                <TextBlock Text="It's actually a Progress Bar! If there's one you've never seen active, then you have a fast enough computer that it didn't have time to render! Here's an active progress bar so you know what it looks like." TextWrapping="WrapWithOverflow" />
+                <ProgressBar Margin="0,5" IsIndeterminate="True" />
+            </StackPanel>
+        </ui:Card>
+
+        <TextBlock
+            Margin="0,24,0,0"
+            FontSize="20"
+            FontWeight="Medium"
+            Text="About APKognito (Version Info)" />
+
+        <TextBlock
+            Margin="0,12,0,0"
+            Text="{Binding ViewModel.AppVersion, Mode=OneWay}"
+            TextWrapping="WrapWithOverflow" />
 
         <TextBlock
             Margin="0,24,0,0"
@@ -99,8 +125,14 @@
             FontWeight="Medium"
             Text="Miscellaneous" />
 
+        <ui:Button
+            Margin="0,12,0,0"
+            Command="{Binding ViewModel.TransferConfigsCommand}"
+            Content="Transfer Local Configurations"
+            ToolTip="Overwrites the configurations stored in %APPDATA%\configs with any valid configuration files found in the same directory as APKognito. If a file is not found for a configuration, it is not overwritten in %APPDATA%." />
+
         <Separator Margin="0,10" />
-        <TextBlock Margin="0,30" HorizontalAlignment="Center">
+        <TextBlock Margin="0,0,0,30" HorizontalAlignment="Center">
             <Run>
                 Found a bug? Create an
             </Run>

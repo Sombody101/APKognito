@@ -1,7 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using Wpf.Ui.Appearance;
@@ -104,6 +103,29 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         App.OpenDirectory(App.AppData!.FullName);
     }
 
+    [RelayCommand]
+    private async Task OnTransferConfigs()
+    {
+        try
+        {
+            ConfigurationFactory.TransferAppStartConfigurations();
+        }
+        catch (Exception ex)
+        {
+            await new MessageBox()
+            {
+                Title = "Transfer Failed",
+                Content = $"Failed to transfer configurations found in application startup directory.\n\n{ex.Message}"
+            }.ShowDialogAsync();
+        }
+
+        await new MessageBox()
+        {
+            Title = "Transfer Success",
+            Content = "All valid configuration files found within the application startup directory were transfered to %APPDATA%\\configs successfully."
+        }.ShowDialogAsync();
+    }
+
     public void OnNavigatedTo()
     {
         if (!_isInitialized)
@@ -116,7 +138,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     {
     }
 
-    private void InitializeViewModel() 
+    private void InitializeViewModel()
     {
         CurrentTheme = ApplicationThemeManager.GetAppTheme();
 
