@@ -108,6 +108,9 @@ public static class ConfigurationFactory
             {
                 SaveConfig(config.Value, attr, true);
 
+                // Reset it to save to %APPDATA% on close
+                attr.RevertSaveToCurrent();
+
                 try
                 {
                     // Remove the file once transfered

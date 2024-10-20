@@ -38,6 +38,11 @@ public class ConfigFileAttribute : Attribute
     {
         LoadedFromCurrentDirectory = true;
     }
+
+    public void RevertSaveToCurrent()
+    {
+        LoadedFromCurrentDirectory = false;
+    }
 }
 
 public interface IKognitoConfig
