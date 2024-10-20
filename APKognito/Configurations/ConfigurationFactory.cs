@@ -7,6 +7,7 @@ namespace APKognito.Configurations;
 
 public static class ConfigurationFactory
 {
+    // Keeps the configs "secure" (classes will still have references to each instance, but this ensures there can only be one instance in use at a time)
     private static readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
 
     /// <summary>
@@ -54,21 +55,20 @@ public static class ConfigurationFactory
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="config"></param>
-    public static void SaveConfig(IKognitoConfig config)
+    public static void SaveConfig(IKognitoConfig config, bool forceAppdataSave = false)
     {
         var configAttribute = GetConfigAttribute(config.GetType())!;
 
         string filePath = configAttribute.FileName;
 
-        if (!configAttribute.LoadedFromCurrentDirectory)
+        if (!configAttribute.LoadedFromCurrentDirectory || forceAppdataSave)
         {
             FileLogger.Log($"'{filePath}' for {config.GetType().Name}");
-            filePath = configAttribute.CompletePath();
+            filePath = configAttribute.GetCompletePath();
         }
         else
         {
             FileLogger.Log($"Sv CurDir file: ./{filePath}");
-
         }
 
         switch (configAttribute.ConfigType)
@@ -94,6 +94,31 @@ public static class ConfigurationFactory
         }
     }
 
+    /// <summary>
+    /// Transfers all valid configuration files found in the apps startup directory to the respective place in %APPDATA%.
+    /// </summary>
+    public static void TransferAppStartConfigurations()
+    {
+        foreach (var config in _cachedConfigs)
+        {
+            var attr = GetConfigAttribute(config.Key);
+            if (attr.LoadedFromCurrentDirectory)
+            {
+                SaveConfig(config.Value, true);
+
+                try
+                {
+                    // Remove the file once transfered
+                    File.Delete(attr.GetCompletePath());
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"Failed to delete '{attr.FileName}' after transferring it to %APPDATA%: {ex.Message}");
+                }
+            }
+        }
+    }
+
     private static T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
     {
         string filePath = configAttribute.FileName;
@@ -101,7 +126,7 @@ public static class ConfigurationFactory
         // Check if the file was moved into the same directory as the app
         if (!File.Exists(filePath))
         {
-            filePath = configAttribute.CompletePath();
+            filePath = configAttribute.GetCompletePath();
         }
         else
         {

@@ -27,7 +27,7 @@ public class ConfigFileAttribute : Attribute
         ConfigModifier = configModifier;
     }
 
-    public string CompletePath()
+    public string GetCompletePath()
     {
         string configs = Path.Combine(App.AppData!.FullName, "config");
         _ = Directory.CreateDirectory(configs);
