@@ -112,6 +112,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         if (newVersion == currentVersion)
         {
             FileLogger.Log("Currently using newest release.");
+            goto LogUpdateAndExit;
         }
         // New release is older than current (?)
         else if (newVersion < currentVersion)
