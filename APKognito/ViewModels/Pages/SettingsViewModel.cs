@@ -152,6 +152,11 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         _isInitialized = true;
     }
 
+    partial void OnCurrentThemeChanged(ApplicationTheme oldValue, ApplicationTheme newValue)
+    {
+        ApplicationThemeManager.Apply(newValue);
+    }
+
     public static string CreateLogPack()
     {
         try

@@ -63,8 +63,8 @@
                             FontWeight="Bold"
                             ToolTip="The total disk space of all found items.">
                             <TextBlock.Inlines>
-                                <Run FontWeight="Bold" Text="Total Footprint" />
                                 <ui:SymbolIcon Symbol="QuestionCircle24" />
+                                <Run FontWeight="Bold" Text="Total Footprint" />
                                 <Run Text=": " />
                                 <Run FontWeight="Normal">
                                     <Binding Converter="{StaticResource GBConverter}" Path="TotalUsedSpace" />
@@ -80,8 +80,8 @@
                             FontWeight="Bold"
                             ToolTip="The total disk space of the items filtered from all other found items.">
                             <TextBlock.Inlines>
-                                <Run FontWeight="Bold" Text="Total Filtered" />
                                 <ui:SymbolIcon Symbol="QuestionCircle24" />
+                                <Run FontWeight="Bold" Text="Total Filtered" />
                                 <Run Text=": " />
                                 <Run FontWeight="Normal">
                                     <Binding Converter="{StaticResource GBConverter}" Path="TotalFilteredSpace" />
@@ -97,8 +97,8 @@
                             FontWeight="Bold"
                             ToolTip="The total disk space of all selected items below.">
                             <TextBlock.Inlines>
-                                <Run FontWeight="Bold" Text="Total Selected" />
                                 <ui:SymbolIcon Symbol="QuestionCircle24" />
+                                <Run FontWeight="Bold" Text="Total Selected" />
                                 <Run Text=": " />
                                 <Run FontWeight="Normal">
                                     <Binding Converter="{StaticResource GBConverter}" Path="TotalSelectedSpace" />
@@ -198,7 +198,8 @@
 
                 <ui:ListView
                     x:Name="FolderList"
-                    Margin="0,10,0,0"
+                    MaxHeight="{x:Static SystemParameters.FullPrimaryScreenHeight}"
+                    Margin="0,0,0,10"
                     VerticalAlignment="Stretch"
                     ItemsSource="{Binding FoundFolders}"
                     SelectionChanged="FolderList_SelectionChanged"

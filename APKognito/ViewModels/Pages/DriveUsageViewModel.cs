@@ -13,7 +13,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 {
     private readonly KognitoConfig config;
 
-    private List<FootprintInfo> cachedFootprints = [];
+    private readonly List<FootprintInfo> cachedFootprints = [];
 
     #region Properties
 
@@ -48,21 +48,21 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
     [ObservableProperty]
     private bool _canModifyFilter = false;
-
-    uint filter = 0;
+    private uint filter = 0;
 
     private bool _filterInRenamedApks;
     public bool FilterInRenamedApks
     {
         get => _filterInRenamedApks;
-        set {
+        set
+        {
             if (value)
             {
-                filter |= (uint)FootprintType.RenamedApk;
+                filter |= (uint)FootprintTypes.RenamedApk;
             }
             else
             {
-                filter &= ~(uint)FootprintType.RenamedApk;
+                filter &= ~(uint)FootprintTypes.RenamedApk;
             }
 
             OnPropertyChanging(nameof(FilterInRenamedApks));
@@ -72,13 +72,14 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             UpdateItemsList();
         }
     }
-    
+
     private bool _filterInDirectories;
     public bool FilterInDirectories
     {
         get => _filterInDirectories;
-        set {
-            uint flag = (uint)(FootprintType.Directory | FootprintType.TempDirectory);
+        set
+        {
+            uint flag = (uint)(FootprintTypes.Directory | FootprintTypes.TempDirectory);
 
             if (value)
             {
@@ -88,7 +89,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             {
                 filter &= ~flag;
             }
-            
+
             OnPropertyChanging(nameof(FilterInDirectories));
             _filterInDirectories = value;
             OnPropertyChanged(nameof(FilterInDirectories));
@@ -96,13 +97,14 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             UpdateItemsList();
         }
     }
-    
+
     private bool _filterInFiles;
     public bool FilterInFiles
     {
         get => _filterInFiles;
-        set {
-            uint flag = (uint)(FootprintType.File | FootprintType.TempFile);
+        set
+        {
+            const uint flag = (uint)(FootprintTypes.File | FootprintTypes.TempFile);
 
             if (value)
             {
@@ -122,30 +124,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     }
 
     [ObservableProperty]
-    private ObservableCollection<FootprintInfo> _foundFolders = [
-#if DEBUG
-        new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
-        new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
-        new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
-        new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
-        new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
-        new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
-        new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
-        new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
-        new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
-        new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
-        new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
-        new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
-        new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
-        new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
-        new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
-        new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
-        new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
-        new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
-        new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
-        new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
-#endif
-        ];
+    private ObservableCollection<FootprintInfo> _foundFolders = [];
 
     #endregion Properties
 
@@ -155,6 +134,10 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         FilterInRenamedApks = false;
         FilterInFiles = FilterInDirectories = true;
+
+#if DEBUG
+        PopulateList();
+#endif
     }
 
     #region Commands
@@ -207,9 +190,24 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         List<FootprintInfo> itemsToDelete = folderList.SelectedItems.Cast<FootprintInfo>().ToList();
 
+        MessageBox confirmation = new()
+        {
+            Title = $"Delete {GetFormattedItems(itemsToDelete)}?",
+            Content = "All previously selected items will be deleted. (Click 'Cancel' to view once more if needed).\n\nContinue?",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+        };
+
+        MessageBoxResult result = await confirmation.ShowDialogAsync();
+
+        if (result != MessageBoxResult.Primary)
+        {
+            goto Exit;
+        }
+
         foreach (FootprintInfo? item in itemsToDelete)
         {
-            if (item.ItemType is FootprintType.File)
+            if (item.ItemType is FootprintTypes.File)
             {
                 File.Delete(item.FolderPath);
             }
@@ -225,6 +223,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             _ = FoundFolders.Remove(item);
         }
 
+    Exit:
         CanDelete = true;
         IsRunning = false;
 
@@ -237,9 +236,9 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         CanDelete = false;
         IsRunning = true;
 
-        Wpf.Ui.Controls.MessageBox confirmation = new()
+        MessageBox confirmation = new()
         {
-            Title = $"Delete {GetFormattedItems()}?",
+            Title = $"Delete {GetFormattedItems(FoundFolders)}?",
             Content = "All items displayed will be deleted (Click 'Cancel' to view once more if needed).\n\nContinue?",
             PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel",
@@ -255,7 +254,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         // Get all item references that apply to the filter
         foreach (FootprintInfo item in FoundFolders)
         {
-            if (item.ItemType is FootprintType.File)
+            if (item.ItemType is FootprintTypes.File)
             {
                 File.Delete(item.FolderPath);
             }
@@ -289,8 +288,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             }
 
             // The filter is just a generic mask. Each item checks if the flag is set within the filter.
-            foreach (var item in cachedFootprints.Where(fp => filter == 0 
-                || ((FootprintType)filter).HasFlag(fp.ItemType)))
+            foreach (FootprintInfo? item in cachedFootprints.Where(fp => filter == 0
+                || ((FootprintTypes)filter).HasFlag(fp.ItemType)))
             {
                 FoundFolders.Add(item);
                 TotalFilteredSpace += item.FolderSizeBytes;
@@ -331,7 +330,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             {
                 break;
             }
-        
+
             tasks.Add(Task.Run(async () =>
             {
                 FileAttributes attrs = await Task.Run(() => File.GetAttributes(folderName), cancellation);
@@ -360,49 +359,49 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         TotalUsedSpace = folderStats.Sum(f => f.FolderSizeBytes);
     }
 
-    private string GetFormattedItems()
+    private static string GetFormattedItems(IEnumerable<FootprintInfo> list)
     {
         int folderCount = 0, fileCount = 0, apkCount = 0;
 
-        foreach (var item in FoundFolders)
+        foreach (FootprintInfo item in list)
         {
             switch (item.ItemType)
             {
-                case FootprintType.Directory:
-                case FootprintType.TempDirectory:
+                case FootprintTypes.Directory:
+                case FootprintTypes.TempDirectory:
                     folderCount++;
                     break;
-                case FootprintType.File:
-                case FootprintType.TempFile:
+                case FootprintTypes.File:
+                case FootprintTypes.TempFile:
                     fileCount++;
                     break;
-                case FootprintType.RenamedApk:
+                case FootprintTypes.RenamedApk:
                     apkCount++;
                     break;
             }
         }
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
 
         if (folderCount > 0)
         {
-            sb.Append($"{folderCount} folder{(folderCount != 1 ? "s" : string.Empty)}, ");
+            _ = sb.Append($"{folderCount} folder{(folderCount != 1 ? "s" : string.Empty)}, ");
         }
 
         if (fileCount > 0)
         {
-            sb.Append($"{fileCount} file{(fileCount != 1 ? "s" : string.Empty)}, ");
+            _ = sb.Append($"{fileCount} file{(fileCount != 1 ? "s" : string.Empty)}, ");
         }
 
         if (apkCount > 0)
         {
             if (sb.Length > 0)
             {
-                sb.Append("and ");
+                _ = sb.Append("and ");
             }
 
-            string plural = (apkCount != 1 ? "s" : string.Empty);
-            sb.Append($"{apkCount} renamed APK{plural} and OBB{plural}");
+            string plural = apkCount != 1 ? "s" : string.Empty;
+            _ = sb.Append($"{apkCount} renamed APK{plural} and OBB{plural}");
         }
         else
         {
@@ -415,7 +414,6 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
     private static async Task<long> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation)
     {
-
         List<Task<long>> tasks = [];
         foreach (FileInfo fi in d.GetFiles())
         {
@@ -432,4 +430,34 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         return results.Sum();
     }
+
+    #region DEBUG_ONLY
+#if DEBUG
+    public void PopulateList()
+    {
+        FoundFolders = [
+            new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
+            new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
+            new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
+            new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
+            new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
+            new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
+            new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
+            new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
+            new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
+            new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
+            new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
+            new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
+            new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
+            new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
+            new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
+            new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
+            new("C:\\Windows\\Help\\APKognito.2355.temp", 27349872928),
+            new("C:\\Windows\\System32\\APKognito.6745f.temp", 8388392),
+            new("C:\\Windows\\SysWow6432\\APKognito.35422.temp", 2992),
+            new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
+        ];
+    }
+#endif
+    #endregion
 }

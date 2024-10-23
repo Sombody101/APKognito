@@ -11,9 +11,9 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Wpf.Ui;
 using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
@@ -22,17 +22,17 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 {
-    private const string defaultPropertyMessage = "No APK loaded";
-    private const string defaultJobMessage = "No jobs started";
+    private const string DEFAULT_PROP_MESSAGE = "No APK loaded";
+    private const string DEFAULT_JOB_MESSAGE = "No jobs started";
+    public const char PATH_SEPARATOR = '\n';
 
-    public const char PathSeparator = '\n';
-
-    readonly static FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
+    private static readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
 
     // Configs
     private readonly KognitoConfig config;
     private readonly CacheStorage cache;
 
+    private readonly ISnackbarService snackbarService;
 
     // Tool paths
     internal DirectoryInfo TempData;
@@ -62,19 +62,19 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
     private bool _canStart = false;
 
     [ObservableProperty]
-    private string _apkName = defaultPropertyMessage;
+    private string _apkName = DEFAULT_PROP_MESSAGE;
 
     [ObservableProperty]
-    private string _originalPackageName = defaultPropertyMessage;
+    private string _originalPackageName = DEFAULT_PROP_MESSAGE;
 
     [ObservableProperty]
-    private string _finalName = defaultPropertyMessage;
+    private string _finalName = DEFAULT_PROP_MESSAGE;
 
     [ObservableProperty]
-    private string _jobbedApk = defaultJobMessage;
+    private string _jobbedApk = DEFAULT_JOB_MESSAGE;
 
     [ObservableProperty]
-    private string _elapsedTime = defaultJobMessage;
+    private string _elapsedTime = DEFAULT_JOB_MESSAGE;
 
     [ObservableProperty]
     private string _cantStartReason = string.Empty;
@@ -87,7 +87,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
     [ObservableProperty]
     private long _footprintSizeBytes = 0;
-    
+
     /// <summary>
     /// Creates a copy of the source files rather than moving them.
     /// Can help with data protection when a renaming session fails as APKognito cannot reverse the changes.
@@ -103,11 +103,11 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
     }
 
     /// <summary>
-    /// A string of all APK paths separated by <see cref="PathSeparator"/>
+    /// A string of all APK paths separated by <see cref="PATH_SEPARATOR"/>
     /// </summary>
     public string FilePath
     {
-        get => cache?.ApkSourcePath ?? defaultPropertyMessage;
+        get => cache?.ApkSourcePath ?? DEFAULT_PROP_MESSAGE;
         set
         {
             cache.ApkSourcePath = value;
@@ -143,9 +143,11 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
     #endregion Properties
 
-    public HomeViewModel()
+    public HomeViewModel(ISnackbarService _snackbarService)
     {
         Instance = this;
+
+        snackbarService = _snackbarService;
 
         config = ConfigurationFactory.GetConfig<KognitoConfig>();
         cache = ConfigurationFactory.GetConfig<CacheStorage>();
@@ -157,7 +159,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         ApktoolBat = Path.Combine(appDataTools, "apktool.bat");
         ApksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
 
-        if (FilePath.Length != 0)
+        if (FilePath.Length is not 0)
         {
             UpdateFootprintInfo();
         }
@@ -226,7 +228,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
             }
             else
             {
-                FilePath = string.Join(PathSeparator, selectedFilePaths);
+                FilePath = string.Join(PATH_SEPARATOR, selectedFilePaths);
 
                 StringBuilder sb = new($"Selected {selectedFilePaths.Length} APKs\n");
 
@@ -255,7 +257,9 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
         // So it defaults to the Documents folder
         if (!Directory.Exists(oldOutput))
+        {
             oldOutput = null;
+        }
 
         OpenFolderDialog openFolderDialog = new()
         {
@@ -314,7 +318,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
     public string[] GetFilePaths()
     {
-        return cache?.ApkSourcePath?.Split(PathSeparator) ?? [];
+        return cache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
     }
 
     private async Task RenameApks(CancellationToken cancellationToken)
@@ -390,6 +394,8 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
                 goto Exit;
             }
 
+            WriteGenericLog($"------------------ Job {jobIndex + 1} Start\n");
+
             JobbedApk = Path.GetFileName(sourceApkPath);
 
             ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
@@ -424,8 +430,8 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
             pendingSession[jobIndex] = RenameSession.FormatForSerializer(
                 ApkName ?? JobbedApk,
-                finalName ?? (apkFailed 
-                    ? "[Rename Failed]" 
+                finalName ?? (apkFailed
+                    ? "[Rename Failed]"
                     : "[Unknown]"),
                 apkFailed
             );
@@ -434,11 +440,18 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         }
 
     Exit:
-        WriteGenericLog("------------------\n");
+        WriteGenericLog("------------------ Job End\n");
         Log($"{completeJobs} of {files.Length} APKs were renamed successfully.");
         if (completeJobs != files.Length)
         {
             LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
+            snackbarService.Show(
+                "Jobs failed!",
+                $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details.",
+                ControlAppearance.Danger,
+                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
+                TimeSpan.FromSeconds(5)
+            );
         }
 
         try
@@ -462,52 +475,18 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
         InvertStartButtonVisibility();
 
-        JobbedApk = FinalName = "Finished all APKs";
+        JobbedApk = FinalName = $"Finished {completeJobs}/{files.Length} APKs";
 
     ChecksFailed:
         RunningJobs = false;
         CanEdit = true;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "It's stupid.")]
     private async Task<bool> VerifyToolInstallation()
     {
-        Log("Verifying internet connection.");
+        CancellationToken cToken = CancellationToken.None;
 
-        try
-        {
-            (int result, IPStatus? status) = await IsConnectedToInternet();
-
-            if (result is 0)
-            {
-                goto StartDownloading;
-            }
-
-            // Windows specific error that is not listed is IPStatus
-            string? statusName = status == (IPStatus)11050
-                ? "GeneralFailure"
-                : status.ToString();
-
-            switch (result)
-            {
-                case 1:
-                    LogError("No network device found. A WiFi adapter or ethernet is required.");
-                    return false;
-
-                case 2:
-                    LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
-                    return false;
-
-                case 3:
-                    LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
-                    return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            FileLogger.LogException(ex);
-        }
-
-    StartDownloading:
         try
         {
             bool allSuccess = true;
@@ -515,22 +494,28 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
             if (!File.Exists(ApktoolJar))
             {
                 Log("Installing Apktool.jar...");
-                if (!await Installer.FetchAndDownload("https://api.github.com/repos/iBotPeaches/apktool/releases", ApktoolJar))
+                if (!await Installer.FetchAndDownload("https://api.github.com/repos/iBotPeaches/apktool/releases", ApktoolJar, cToken))
+                {
                     allSuccess = false;
+                }
             }
 
             if (!File.Exists(ApktoolBat))
             {
                 Log("Installing Apktool.bat...");
-                if (!await Installer.DownloadAsync("https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat", ApktoolBat))
+                if (!await Installer.DownloadAsync("https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat", ApktoolBat, cToken))
+                {
                     allSuccess = false;
+                }
             }
 
             if (!File.Exists(ApksignerJar))
             {
                 Log("Installing ApkSigner.jar");
-                if (!await Installer.FetchAndDownload("https://api.github.com/repos/patrickfav/uber-apk-signer/releases", ApksignerJar, 1))
+                if (!await Installer.FetchAndDownload("https://api.github.com/repos/patrickfav/uber-apk-signer/releases", ApksignerJar, cToken, 1))
+                {
                     allSuccess = false;
+                }
             }
 
             return allSuccess;
@@ -647,123 +632,9 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         }
     }
 
-    private static readonly List<Run> _runLogBuffer = [];
-    public static void WriteGenericLog(string text, [Optional] Brush color)
-    {
-        logBox.Dispatcher.Invoke(() =>
-        {
-            Run log = new(text)
-            {
-                FontFamily = firaRegular
-            };
-
-            if (color is not null)
-            {
-                log.Foreground = color;
-            }
-
-            if (logBox is null)
-            {
-                _runLogBuffer.Add(log);
-                return;
-            }
-
-            ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.Add(log);
-            logBox.ScrollToEnd();
-        });
-    }
-
-    public static void Log(string log)
-    {
-        FileLogger.Log(log);
-        WriteGenericLog($"[INFO]    ~ {log}\n");
-    }
-
-    public static void LogWarning(string log)
-    {
-        FileLogger.LogWarning(log);
-        WriteGenericLog($"[WARNING] # {log}\n", Brushes.Yellow);
-    }
-
-    public static void LogError(string log)
-    {
-        FileLogger.LogError(log);
-        WriteGenericLog($"[ERROR]   ! {log}\n", Brushes.Red);
-    }
-
-    public static void ClearLogs()
-    {
-        logBox.Dispatcher.Invoke(() =>
-        {
-            logBox.Document.Blocks.Clear();
-        });
-    }
-
-    /// <param name="failedStatus"></param>
-    /// <returns>
-    ///     <list type="bullet|number|table">
-    ///         <listheader>
-    ///             <term>0</term>
-    ///             <description>No issues; Internet connection works.</description>
-    ///         </listheader>
-    ///         <item>
-    ///             <term>1</term>
-    ///             <description>Got a <see langword="false"/> return from <see cref="InternetGetConnectedState"/>.</description>
-    ///         </item>
-    ///         <item>
-    ///             <term>2</term>
-    ///             <description>IP Cloudflare ping test failed</description>
-    ///         </item>
-    ///         <item>
-    ///             <term>3</term>
-    ///             <description>DNS Cloudflare ping test failed</description>
-    ///         </item>
-    ///     </list>
-    /// </returns>
-    private static async Task<(int, IPStatus?)> IsConnectedToInternet()
-    {
-        // This was added as an attempt to resolve this issue: https://github.com/Sombody101/APKognito/issues/2
-
-        if (!InternetGetConnectedState(out _, 0))
-        {
-            return (1, null);
-        }
-
-        Ping ping = new();
-
-        // Internet check
-        PingReply reply = await ping.SendPingAsync(new IPAddress([1, 1, 1, 1]), 3000);
-        if (reply.Status is not IPStatus.Success)
-        {
-            return (2, reply.Status);
-        }
-
-        // DNS check
-        reply = await ping.SendPingAsync("https://www.cloudflare.com/", 3000);
-        if (reply.Status is not IPStatus.Success)
-        {
-            return (3, reply.Status);
-        }
-
-        return (0, null);
-    }
-
     private static bool ValidCompanyName(string segment)
     {
         return ApkCompanyCheck().IsMatch(segment);
-    }
-
-    public void AntiMvvm_SetRichTextbox(RichTextBox rtb)
-    {
-        logBox = rtb;
-        logBox.Document.FontFamily = firaRegular;
-
-        // Dump all logs
-        foreach (var run in _runLogBuffer)
-        {
-            ((Paragraph)logBox.Document.Blocks.LastBlock).Inlines.AddRange(_runLogBuffer);
-            _runLogBuffer.Clear();
-        }
     }
 
     [GeneratedRegex("[^a-zA-Z0-9]")]
@@ -771,7 +642,4 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
 
     [GeneratedRegex("^[a-zA-Z0-9_]+$")]
     private static partial Regex ApkCompanyCheck();
-
-    [DllImport("wininet.dll")]
-    private static extern bool InternetGetConnectedState(out int Description, int ReservedValue);
 }

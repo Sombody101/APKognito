@@ -16,6 +16,7 @@
 
 	<!--  Thank god for this  -->
 	<StartupObject>APKognito.MainOverride</StartupObject>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

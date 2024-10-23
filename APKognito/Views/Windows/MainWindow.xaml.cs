@@ -11,6 +11,7 @@ public partial class MainWindow : INavigationWindow
 
     public MainWindow(
         MainWindowViewModel viewModel,
+        ISnackbarService snackbarService,
         IPageService pageService,
         INavigationService navigationService
     )
@@ -23,6 +24,7 @@ public partial class MainWindow : INavigationWindow
 
         InitializeComponent();
         SetPageService(pageService);
+        snackbarService.SetSnackbarPresenter(SnackbarPresenter);
 
         navigationService.SetNavigationControl(RootNavigation);
     }

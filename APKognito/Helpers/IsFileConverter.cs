@@ -8,15 +8,15 @@ internal class IsFileConverter : IValueConverter
 {
     public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is FootprintType fType)
+        if (value is FootprintTypes fType)
         {
             return fType switch
             {
-                FootprintType.RenamedApk => "Renamed APK",
-                FootprintType.Directory => "Directory",
-                FootprintType.TempDirectory => "Temporary Directory",
-                FootprintType.File => "File",
-                FootprintType.TempFile => "Temporary File",
+                FootprintTypes.RenamedApk => "Renamed APK",
+                FootprintTypes.Directory => "Directory",
+                FootprintTypes.TempDirectory => "Temporary Directory",
+                FootprintTypes.File => "File",
+                FootprintTypes.TempFile => "Temporary File",
                 _ => "[Unknown]"
             };
         }

@@ -11,12 +11,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
 
 namespace APKognito;
+
+#pragma warning disable S2325 // Methods and properties that don't access instance data should be static
+#pragma warning disable S6605 // Collection-specific "Exists" method should be used instead of the "Any" extension
 
 /// <summary>
 /// Interaction logic for App.xaml
@@ -70,11 +72,13 @@ public partial class App
         .CreateDefaultBuilder()
         .ConfigureAppConfiguration(c =>
         {
-            _ = c.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!);
+            _ = c.SetBasePath(AppContext.BaseDirectory);
         })
-        .ConfigureServices((context, services) =>
+        .ConfigureServices((__, services) =>
         {
             _ = services.AddHostedService<ApplicationHostService>();
+
+            _ = services.AddSingleton<ISnackbarService, SnackbarService>();
 
             // Page resolver service
             _ = services.AddSingleton<IPageService, PageService>();
@@ -95,14 +99,11 @@ public partial class App
             // Exception window model
             _ = services.AddSingleton<ExceptionWindowViewModel>();
 
-            // Configuration factory
-            // _ = services.AddSingleton<ConfigurationFactory>();
-
             // Auto update service
             _ = services.AddHostedService<AutoUpdaterService>();
 
             // Load all pages (any class that implements IViewable)
-            var types = typeof(App).Assembly.GetTypes()
+            IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
                 .Where(t => t != typeof(IViewable) && typeof(IViewable).IsAssignableFrom(t));
 
             foreach (Type? type in types)
@@ -138,12 +139,12 @@ public partial class App
 
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
-            ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
+            _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
         };
 
         Dispatcher.UnhandledException += (sender, e) =>
         {
-            ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
+            _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
         };
 
         _host.Start();
@@ -197,7 +198,7 @@ public partial class App
         {
             if (notifyMissing)
             {
-                new MessageBox()
+                _ = new MessageBox()
                 {
                     Title = "Failed to open directory",
                     Content = $"Failed to open directory as it does not exist.\n\n{directory}",

@@ -1,7 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
-using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -65,8 +64,6 @@ public class ApkEditorContext
         {
             viewModel.FinalName = "Unpacking...";
 
-            HomeViewModel.WriteGenericLog("------------------\n");
-
             // Unpack
             HomeViewModel.Log($"Unpacking {FullSourceApkFileName}");
             await UnpackApk(ApkTempDirectory, cancellationToken);
@@ -82,13 +79,14 @@ public class ApkEditorContext
             string finalOutputDirectory = Path.Combine(OutputDirectory, $"{newPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
 
             HomeViewModel.Log($"Changing '{packageName}'  →  '{newPackageName}'");
-            await Task.WhenAll(
-                ReplaceTextInFileAsync(androidManifest, oldCompanyName, ReplacementCompanyName, cancellationToken),
-                ReplaceTextInFileAsync(Path.Combine(ApkTempDirectory, "apktool.yml"), oldCompanyName, ReplacementCompanyName, cancellationToken)
-            );
 
-            await ReplaceObbFiles(packageName, ReplacementCompanyName, finalOutputDirectory, cancellationToken);
+            // await Task.WhenAll(
+            // ReplaceTextInFileAsync(androidManifest, oldCompanyName, ReplacementCompanyName, cancellationToken),
+            // ReplaceTextInFileAsync(Path.Combine(ApkTempDirectory, "apktool.yml"), oldCompanyName, ReplacementCompanyName, cancellationToken),
             await ReplaceAllNameInstancesAsync(oldCompanyName, ReplacementCompanyName, cancellationToken);
+            //)
+
+            ReplaceObbFiles(packageName, ReplacementCompanyName, finalOutputDirectory);
 
             // Repack
             HomeViewModel.Log("Packing APK...");
@@ -117,6 +115,7 @@ public class ApkEditorContext
                 }
                 catch (Exception ex)
                 {
+                    FileLogger.LogException(ex);
                     HomeViewModel.LogWarning($"Failed to clear source APK (CopyWhenRenaming=Enabled): {ex.Message}");
                 }
             }
@@ -208,15 +207,12 @@ public class ApkEditorContext
 
         string[] files = Directory.GetFiles(Path.Combine(ApkTempDirectory, "smali"), "*", SearchOption.AllDirectories);
 
-        _ = await Task.Run(() =>
-            _ = Parallel.ForEach(files, async filePath =>
-            {
-                await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, cToken);
-            })
+        await Parallel.ForEachAsync(files, cToken, async (filePath, subcToken)
+            => await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, subcToken)
         );
     }
 
-    private async Task ReplaceObbFiles(string sourcePackageName, string newApkCompany, string outputDirectory, CancellationToken cToken)
+    private void ReplaceObbFiles(string sourcePackageName, string newApkCompany, string outputDirectory)
     {
         string originalCompanyName = sourcePackageName.Split('.')[1];
         string? sourceDirectory = Path.GetDirectoryName(FullSourceApkPath);
@@ -246,45 +242,44 @@ public class ApkEditorContext
             Directory.Move(obbDirectory, newObbDirectory);
         }
 
-        string newApkName = sourcePackageName.Replace(originalCompanyName, newApkCompany);
         string finalPath = Path.Combine(outputDirectory, sourcePackageName);
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(FullSourceApkFileName);
 
-        _ = await Task.Run(() =>
-            _ = Parallel.ForEach(Directory.GetFiles(newObbDirectory), filePath =>
-            {
-                string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
+        foreach (string filePath in Directory.GetFiles(newObbDirectory, $"*{fileNameWithoutExtension}.obb"))
+        {
+            HomeViewModel.Log($"Renaming app file {Path.GetFileName(filePath)}");
 
-                if (fileNameWithoutExtension.Contains(sourcePackageName))
-                {
-                    HomeViewModel.Log($"Renaming app file {Path.GetFileName(filePath)}");
+            string newFileName = fileNameWithoutExtension.Replace(originalCompanyName, newApkCompany);
+            string newFilePath = Path.Combine(finalPath, $"{newFileName}{Path.GetExtension(filePath)}");
 
-                    string newFileName = fileNameWithoutExtension.Replace(originalCompanyName, newApkCompany);
-                    string newFilePath = Path.Combine(finalPath, $"{newFileName}{Path.GetExtension(filePath)}");
+            File.Move(filePath, newFilePath, true);
+        }
 
-                    File.Move(filePath, newFilePath, true);
-                }
-            }),
-        cToken);
-
+        string newApkName = sourcePackageName.Replace(originalCompanyName, newApkCompany);
         RenameDirectory(newObbDirectory, newApkName);
     }
 
-    private async Task ReplaceTextInFileAsync(string filePath, string searchText, string replaceText, CancellationToken cToken)
+    private static async Task ReplaceTextInFileAsync(string filePath, string searchText, string replaceText, CancellationToken cToken)
     {
-        string tempFile = Path.Combine(TempStreamDirectory, $"${Path.GetFileName(filePath)}-{Random.Shared.Next():x00}.tmp.strm");
+        using StreamReader reader = File.OpenText(filePath);
+        await using MemoryStream memoryStream = new();
+        await using StreamWriter writer = new(memoryStream);
 
-        using (StreamReader input = File.OpenText(filePath))
-        using (StreamWriter output = new(tempFile))
+        string? line;
+        while ((line = await reader.ReadLineAsync(cToken)) is not null && !cToken.IsCancellationRequested)
         {
-            string? line;
-            while ((line = await input.ReadLineAsync(cToken)) is not null && !cToken.IsCancellationRequested)
-            {
-                await output.WriteLineAsync(line.Replace(searchText, replaceText).AsMemory(), cToken);
-            }
+            await writer.WriteLineAsync(line.Replace(searchText, replaceText).AsMemory(), cToken);
         }
 
-        File.Delete(filePath);
-        File.Move(tempFile, filePath);
+        memoryStream.SetLength(memoryStream.Position);
+        _ = memoryStream.Seek(0, SeekOrigin.Begin);
+
+        reader.Close();
+
+        // Flushing the stream here creates redundant data...
+
+        await using FileStream copyStream = File.OpenWrite(filePath);
+        await memoryStream.CopyToAsync(copyStream, cToken);
     }
 
     private Process CreateJavaProcess(string arguments)

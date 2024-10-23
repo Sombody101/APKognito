@@ -21,6 +21,7 @@
 
     <Page.Resources>
         <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+        <helpers:ThemeToIndexConverter x:Key="ThemeToIndexConverter" />
     </Page.Resources>
 
     <StackPanel Margin="0,10">
@@ -30,25 +31,49 @@
             FontWeight="Medium"
             Text="Personalization" />
 
-        <TextBlock Margin="0,12,0,0" Text="Theme" />
+        <ui:CardControl Margin="0,12,0,0" Icon="{ui:SymbolIcon Color24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="App theme" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Select which app theme to display" />
+                </Grid>
+            </ui:CardControl.Header>
+            <ComboBox
+                Grid.Column="1"
+                MinWidth="200"
+                SelectedIndex="{Binding ViewModel.CurrentTheme, Converter={StaticResource ThemeToIndexConverter}, Mode=TwoWay}">
+                <ComboBoxItem Content="Light" />
+                <ComboBoxItem Content="Dark" />
+                <ComboBoxItem Content="High Contrast" />
+            </ComboBox>
+        </ui:CardControl>
 
-        <RadioButton
-            Margin="0,12,0,0"
-            Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
-            CommandParameter="theme_light"
-            Content="Light"
-            GroupName="themeSelect"
-            IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Light, Mode=OneWay}" />
+        <ui:CardExpander Margin="0,12,0,0" Icon="{ui:SymbolIcon ClockArrowDownload24}">
+            <ui:CardExpander.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-        <RadioButton
-            Margin="0,8,0,0"
-            Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
-            CommandParameter="theme_dark"
-            Content="Dark"
-            GroupName="themeSelect"
-            IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
+                    <ui:TextBlock Grid.Row="0" Text="Auto Update" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Select how APKognito handles updates" />
+                </Grid>
+            </ui:CardExpander.Header>
 
-        <ui:CardExpander Margin="0,25,0,0" Header="Update Settings">
             <StackPanel>
                 <CheckBox Content="Auto Update" IsChecked="{Binding ViewModel.AutomaticUpdatesEnabled, Mode=TwoWay}" />
 
@@ -69,7 +94,11 @@
             </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander Margin="0,25,0,0" Header="Debugging">
+        <ui:CardExpander Margin="0,12,0,0" Icon="{ui:SymbolIcon Bug24}">
+            <ui:CardExpander.Header>
+                <ui:TextBlock Grid.Row="0" Text="Debugging" />
+            </ui:CardExpander.Header>
+
             <StackPanel>
 
                 <ui:Button

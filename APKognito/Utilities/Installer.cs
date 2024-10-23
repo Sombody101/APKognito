@@ -2,11 +2,14 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 
 namespace APKognito.Utilities;
 
-internal static class Installer
+internal static partial class Installer
 {
     public class InvalidJsonIndexerException : Exception
     {
@@ -22,9 +25,9 @@ internal static class Installer
     /// <param name="url"></param>
     /// <param name="num"></param>
     /// <returns></returns>
-    public static async Task<string?> FetchAsync(string url, int num = 0)
+    public static async Task<string?> FetchAsync(string url, CancellationToken cToken, int num = 0)
     {
-        var result = await FetchParseDocument(url, [[0, "assets", num, "browser_download_url"]]);
+        var result = await FetchParseDocument(url, [[0, "assets", num, "browser_download_url"]], cToken);
 
         if (result is string[] strArray)
         {
@@ -40,13 +43,18 @@ internal static class Installer
     /// <param name="url"></param>
     /// <param name="indexes"></param>
     /// <returns></returns>
-    public static async Task<string?[]> FetchAsync(string url, params object[][] indexes)
+    public static async Task<string?[]> FetchAsync(string url, CancellationToken cToken, params object[][] indexes)
     {
-        return await FetchParseDocument(url, indexes) as string?[] ?? [];
+        return await FetchParseDocument(url, indexes, cToken) as string?[] ?? [];
     }
 
-    public static async Task<bool> DownloadAsync(string url, string name)
+    public static async Task<bool> DownloadAsync(string url, string name, CancellationToken cToken)
     {
+        if (!await VerifyConnection())
+        {
+            return false;
+        }
+
         try
         {
             string fileName = Path.GetFileName(name);
@@ -74,20 +82,25 @@ internal static class Installer
         return false;
     }
 
-    public static async Task<bool> FetchAndDownload(string url, string name, int num = 0)
+    public static async Task<bool> FetchAndDownload(string url, string name, CancellationToken cToken, int assetIndex = 0)
     {
-        string? downloadUrl = await FetchAsync(url, num);
+        string? downloadUrl = await FetchAsync(url, cToken, assetIndex);
 
         if (downloadUrl is null)
         {
             return false;
         }
 
-        return await DownloadAsync(downloadUrl, name);
+        return await DownloadAsync(downloadUrl, name, cToken);
     }
 
-    private static async Task<object?> FetchParseDocument(string url, object[][] indexes)
+    private static async Task<object?> FetchParseDocument(string url, object[][] indexes, CancellationToken cToken)
     {
+        if (!await VerifyConnection())
+        {
+            return null;
+        }
+
         if (indexes.Length == 0)
         {
             return null;
@@ -98,10 +111,10 @@ internal static class Installer
 
         try
         {
-            HttpResponseMessage response = await App.SharedHttpClient.GetAsync(url);
+            HttpResponseMessage response = await App.SharedHttpClient.GetAsync(url, cToken);
             response.EnsureSuccessStatusCode();
 
-            jsonResult = await response.Content.ReadAsStringAsync();
+            jsonResult = await response.Content.ReadAsStringAsync(cToken);
 
             JToken originalToken = JArray.Parse(jsonResult);
 
@@ -149,4 +162,96 @@ internal static class Installer
         FileLogger.LogError($"Fetched JSON snippet: {jsonResult.Truncate(1500) ?? "[NULL]"}");
         return null;
     }
+
+    private static async Task<bool> VerifyConnection()
+    {
+        try
+        {
+            (int result, IPStatus? status) = await IsConnectedToInternet();
+
+            if (result is 0)
+            {
+                return true;
+            }
+
+            // Windows specific error that is not listed is IPStatus
+            string? statusName = status == (IPStatus)11050
+                ? "GeneralFailure"
+                : status.ToString();
+
+            switch (result)
+            {
+                case 1:
+                    HomeViewModel.LogError("No network device found. A WiFi adapter or ethernet is required.");
+                    return false;
+
+                case 2:
+                    HomeViewModel.LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
+                    return false;
+
+                case 3:
+                    HomeViewModel.LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
+                    return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Tests for internet connection.
+    /// </summary>
+    /// <returns>
+    ///     <list type="bullet|number|table">
+    ///         <listheader>
+    ///             <term>0</term>
+    ///             <description>No issues; Internet connection works.</description>
+    ///         </listheader>
+    ///         <item>
+    ///             <term>1</term>
+    ///             <description>Got a <see langword="false"/> return from <see cref="InternetGetConnectedState"/>.</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>2</term>
+    ///             <description>IP Cloudflare ping test failed</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>3</term>
+    ///             <description>DNS Cloudflare ping test failed</description>
+    ///         </item>
+    ///     </list>
+    /// </returns>
+    private static async Task<(int, IPStatus?)> IsConnectedToInternet()
+    {
+        // This was added as an attempt to resolve this issue: https://github.com/Sombody101/APKognito/issues/2
+
+        if (!InternetGetConnectedState(out _, 0))
+        {
+            return (1, null);
+        }
+
+        Ping ping = new();
+
+        // Internet check
+        PingReply reply = await ping.SendPingAsync(new IPAddress([1, 1, 1, 1]));
+        if (reply.Status is not IPStatus.Success)
+        {
+            return (2, reply.Status);
+        }
+
+        // DNS check
+        reply = await ping.SendPingAsync("cloudflare.com", 3000);
+
+        return reply.Status is not IPStatus.Success
+            ? ((int, IPStatus?))(3, reply.Status)
+            : (0, null);
+    }
+
+    [LibraryImport("wininet.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool InternetGetConnectedState(out int Description, int ReservedValue);
 }

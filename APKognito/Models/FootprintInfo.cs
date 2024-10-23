@@ -5,7 +5,7 @@ namespace APKognito.Models;
 
 public record FootprintInfo
 {
-    public static readonly FootprintInfo Empty = new(string.Empty, "No files to cleanup!", 0, FootprintType.File);
+    public static readonly FootprintInfo Empty = new(string.Empty, "No files to cleanup!", 0, FootprintTypes.File);
 
     public string FolderPath { get; }
 
@@ -13,18 +13,18 @@ public record FootprintInfo
 
     public long FolderSizeBytes { get; }
 
-    public FootprintType ItemType { get; }
+    public FootprintTypes ItemType { get; }
 
     public DateTime CreationDate { get; }
 
     public string FormattedCreationDate { get; }
 
 #if DEBUG
-    public FootprintInfo(string folderPath, long folderByteSize, FootprintType itemType = FootprintType.Directory)
+    public FootprintInfo(string folderPath, long folderByteSize, FootprintTypes itemType = FootprintTypes.Directory)
     {
         FolderPath = folderPath;
 
-        FolderName = itemType is FootprintType.File
+        FolderName = itemType is FootprintTypes.File
             ? Path.GetFileName(folderPath)
             : Path.GetDirectoryName(folderPath) ?? "[Unknown]";
 
@@ -50,15 +50,15 @@ public record FootprintInfo
         // Check if the directory has an APK file
         if (Directory.GetFiles(directory.FullName, "*.apk").Any())
         {
-            ItemType = FootprintType.RenamedApk;
+            ItemType = FootprintTypes.RenamedApk;
         }
         else if (directory.FullName.StartsWith(Path.GetTempPath()))
         {
-            ItemType = FootprintType.TempDirectory;
+            ItemType = FootprintTypes.TempDirectory;
         }
         else
         {
-            ItemType = FootprintType.Directory;
+            ItemType = FootprintTypes.Directory;
         }
     }
 
@@ -72,10 +72,10 @@ public record FootprintInfo
         CreationDate = file.CreationTime;
         FormattedCreationDate = CreationDate.ToString();
 
-        ItemType = FootprintType.File;
+        ItemType = FootprintTypes.File;
     }
 
-    private FootprintInfo(string folderPath, string folderName, long folderByteSize, FootprintType itemType)
+    private FootprintInfo(string folderPath, string folderName, long folderByteSize, FootprintTypes itemType)
     {
         FolderPath = folderPath;
         FolderName = folderName;
@@ -85,7 +85,7 @@ public record FootprintInfo
 }
 
 [Flags]
-public enum FootprintType
+public enum FootprintTypes
 {
     Directory = 1,
     TempDirectory = 2,

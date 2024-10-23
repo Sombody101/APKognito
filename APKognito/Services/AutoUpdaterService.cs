@@ -7,16 +7,15 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
-using System.Runtime.Serialization;
 
 namespace APKognito.Services;
 
 public sealed class AutoUpdaterService : IHostedService, IDisposable
 {
-    public static readonly string UpdatesFolder = Path.Combine(App.AppData!.FullName, "updates");
+    private const string API_URL = "https://api.github.com/repos/Sombody101/APKognito/releases";
+    private const int LATEST = 0;
 
-    private const string releaseUrl = "https://api.github.com/repos/Sombody101/APKognito/releases";
-    private const int latest = 0;
+    public static readonly string UpdatesFolder = Path.Combine(App.AppData!.FullName, "updates");
 
     private readonly UpdateConfig config;
     private readonly CacheStorage cache;
@@ -42,7 +41,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
             try
             {
-                Directory.Delete(AutoUpdaterService.UpdatesFolder, true);
+                Directory.Delete(UpdatesFolder, true);
             }
             catch (Exception ex)
             {
@@ -64,11 +63,11 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _timer?.Change(Timeout.Infinite, 0);
+        _ = (_timer?.Change(Timeout.Infinite, 0));
         return Task.CompletedTask;
     }
 
-    private async Task CheckForUpdatesAsync(CancellationToken cancellation)
+    private async Task CheckForUpdatesAsync(CancellationToken cToken)
     {
         if (inUpdate)
         {
@@ -83,9 +82,9 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         // Fetch the download URL and release tag
-        string?[] jsonData = await Installer.FetchAsync(releaseUrl, [
-            [latest, "tag_name"],
-            [latest, "assets", 0, "browser_download_url"],
+        string?[] jsonData = await Installer.FetchAsync(API_URL, cToken, [
+            [LATEST, "tag_name"],
+            [LATEST, "assets", 0, "browser_download_url"],
         ]);
 
         // Only accept debug releases for debug builds, public releases for release builds
@@ -152,7 +151,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
         _ = Directory.CreateDirectory(UpdatesFolder);
         string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{jsonData[0]![1..]}.zip");
-        if (!await Installer.DownloadAsync(jsonData[1]!, downloadZip))
+        if (!await Installer.DownloadAsync(jsonData[1]!, downloadZip, cToken))
         {
             goto LogUpdateAndExit;
         }
@@ -188,7 +187,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         // Never in my life did I think "Yes. I'll just 'await await, await' it".
-        var result = await await App.Current.Dispatcher.InvokeAsync(async () =>
+        MessageBoxResult result = await await App.Current.Dispatcher.InvokeAsync(async () =>
         {
             return await new MessageBox()
             {
