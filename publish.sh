@@ -106,3 +106,7 @@ echo "$commit_messages"
 echo "Release created with the tag $release_tag"
 echo "Syncing remote tags..."
 git pull
+
+
+echo "Cleaning up"
+rm "$build_path/$zip_file"
