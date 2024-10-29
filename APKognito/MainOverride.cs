@@ -7,14 +7,25 @@ namespace APKognito;
 // Does that have any influence on what I'm doing? Well, it is here, isn't it?
 internal static class MainOverride
 {
+    public const string UpdateInstalledArgument = "[::updated::]";
+    public static bool RestartedFromUpdate { get; private set; }
+
     /// <summary>
     /// Application Entry Point.
     /// </summary>
     [STAThread]
     public static int Main(string[] args)
     {
-        ParsedArgs pargs = new(args);
-        CliMain.Main(pargs);
+        // Tells AutoUpdateService to cleanup update files
+        if (args.Any(str => str == UpdateInstalledArgument))
+        {
+            RestartedFromUpdate = true;
+        }
+        else
+        {
+            ParsedArgs pargs = new(args);
+            CliMain.Main(pargs);
+        }
 
         APKognito.App app = new();
         app.InitializeComponent();

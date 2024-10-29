@@ -6,21 +6,21 @@ using APKognito.Utilities;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
-using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Media;
+using System.Windows.Documents;
 using System.Windows.Threading;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
+using FontFamily = System.Windows.Media.FontFamily;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace APKognito.ViewModels.Pages;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
+public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiMvvmRtb
 {
     private const string DEFAULT_PROP_MESSAGE = "No APK loaded";
     private const string DEFAULT_JOB_MESSAGE = "No jobs started";
@@ -44,7 +44,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel? Instance { get; private set; }
 
-    private static RichTextBox logBox;
+    //private static RichTextBox logBox;
     private CancellationTokenSource? _renameApksCancelationSource;
 
     /*
@@ -529,7 +529,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         }
     }
 
-    private static bool VerifyJavaInstallation(out string javaPath)
+    private bool VerifyJavaInstallation(out string javaPath)
     {
         static bool VerifyVersion(string versionStr)
         {
@@ -562,7 +562,7 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
         {
             if (javaJdkKey.GetValue("CurrentVersion") is not string rawJdkVersion)
             {
-                LogWarning($"A JDK installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
+                LogWarning("A JDK installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
                 goto JavaSearchFailed;
             }
 
@@ -610,10 +610,14 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
             string apkFileName = Path.GetFileNameWithoutExtension(file);
             string obbDirectory = Path.Combine(Path.GetDirectoryName(file)!, apkFileName);
 
-            string[] foundFiles = Directory.GetFiles(obbDirectory, $"*{apkFileName}.obb");
-            if (foundFiles.Length > 0)
+            // Solution for issue: https://github.com/Sombody101/APKognito/issues/4
+            if (Directory.Exists(obbDirectory))
             {
-                FootprintSizeBytes += new FileInfo(foundFiles[0]).Length;
+                string[] foundFiles = Directory.GetFiles(obbDirectory, $"*{apkFileName}.obb");
+                if (foundFiles.Length > 0)
+                {
+                    FootprintSizeBytes += new FileInfo(foundFiles[0]).Length;
+                }
             }
         }
     }
@@ -630,6 +634,18 @@ public partial class HomeViewModel : ObservableObject, IViewable, IAntiMvvmRtb
             StartButtonVisibility = Visibility.Visible;
             CancelButtonVisibility = Visibility.Collapsed;
         }
+    }
+
+    private static readonly List<Run> _runLogBuffer = [];
+    public override void AntiMvvm_SetRichTextbox(RichTextBox rtb)
+    {
+        rtb.Document.FontFamily = firaRegular;
+
+        // Dump all logs
+        ((Paragraph)rtb.Document.Blocks.LastBlock).Inlines.AddRange(_runLogBuffer);
+        _runLogBuffer.Clear();
+
+        base.AntiMvvm_SetRichTextbox(rtb);
     }
 
     private static bool ValidCompanyName(string segment)

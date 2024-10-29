@@ -1,4 +1,6 @@
-﻿using APKognito.Configurations;
+﻿ #define EMULATE_RELEASE_ON_DEBUG
+
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
 using APKognito.ViewModels.Pages;
@@ -35,7 +37,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         FileLogger.Log($"Update service starting. (@{config.CheckDelay}m)");
 
         // Update cleanup
-        if (App.RestartedFromUpdate)
+        if (MainOverride.RestartedFromUpdate)
         {
             FileLogger.Log("Clearing old update files.");
 
@@ -88,12 +90,18 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         ]);
 
         // Only accept debug releases for debug builds, public releases for release builds
-        if (!jsonData[0]!.StartsWith(App.IsDebugRelease ? 'd' : 'v'))
-        {
-#if DEBUG
-            FileLogger.Log($"Most recent release isn't a debug build: {jsonData[0]}");
+        if (!jsonData[0]!.StartsWith(
+#if EMULATE_RELEASE_ON_DEBUG
+            'v'
 #else
+            App.IsDebugRelease ? 'd' : 'v'
+#endif
+            ))
+        {
+#if RELEASE || EMULATE_RELEASE_ON_DEBUG
             FileLogger.Log($"Most recent release isn't a public build: {jsonData[0]}");
+#else
+            FileLogger.Log($"Most recent release isn't a debug build: {jsonData[0]}");
 #endif
 
             goto LogUpdateAndExit;
@@ -137,7 +145,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
                 && lastVersion >= newVersion)
             {
                 FileLogger.Log($"Installing previous session update ({lastVersion} >= {newVersion})");
-                await ImplementUpdate(updateInfo[0]);
+                await ImplementUpdate(updateInfo[0], updateInfo[1]);
                 return;
             }
             else
@@ -153,12 +161,13 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{jsonData[0]![1..]}.zip");
         if (!await Installer.DownloadAsync(jsonData[1]!, downloadZip, cToken))
         {
+            FileLogger.LogFatal("Failed to download latest release.");
             goto LogUpdateAndExit;
         }
 
         cache.UpdateSourceLocation = $"{downloadZip}\0{jsonData[0]}";
 
-        await ImplementUpdate(downloadZip);
+        await ImplementUpdate(downloadZip, jsonData[0]!);
 
     LogUpdateAndExit:
         LogNextUpdate(config.CheckDelay);
@@ -169,8 +178,8 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         _timer?.Dispose();
     }
 
-    private static bool inUpdate = false;
-    private static async Task ImplementUpdate(string updateFilePath)
+    private bool inUpdate = false;
+    private async Task ImplementUpdate(string updateFilePath, string newVersion)
     {
         if (inUpdate)
         {
@@ -189,33 +198,48 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         // Never in my life did I think "Yes. I'll just 'await await, await' it".
         MessageBoxResult result = await await App.Current.Dispatcher.InvokeAsync(async () =>
         {
+            // The update should take about 5 or 6 seconds, but tell the user 10 so they think it's faster than anticipated
             return await new MessageBox()
             {
                 Title = "Update ready!",
-                Content = "An update has been downloaded and is ready to install. Would you like to do it now? (Requires restart)",
-                PrimaryButtonText = "Update and Restart"
+                Content = $"An update has been downloaded and is ready to install!\n{newVersion[0]}{currentVersion} -> {newVersion}\nWould you like to do it now?\nAPKognito will restart itself when the install is complete (~10 seconds).",
+                PrimaryButtonText = "Update",
+                SecondaryButtonText = "Stop Updates",
+                CloseButtonText = "Cancel",
+                Width = 800,
             }.ShowDialogAsync();
         });
 
-        if (result is not MessageBoxResult.Primary)
+        switch (result)
         {
-            FileLogger.Log("User denied update installation.");
-            goto ContinueApp;
+            case MessageBoxResult.Primary:
+                // Proceed to update
+                break;
+
+            case MessageBoxResult.Secondary:
+                // Cancel automatic updates
+                config.CheckForUpdates = false;
+                ConfigurationFactory.SaveConfig(config);
+                return;
+
+            default:
+                FileLogger.Log("User denied update installation.");
+                goto ContinueApp;
         }
 
         FileLogger.Log("User accepted update installation, unpacking then restarting.");
 
-        ZipFile.ExtractToDirectory(updateFilePath, UpdatesFolder, true);
-
         string unpackedPath = Path.Combine(UpdatesFolder, Path.GetFileNameWithoutExtension(updateFilePath));
 
-        const string script = "-c \"Start-Sleep -Seconds 2; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; Start-Process -FilePath '{1}\\APKognito.exe' -Args '{2}'\"";
-        string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, App.UpdateInstalledArgument);
+        ZipFile.ExtractToDirectory(updateFilePath, unpackedPath, true);
+
+        const string script = "-c Start-Sleep -Seconds 5; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; Start-Process -FilePath '{1}APKognito.exe' -Args '{2}'";
+        string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, MainOverride.UpdateInstalledArgument);
 
         _ = Process.Start(new ProcessStartInfo()
         {
             Arguments = command,
-            CreateNoWindow = true,
+            // CreateNoWindow = true,
             FileName = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
         });
 

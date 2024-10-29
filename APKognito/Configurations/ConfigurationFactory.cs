@@ -2,7 +2,9 @@
 using MemoryPack;
 using Newtonsoft.Json;
 using System.IO;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace APKognito.Configurations;
 
@@ -21,23 +23,23 @@ public static class ConfigurationFactory
     {
         Type configType = typeof(T);
 
-        if (_cachedConfigs.ContainsKey(configType))
+        if (_cachedConfigs.TryGetValue(configType, out IKognitoConfig? value))
         {
             FileLogger.Log($"Fetch cached {configType.Name}");
-            return (T)_cachedConfigs[configType];
+            return (T)value;
         }
 
         ConfigFileAttribute? configAttribute = GetConfigAttribute(configType);
 
         if (configAttribute is null)
         {
-            var exception = new InvalidConfigModelException(configType);
+            InvalidConfigModelException exception = new(configType);
             FileLogger.LogException(exception);
             throw exception;
         }
 
         FileLogger.Log($"'{configAttribute.FileName}' for {configType.Name}, caching");
-        var config = LoadConfig<T>(configAttribute);
+        T config = LoadConfig<T>(configAttribute);
         _cachedConfigs[configType] = config;
         return config;
     }
@@ -55,7 +57,6 @@ public static class ConfigurationFactory
     /// <summary>
     /// Saves the given configuration to it's respective file.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     /// <param name="config"></param>
     public static void SaveConfig(IKognitoConfig config, [Optional] ConfigFileAttribute? configAttribute, [Optional] bool forceAppdataSave)
     {
@@ -80,7 +81,7 @@ public static class ConfigurationFactory
                 break;
 
             case ConfigType.MemoryPacked:
-                Save_MemoryPack(config, filePath);
+                Save_MemoryPack(config, filePath, configAttribute.ConfigModifier);
                 break;
         }
     }
@@ -90,7 +91,7 @@ public static class ConfigurationFactory
     /// </summary>
     public static void SaveAllConfigs()
     {
-        foreach (var config in _cachedConfigs.Select(cfg => cfg.Value))
+        foreach (IKognitoConfig? config in _cachedConfigs.Select(cfg => cfg.Value))
         {
             SaveConfig(config);
         }
@@ -101,9 +102,9 @@ public static class ConfigurationFactory
     /// </summary>
     public static void TransferAppStartConfigurations()
     {
-        foreach (var config in _cachedConfigs)
+        foreach (KeyValuePair<Type, IKognitoConfig> config in _cachedConfigs)
         {
-            var attr = GetConfigAttribute(config.Key);
+            ConfigFileAttribute attr = GetConfigAttribute(config.Key);
             if (attr.LoadedFromCurrentDirectory)
             {
                 SaveConfig(config.Value, attr, true);
@@ -139,19 +140,15 @@ public static class ConfigurationFactory
             configAttribute.LoadedFromCurrent();
         }
 
-        switch (configAttribute.ConfigType)
+        return configAttribute.ConfigType switch
         {
-            case ConfigType.Json:
-                return Load_Json<T>(filePath, configAttribute.ConfigModifier) ?? new();
-
-            case ConfigType.MemoryPacked:
-                return Load_MemoryPack<T>(filePath) ?? new();
-        }
-
-        return new T();
+            ConfigType.Json => Load_Json<T>(filePath, configAttribute.ConfigModifier) ?? new(),
+            ConfigType.MemoryPacked => Load_MemoryPack<T>(filePath, configAttribute.ConfigModifier) ?? new(),
+            _ => new T(),
+        };
     }
 
-    private static T? Load_MemoryPack<T>(string filePath) where T : IKognitoConfig, new()
+    private static T? Load_MemoryPack<T>(string filePath, ConfigModifiers modifier) where T : IKognitoConfig, new()
     {
         if (!File.Exists(filePath))
         {
@@ -160,16 +157,26 @@ public static class ConfigurationFactory
 
         byte[] loadedData = File.ReadAllBytes(filePath);
 
+        if (modifier.HasFlag(ConfigModifiers.Compressed))
+        {
+            loadedData = Unzip(loadedData);
+        }
+
         T? loadedConfig = MemoryPackSerializer.Deserialize<T>(loadedData);
 
         return loadedConfig!;
     }
 
-    private static void Save_MemoryPack(IKognitoConfig config, string filePath)
+    private static void Save_MemoryPack(IKognitoConfig config, string filePath, ConfigModifiers modifier)
     {
         Type type = config.GetType();
 
         byte[] packed = MemoryPackSerializer.Serialize(type, config);
+
+        if (modifier.HasFlag(ConfigModifiers.Compressed))
+        {
+            packed = Zip(packed);
+        }
 
         File.WriteAllBytes(filePath, packed);
     }
@@ -211,7 +218,7 @@ public static class ConfigurationFactory
 
     private static ConfigFileAttribute GetConfigAttribute(Type configType)
     {
-        if (_cachedAttributes.TryGetValue(configType, out var attribute))
+        if (_cachedAttributes.TryGetValue(configType, out ConfigFileAttribute? attribute))
         {
             return attribute;
         }
@@ -223,5 +230,31 @@ public static class ConfigurationFactory
         _cachedAttributes.Add(configType, attribute);
 
         return attribute;
+    }
+
+    /* Compression */
+
+    private static byte[] Zip(byte[] bytes)
+    {
+        using MemoryStream msi = new(bytes);
+        using MemoryStream mso = new();
+        using (GZipStream gs = new(mso, CompressionMode.Compress))
+        {
+            msi.CopyTo(gs);
+        }
+
+        return mso.ToArray();
+    }
+
+    private static byte[] Unzip(byte[] bytes)
+    {
+        using MemoryStream msi = new(bytes);
+        using MemoryStream mso = new();
+        using (GZipStream gs = new(msi, CompressionMode.Decompress))
+        {
+            gs.CopyTo(mso);
+        }
+
+        return mso.ToArray();
     }
 }

@@ -16,4 +16,5 @@ public enum ConfigModifiers
     JsonIndented = 1,
     JsonIgnoreMissing = 2,
     MemoryPacked = 64,
+    Compressed = 128,
 }

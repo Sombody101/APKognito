@@ -1,13 +1,12 @@
 ﻿using APKognito.Configurations;
 using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Input;
 using Wpf.Ui.Controls;
-
+using DragEventArgs = System.Windows.DragEventArgs;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace APKognito.Views.Pages;
@@ -35,11 +34,11 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         string[]? loadedFiles = viewModel.GetFilePaths();
         if (loadedFiles is null || loadedFiles.Length is 0)
         {
-            HomeViewModel.WriteGenericLog("\n@ Welcome! Load an APK to get started! @\n");
+            viewModel.WriteGenericLog("\n@ Welcome! Load an APK to get started! @\n");
         }
         else
         {
-            HomeViewModel.WriteGenericLog($"@ Press 'Start' to rename your APK{(loadedFiles.Length is 1 ? string.Empty : 's')}! @\n");
+            viewModel.WriteGenericLog($"@ Press 'Start' to rename your APK{(loadedFiles.Length is 1 ? string.Empty : 's')}! @\n");
             viewModel.ApkName = Path.GetFileName(viewModel.FilePath);
             viewModel.UpdateCanStart();
         }
