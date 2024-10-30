@@ -17,7 +17,7 @@ internal static class MainOverride
     public static int Main(string[] args)
     {
         // Tells AutoUpdateService to cleanup update files
-        if (args.Any(str => str == UpdateInstalledArgument))
+        if (Array.Exists(args, str => str == UpdateInstalledArgument))
         {
             RestartedFromUpdate = true;
         }
