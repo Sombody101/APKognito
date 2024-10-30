@@ -5,7 +5,7 @@ namespace APKognito.Helpers;
 
 public class GBConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    object IValueConverter.Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is long totalUsedSpace)
         {
@@ -17,7 +17,7 @@ public class GBConverter : IValueConverter
         return value;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    object IValueConverter.ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
     }

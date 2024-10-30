@@ -7,7 +7,7 @@ namespace APKognito.Helpers;
 
 internal class RenameSessionConverter : IValueConverter
 {
-    public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    object? IValueConverter.Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is string[] apks)
         {
@@ -32,7 +32,7 @@ internal class RenameSessionConverter : IValueConverter
         return null;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    object IValueConverter.ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
     }

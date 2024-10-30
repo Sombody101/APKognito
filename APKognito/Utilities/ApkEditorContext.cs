@@ -24,7 +24,6 @@ public class ApkEditorContext
     private readonly string OutputDirectory;
 
     private readonly string ApkTempDirectory;
-    private readonly string TempStreamDirectory;
 
     public ApkEditorContext(
         HomeViewModel homeViewModel,
@@ -45,8 +44,6 @@ public class ApkEditorContext
 
         ApkTempDirectory = Path.Combine(viewModel.TempData.FullName, $"{FullSourceApkFileName[..^4]}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
         _ = Directory.CreateDirectory(ApkTempDirectory);
-        TempStreamDirectory = Path.Combine(viewModel.TempData.FullName, "$streamdata");
-        _ = Directory.CreateDirectory(TempStreamDirectory);
     }
 
     /// <summary>

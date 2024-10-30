@@ -1,4 +1,5 @@
-﻿ #define EMULATE_RELEASE_ON_DEBUG
+﻿// This is setup so that even if left defined will not break release builds.
+// #define EMULATE_RELEASE_ON_DEBUG
 
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
@@ -91,7 +92,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
         // Only accept debug releases for debug builds, public releases for release builds
         if (!jsonData[0]!.StartsWith(
-#if EMULATE_RELEASE_ON_DEBUG
+#if DEBUG && EMULATE_RELEASE_ON_DEBUG
             'v'
 #else
             App.IsDebugRelease ? 'd' : 'v'

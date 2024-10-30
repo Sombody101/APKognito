@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 
 namespace APKognito.Utilities;
 
-internal static partial class Installer
+public static partial class Installer
 {
     public class InvalidJsonIndexerException : Exception
     {
@@ -58,24 +58,24 @@ internal static partial class Installer
         try
         {
             string fileName = Path.GetFileName(name);
-            HomeViewModel.Log($"Fetching {fileName}");
-            using HttpResponseMessage response = await App.SharedHttpClient.GetAsync(url);
+            HomeViewModel.Instance?.Log($"Fetching {fileName}");
+            using HttpResponseMessage response = await App.SharedHttpClient.GetAsync(url, cToken);
             _ = response.EnsureSuccessStatusCode();
 
-            using FileStream fileStream = File.Create(name);
-            HomeViewModel.Log($"Installing {fileName}");
-            await response.Content.CopyToAsync(fileStream);
+            await using FileStream fileStream = File.Create(name);
+            HomeViewModel.Instance?.Log($"Installing {fileName}");
+            await response.Content.CopyToAsync(fileStream, cToken);
 
             return true;
         }
         catch (HttpRequestException ex)
         {
-            HomeViewModel.LogError($"Unable to download a tool: {ex.Message}");
+            HomeViewModel.Instance?.LogError($"Unable to download a tool: {ex.Message}");
             FileLogger.LogException(ex);
         }
         catch (Exception ex)
         {
-            HomeViewModel.LogError($"An error occurred: {ex.Message}");
+            HomeViewModel.Instance?.LogError($"An error occurred: {ex.Message}");
             FileLogger.LogException(ex);
         }
 
@@ -134,7 +134,7 @@ internal static partial class Installer
 
                     if (currentToken is null)
                     {
-                        HomeViewModel.LogError($"Failed to find '{index}' in JSON response.");
+                        HomeViewModel.Instance?.LogError($"Failed to find '{index}' in JSON response.");
                         FileLogger.LogDebug($"Json token: {lastToken.ToString().Truncate(1500) ?? "[NULL]"}");
                         output[i] = null;
                         break;
@@ -150,12 +150,12 @@ internal static partial class Installer
         }
         catch (HttpRequestException ex)
         {
-            HomeViewModel.LogError($"Failed to fetch JSON: {ex.Message}");
+            HomeViewModel.Instance?.LogError($"Failed to fetch JSON: {ex.Message}");
             FileLogger.LogException(ex);
         }
         catch (Exception ex)
         {
-            HomeViewModel.LogError($"An error occurred: {ex.Message}");
+            HomeViewModel.Instance?.LogError($"An error occurred: {ex.Message}");
             FileLogger.LogException(ex);
         }
 
@@ -182,15 +182,15 @@ internal static partial class Installer
             switch (result)
             {
                 case 1:
-                    HomeViewModel.LogError("No network device found. A WiFi adapter or ethernet is required.");
+                    HomeViewModel.Instance?.LogError("No network device found. A WiFi adapter or ethernet is required.");
                     return false;
 
                 case 2:
-                    HomeViewModel.LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
+                    HomeViewModel.Instance?.LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
                     return false;
 
                 case 3:
-                    HomeViewModel.LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
+                    HomeViewModel.Instance?.LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
                     return false;
             }
         }

@@ -8,7 +8,6 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Windows.Controls;
 using System.Windows.Documents;
 
 namespace APKognito.Utilities;
@@ -180,7 +179,7 @@ public static class FileLogger
 
     private static string GetCallerInfo()
     {
-        System.Diagnostics.StackTrace stackTrace = new(true);
+        StackTrace stackTrace = new(true);
 
         if (stackTrace.FrameCount >= 3)
         {
@@ -191,7 +190,7 @@ public static class FileLogger
             MethodBase? method = frame!.GetMethod();
 
             // Prevents Log aliases from being selected as the caller
-            if (method?.DeclaringType == typeof(FileLogger))
+            if (method?.DeclaringType == typeof(FileLogger) || method?.DeclaringType == typeof(LoggableObservableObject))
             {
                 ++frameDepth;
                 goto Retry;

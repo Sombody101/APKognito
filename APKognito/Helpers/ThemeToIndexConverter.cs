@@ -6,7 +6,7 @@ namespace APKognito.Helpers;
 
 internal sealed class ThemeToIndexConverter : IValueConverter
 {
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    object IValueConverter.Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is ApplicationTheme.Dark)
         {
@@ -21,7 +21,7 @@ internal sealed class ThemeToIndexConverter : IValueConverter
         return 0;
     }
 
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    object IValueConverter.ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is 1)
         {
