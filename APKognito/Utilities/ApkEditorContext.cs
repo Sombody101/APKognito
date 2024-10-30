@@ -196,12 +196,15 @@ public class ApkEditorContext
 
     private async Task ReplaceAllNameInstancesAsync(string searchCompanyName, string replacementName, CancellationToken cToken)
     {
-        RenameDirectory(Path.Combine(ApkTempDirectory, "smali\\com", searchCompanyName), replacementName);
+        // RenameDirectory(Path.Combine(ApkTempDirectory, "smali\\com", searchCompanyName), replacementName);
 
-        string[] files = Directory.GetFiles(Path.Combine(ApkTempDirectory, "smali"), "*", SearchOption.AllDirectories);
+        ReplaceAllDirectoryNames(ApkTempDirectory, searchCompanyName, replacementName);
+        IEnumerable<string> files = Directory.GetFiles(ApkTempDirectory, "smali\\*", SearchOption.AllDirectories)
+            .Where(file => file.EndsWith(".smali")).Append($"{ApkTempDirectory}\\AndroidManifest.xml").Append($"{ApkTempDirectory}\\apktool.yml");
 
-        await Parallel.ForEachAsync(files, cToken, async (filePath, subcToken)
-            => await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, subcToken)
+        await Parallel.ForEachAsync(files, cToken,
+            async (filePath, subcToken) =>
+            await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, subcToken)
         );
     }
 
@@ -254,6 +257,13 @@ public class ApkEditorContext
 
     private static async Task ReplaceTextInFileAsync(string filePath, string searchText, string replaceText, CancellationToken cToken)
     {
+        // These files usually aren't that big, so just load all of it into memory and replace it.
+        await File.WriteAllTextAsync(
+            filePath,
+            (await File.ReadAllTextAsync(filePath, cToken)).Replace(searchText, replaceText),
+            cToken);
+
+        return;
         using StreamReader reader = File.OpenText(filePath);
         await using MemoryStream memoryStream = new();
         await using StreamWriter writer = new(memoryStream);
@@ -309,8 +319,15 @@ public class ApkEditorContext
     private static void RenameDirectory(string directory, string newName)
     {
         string newFolderPath = Path.Combine(Path.GetDirectoryName(directory)!, newName);
-
         Directory.Move(directory, newFolderPath);
+    }
+
+    private static void ReplaceAllDirectoryNames(string baseDirectory, string searchName, string replacementName)
+    {
+        Parallel.ForEach(
+            Directory.GetDirectories(baseDirectory, $"*{searchName}*", SearchOption.AllDirectories),
+            (directory) => RenameDirectory(directory, replacementName)
+        );
     }
 
     private static void CopyDirectory(string sourceDir, string destinationDir, bool recursive = false)
