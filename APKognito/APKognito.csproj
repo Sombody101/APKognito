@@ -6,7 +6,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\apkognito.ico</ApplicationIcon>
     <UseWPF>true</UseWPF>
-    <Nullable>enable</Nullable>
+	<UseWindowsForms>true</UseWindowsForms>
+	<Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageIcon>apkognito.png</PackageIcon>
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
@@ -20,11 +21,11 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DebugType>none</DebugType>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <DebugType>none</DebugType>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -40,6 +41,8 @@
   <ItemGroup>
     <None Remove="Assets\apkognito.ico" />
     <None Remove="Assets\apkognito.png" />
+    <None Remove="Assets\dark-name.png" />
+    <None Remove="Assets\light-wide.png" />
     <None Remove="Fonts\FiraCode-Medium.ttf" />
     <None Remove="Fonts\FiraCode-Regular.ttf" />
     <None Remove="Fonts\TechSans.ttf" />
@@ -72,11 +75,13 @@
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageReference Include="WPF-UI" Version="3.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0 " />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\dark-name.png" />
+    <Resource Include="Assets\light-wide.png" />
     <Resource Include="Fonts\FiraCode-Medium.ttf" />
     <Resource Include="Fonts\TechSans.ttf" />
   </ItemGroup>

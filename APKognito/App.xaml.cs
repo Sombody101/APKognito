@@ -28,9 +28,6 @@ public partial class App
     private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
     private static HttpClient? _sharedHttpClient;
 
-    public const string UpdateInstalledArgument = "[::updated::]";
-    public static bool RestartedFromUpdate { get; private set; }
-
     public static DirectoryInfo? AppData { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
 
     public static string GetVersion()
@@ -131,21 +128,8 @@ public partial class App
     {
         FileLogger.Log($"App start. v{Assembly.GetExecutingAssembly().GetName().Version}, {(IsDebugRelease ? "Debug" : "Release")}");
 
-        // Tells AutoUpdateService to cleanup update files
-        if (e.Args.Any(str => str == UpdateInstalledArgument))
-        {
-            RestartedFromUpdate = true;
-        }
-
-        TaskScheduler.UnobservedTaskException += (sender, e) =>
-        {
-            _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
-        };
-
-        Dispatcher.UnhandledException += (sender, e) =>
-        {
-            _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
-        };
+        TaskScheduler.UnobservedTaskException += (sender, e) => _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
+        Dispatcher.UnhandledException += (sender, e) => _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
 
         _host.Start();
 
@@ -158,7 +142,7 @@ public partial class App
     private async void OnExit(object sender, ExitEventArgs e)
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
-        HomeViewModel.Log("Saving all settings...");
+        HomeViewModel.Instance?.Log("Saving all settings...");
         ConfigurationFactory.SaveAllConfigs();
 
         await _host.StopAsync();

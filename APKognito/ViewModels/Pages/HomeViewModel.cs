@@ -482,7 +482,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         CanEdit = true;
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "It's stupid.")]
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "It's stupid.")]
     private async Task<bool> VerifyToolInstallation()
     {
         CancellationToken cToken = CancellationToken.None;

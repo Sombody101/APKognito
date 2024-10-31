@@ -199,6 +199,7 @@ public class ApkEditorContext
         // RenameDirectory(Path.Combine(ApkTempDirectory, "smali\\com", searchCompanyName), replacementName);
 
         ReplaceAllDirectoryNames(ApkTempDirectory, searchCompanyName, replacementName);
+        
         IEnumerable<string> files = Directory.GetFiles(ApkTempDirectory, "smali\\*", SearchOption.AllDirectories)
             .Where(file => file.EndsWith(".smali")).Append($"{ApkTempDirectory}\\AndroidManifest.xml").Append($"{ApkTempDirectory}\\apktool.yml");
 
@@ -316,13 +317,19 @@ public class ApkEditorContext
         };
     }
 
-    private static void RenameDirectory(string directory, string newName)
+    private void RenameDirectory(string directory, string newName)
     {
         string newFolderPath = Path.Combine(Path.GetDirectoryName(directory)!, newName);
+
+        if (Directory.Exists(newFolderPath))
+        {
+            viewModel.LogWarning($"Directory '{newName}' already exists, deleting and replacing.");
+        }
+
         Directory.Move(directory, newFolderPath);
     }
 
-    private static void ReplaceAllDirectoryNames(string baseDirectory, string searchName, string replacementName)
+    private void ReplaceAllDirectoryNames(string baseDirectory, string searchName, string replacementName)
     {
         Parallel.ForEach(
             Directory.GetDirectories(baseDirectory, $"*{searchName}*", SearchOption.AllDirectories),
