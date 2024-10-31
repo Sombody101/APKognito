@@ -341,7 +341,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             goto ChecksFailed;
         }
 
-        Log("Verifying that Java 8+ and APK tools are installed...");
+        Log("Verifying that Java 9+ and APK tools are installed...");
 
         if (!VerifyJavaInstallation(out string javaPath) || !await VerifyToolInstallation())
         {
@@ -551,13 +551,40 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
            && Directory.Exists(javaHome))
         {
             javaPath = Path.Combine(javaHome, "bin\\java.exe");
-            return true;
+
+            // Try the registry if this path isn't correct
+            if (File.Exists(javaPath))
+            {
+                return true;
+            }
+
+            StringBuilder logBuffer = new();
+            bool binExists = Directory.Exists($"{javaHome}\\bin");
+
+            logBuffer.Append("JAVA_HOME is set to '")
+                .Append(javaHome).Append("', but does not have java.exe. bin\\: does ");
+
+            if (!binExists)
+            {
+                logBuffer.Append("not ");
+            }
+
+            logBuffer.Append("exist.");
+
+            if (binExists)
+            {
+                logBuffer.AppendLine(" Files found in bin\\:");
+                foreach (var file in Directory.GetFiles(javaHome))
+                {
+                    logBuffer.Append('\t').AppendLine(Path.GetFileName(file));
+                }
+            }
+
+            FileLogger.LogError(logBuffer.ToString());
         }
 
-        RegistryKey lm = Registry.LocalMachine;
-
         // Check for JDK via registry
-        RegistryKey? javaJdkKey = lm.OpenSubKey("SOFTWARE\\JavaSoft\\JDK");
+        RegistryKey? javaJdkKey = Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK");
         if (javaJdkKey is not null)
         {
             if (javaJdkKey.GetValue("CurrentVersion") is not string rawJdkVersion)
@@ -583,6 +610,31 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             }
 
             Log($"Using Java version {rawJdkVersion} at {javaPath}");
+            return true;
+        }
+
+        // Check via Powershell
+        var proc = new Process()
+        {
+            StartInfo = new ProcessStartInfo()
+            {
+                FileName = "powershell.exe",
+                Arguments = "-c Get-Command java | Select-Object -ExpandProperty Source",
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+                UseShellExecute = false
+            }
+        };
+
+        proc.Start();
+        proc.BeginOutputReadLine();
+        proc.WaitForExit();
+        string psPath = proc.StandardOutput.ReadToEnd();
+
+        if (proc.ExitCode is not 0)
+        {
+            LogWarning($"Java was found, but the version was unable to be verified: {psPath}");
+            javaPath = psPath;
             return true;
         }
 
