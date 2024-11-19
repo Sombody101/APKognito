@@ -12,7 +12,7 @@
     Title="SettingsPage"
     d:DataContext="{d:DesignInstance local:SettingsPage,
                                      IsDesignTimeCreatable=False}"
-    d:DesignHeight="450"
+    d:DesignHeight="1000"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -85,11 +85,10 @@
                 <ui:Button
                     Grid.Row="1"
                     Grid.Column="2"
-                    Width="150"
                     Margin="0,12"
                     HorizontalAlignment="Right"
                     Command="{Binding ViewModel.SaveUpdatesSettingsCommand}"
-                    Content="Save APK Settings"
+                    Content="Save Auto Update Settings"
                     ToolTip="Saves your update preferences to file." />
             </StackPanel>
         </ui:CardExpander>
@@ -141,12 +140,35 @@
             Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
-            Text="About APKognito (Version Info)" />
+            Text="About" />
 
-        <TextBlock
-            Margin="0,12,0,0"
-            Text="{Binding ViewModel.AppVersion, Mode=OneWay}"
-            TextWrapping="WrapWithOverflow" />
+        <ui:CardExpander Margin="0,24,0,0" ContentPadding="0">
+            <ui:CardExpander.Header>
+                <Grid VerticalAlignment="Center">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Grid.Column="0"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="© 2024 Sombody101" />
+                    <TextBlock
+                        Grid.Row="0"
+                        Grid.RowSpan="2"
+                        Grid.Column="1"
+                        Margin="0,0,16,0"
+                        VerticalAlignment="Center"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
+                </Grid>
+            </ui:CardExpander.Header>
+            <TextBlock Margin="16" Text="{Binding ViewModel.FullAppVersion, Mode=OneWay}" />
+        </ui:CardExpander>
 
         <TextBlock
             Margin="0,24,0,0"

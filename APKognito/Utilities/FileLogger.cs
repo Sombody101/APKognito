@@ -1,7 +1,9 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Views.Pages;
+using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -29,8 +31,11 @@ public static class FileLogger
 {
     public const string ReplacementUsername = "[:USER:]";
 
-    private static readonly object lockObject = new object();
-    private static string logFilePath = Path.Combine(App.AppData!.FullName, "applog.log");
+    private static readonly object lockObject = new();
+    private static readonly string logFilePath = Path.Combine(App.AppData!.FullName, "applog.log");
+    private static readonly string exceptionLogFilePath = Path.Combine(App.AppData!.FullName, "exlog.log");
+
+    private static string UtcTime => DateTime.UtcNow.ToString("hh:mm:ss.fff tt: ");
 
     static FileLogger()
     {
@@ -55,25 +60,30 @@ public static class FileLogger
             return;
         }
 
-        string time = DateTime.UtcNow.ToString("hh:mm:ss.fff tt: ");
-
         string newline = text.Length > 40 && text.Contains('\n')
             ? "\n\n"
             : "\n";
 
-        string logEntry = $"[{time}{logLevel.ToString().ToUpper()}]\t[{GetCallerInfo()}] {text.Redact()}{newline}";
+        string logEntry = $"[{UtcTime}{logLevel.ToString().ToUpper()}]\t[{GetCallerInfo()}] {text}{newline}";
+        LogGenericFinal(logEntry);
+    }
 
-        try
-        {
-            lock (lockObject)
-            {
-                File.AppendAllText(logFilePath, logEntry);
-            }
-        }
-        catch
-        {
-            // Exception
-        }
+    public static void LogGenericException(Exception ex, string partnerLog = "")
+    {
+        string json = JsonConvert.SerializeObject(ex.InnerException ?? ex, Formatting.Indented);
+
+        StringBuilder log = new();
+
+        log.Append('[').Append(UtcTime).Append("]: ")
+            .Append(partnerLog ?? "[No log]").Append(": ")
+            .AppendLine(ex.GetType().Name)
+            .AppendLine(json).AppendLine()
+            .AppendLine("Formatted Trace:")
+            .AppendLine(ex.StackTrace).AppendLine()
+            .AppendLine("-- END LOG --")
+            .AppendLine();
+
+        LogGenericFinal(log.ToString(), ex);
     }
 
     public static void Log(string log)
@@ -98,7 +108,8 @@ public static class FileLogger
 
     public static void LogFatal(Exception exception)
     {
-        LogGeneric(JsonConvert.SerializeObject(exception.InnerException ?? exception), LogLevel.FATAL);
+        LogGeneric($"StackTrace added to exlog: {exception.GetType().Name}: {exception.Message}", LogLevel.FATAL);
+        LogGenericException(exception, "[LogFatal added message: Fatal exception]");
     }
 
     public static void LogDebug(string log)
@@ -108,18 +119,21 @@ public static class FileLogger
 
     public static void LogException(Exception exception)
     {
-        LogGeneric(JsonConvert.SerializeObject(exception.InnerException ?? exception), LogLevel.TRACE);
+        //LogGeneric(JsonConvert.SerializeObject(exception.InnerException ?? exception), LogLevel.TRACE);
+        LogGenericException(exception);
     }
 
     public static void LogException(string log, Exception exception)
     {
-        LogGeneric($"{log}: {JsonConvert.SerializeObject(exception.InnerException ?? exception)}", LogLevel.TRACE);
+        //LogGeneric($"{log}: {JsonConvert.SerializeObject(exception.InnerException ?? exception)}", LogLevel.TRACE);
+        LogGenericException(exception, log);
     }
 
     public static string CreateLogpack()
     {
         string[] filesToPack = [
             logFilePath,
+            exceptionLogFilePath,
             ConfigurationFactory.GetConfigInfo<RenameSessionList>().GetCompletePath()
         ];
 
@@ -135,7 +149,7 @@ public static class FileLogger
             }
             else
             {
-                errorFiles.AppendLine($"Failed to locate file: {file.Redact()}");
+                errorFiles.AppendLine($"Failed to locate file: {file}");
             }
         }
 
@@ -155,7 +169,7 @@ public static class FileLogger
         else
         {
             var lines = ((Paragraph)hmv.APKLogs.Document.Blocks.LastBlock).Inlines
-                .Select(line => line.ContentStart.GetTextInRun(LogicalDirection.Forward).Redact());
+                .Select(line => line.ContentStart.GetTextInRun(LogicalDirection.Forward));
 
             File.WriteAllText(logBoxPath, string.Join("\r\n", lines));
         }
@@ -175,6 +189,31 @@ public static class FileLogger
         Directory.Delete(packPath, true);
 
         return outputPack;
+    }
+
+    private static void LogGenericFinal(string entry, Exception? ex = null)
+    {
+        try
+        {
+            entry = entry.Redact();
+
+            lock (lockObject)
+            {
+                if (ex is null)
+                {
+                    File.AppendAllText(logFilePath, entry);
+                }
+                else
+                {
+                    File.AppendAllText(logFilePath, $"Exception: {ex?.GetType().Name ?? "[NULL]"} appended to exception logs.");
+                    File.AppendAllText(exceptionLogFilePath, entry);
+                }
+            }
+        }
+        catch
+        {
+            // Exception
+        }
     }
 
     private static string GetCallerInfo()
@@ -204,7 +243,7 @@ public static class FileLogger
                 // Fix async methods (<AwaitedMethodName>d__10.MoveNext -> RealClassName.AwaitedMethodName)
                 className = method.DeclaringType.DeclaringType?.Name ?? "[Unknown]";
                 methodName = method.DeclaringType.Name.TrimStart('<');
-                methodName = methodName[0..(methodName.IndexOf('>'))];
+                methodName = methodName[0..methodName.IndexOf('>')];
             }
             else
             {
@@ -215,6 +254,6 @@ public static class FileLogger
             return $"{className}.{methodName}";
         }
 
-        return string.Empty;
+        return $"[Failed to get caller info: ";
     }
 }

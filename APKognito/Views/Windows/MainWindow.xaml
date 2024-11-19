@@ -35,7 +35,7 @@
             Title="{Binding ViewModel.ApplicationTitle}"
             Grid.Row="0"
             CloseWindowByDoubleClickOnIcon="True"
-            FontFamily="{StaticResource TechSans}">
+            FontFamily="{StaticResource TechSans}" Height="50">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon
                     Width="25"
@@ -54,7 +54,7 @@
             IsBackButtonVisible="Visible"
             IsPaneToggleVisible="True"
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
-            OpenPaneLength="160"
+            OpenPaneLength="200"
             PaneDisplayMode="Left"
             TitleBar="{Binding ElementName=TitleBar, Mode=OneWay}">
 

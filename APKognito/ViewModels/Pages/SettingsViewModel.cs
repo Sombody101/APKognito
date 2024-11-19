@@ -17,6 +17,9 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     #region Properties
 
     [ObservableProperty]
+    private string _fullAppVersion = string.Empty;
+
+    [ObservableProperty]
     private string _appVersion = string.Empty;
 
     [ObservableProperty]
@@ -57,38 +60,9 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     }
 
     [RelayCommand]
-    private void OnChangeTheme(string parameter)
-    {
-        switch (parameter)
-        {
-            case "theme_light":
-                if (CurrentTheme == ApplicationTheme.Light)
-                {
-                    break;
-                }
-
-                ApplicationThemeManager.Apply(ApplicationTheme.Light);
-                CurrentTheme = ApplicationTheme.Light;
-
-                break;
-
-            default:
-                if (CurrentTheme == ApplicationTheme.Dark)
-                {
-                    break;
-                }
-
-                ApplicationThemeManager.Apply(ApplicationTheme.Dark);
-                CurrentTheme = ApplicationTheme.Dark;
-
-                break;
-        }
-    }
-
-    [RelayCommand]
     private static void OnCreateLogpack()
     {
-        _ = SettingsViewModel.CreateLogPack();
+        _ = CreateLogPack();
     }
 
     [RelayCommand]
@@ -98,13 +72,13 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     }
 
     [RelayCommand]
-    private void OnOpenAppData()
+    private static void OnOpenAppData()
     {
         App.OpenDirectory(App.AppData!.FullName);
     }
 
     [RelayCommand]
-    private async Task OnTransferConfigs()
+    private static async Task OnTransferConfigs()
     {
         try
         {
@@ -112,14 +86,14 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         }
         catch (Exception ex)
         {
-            await new MessageBox()
+            _ = await new MessageBox()
             {
                 Title = "Transfer Failed",
                 Content = $"Failed to transfer configurations found in application startup directory.\n\n{ex.Message}"
             }.ShowDialogAsync();
         }
 
-        await new MessageBox()
+        _ = await new MessageBox()
         {
             Title = "Transfer Success",
             Content = "All valid configuration files found within the application startup directory were transfered to %APPDATA%\\configs successfully."
@@ -145,9 +119,12 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         Assembly assembly = Assembly.GetExecutingAssembly();
         AssemblyName assemblyName = assembly.GetName();
 
+        string appVersion = assemblyName.Version?.ToString() ?? "[Unknown]";
+
         string appName = assemblyName.Name ?? "[Unknown]";
-        string appVersion = $"{assemblyName.Version?.ToString() ?? "[Unknown]"} - {assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "[Unknown]"}";
-        AppVersion = $"{appName} - {appVersion}";
+        string fullAppVersion = $"{appVersion} - {assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "[Unknown]"}";
+        FullAppVersion = $"{appName} - {fullAppVersion}";
+        AppVersion = appVersion;
 
         _isInitialized = true;
     }
@@ -163,7 +140,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         {
             string logpackPath = FileLogger.CreateLogpack();
 
-            var result = new MessageBox()
+            MessageBoxResult result = new MessageBox()
             {
                 Title = "Logpack Created",
                 Content = $"A logpack has been created at:\n{logpackPath}",
@@ -179,7 +156,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         }
         catch (Exception ex)
         {
-            new MessageBox()
+            _ = new MessageBox()
             {
                 Title = "Logpack Failed",
                 Content = $"Failed to create logpack.\n\n{ex.Message}",

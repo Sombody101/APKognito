@@ -5,7 +5,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Windows.Threading;
-using Wpf.Ui.Controls;
+using ListView = Wpf.Ui.Controls.ListView;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -14,6 +14,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private readonly KognitoConfig config;
 
     private readonly List<FootprintInfo> cachedFootprints = [];
+
+    private uint filter = 0;
 
     #region Properties
 
@@ -48,80 +50,15 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
     [ObservableProperty]
     private bool _canModifyFilter = false;
-    private uint filter = 0;
 
+    [ObservableProperty]
     private bool _filterInRenamedApks;
-    public bool FilterInRenamedApks
-    {
-        get => _filterInRenamedApks;
-        set
-        {
-            if (value)
-            {
-                filter |= (uint)FootprintTypes.RenamedApk;
-            }
-            else
-            {
-                filter &= ~(uint)FootprintTypes.RenamedApk;
-            }
 
-            OnPropertyChanging(nameof(FilterInRenamedApks));
-            _filterInRenamedApks = value;
-            OnPropertyChanging(nameof(FilterInRenamedApks));
-
-            UpdateItemsList();
-        }
-    }
-
+    [ObservableProperty]
     private bool _filterInDirectories;
-    public bool FilterInDirectories
-    {
-        get => _filterInDirectories;
-        set
-        {
-            uint flag = (uint)(FootprintTypes.Directory | FootprintTypes.TempDirectory);
 
-            if (value)
-            {
-                filter |= flag;
-            }
-            else
-            {
-                filter &= ~flag;
-            }
-
-            OnPropertyChanging(nameof(FilterInDirectories));
-            _filterInDirectories = value;
-            OnPropertyChanged(nameof(FilterInDirectories));
-
-            UpdateItemsList();
-        }
-    }
-
+    [ObservableProperty]
     private bool _filterInFiles;
-    public bool FilterInFiles
-    {
-        get => _filterInFiles;
-        set
-        {
-            const uint flag = (uint)(FootprintTypes.File | FootprintTypes.TempFile);
-
-            if (value)
-            {
-                filter |= flag;
-            }
-            else
-            {
-                filter &= ~flag;
-            }
-
-            OnPropertyChanging(nameof(FilterInFiles));
-            _filterInFiles = value;
-            OnPropertyChanged(nameof(FilterInFiles));
-
-            UpdateItemsList();
-        }
-    }
 
     [ObservableProperty]
     private ObservableCollection<FootprintInfo> _foundFolders = [];
@@ -190,6 +127,11 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         List<FootprintInfo> itemsToDelete = folderList.SelectedItems.Cast<FootprintInfo>().ToList();
 
+        if (itemsToDelete.Count < 1)
+        {
+            return;
+        }
+
         MessageBox confirmation = new()
         {
             Title = $"Delete {GetFormattedItems(itemsToDelete)}?",
@@ -235,6 +177,11 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     {
         CanDelete = false;
         IsRunning = true;
+
+        if (cachedFootprints.Count < 1)
+        {
+            return;
+        }
 
         MessageBox confirmation = new()
         {
@@ -352,15 +299,66 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         foreach (FootprintInfo? folderStat in folderStats)
         {
-            // Not have AddRange is irritating
+            // Not having AddRange is irritating
             cachedFootprints.Add(folderStat);
         }
 
         TotalUsedSpace = folderStats.Sum(f => f.FolderSizeBytes);
     }
 
+    partial void OnFilterInRenamedApksChanged(bool value)
+    {
+        if (value)
+        {
+            filter |= (uint)FootprintTypes.RenamedApk;
+        }
+        else
+        {
+            filter &= ~(uint)FootprintTypes.RenamedApk;
+        }
+
+        UpdateItemsList();
+    }
+
+    partial void OnFilterInDirectoriesChanged(bool value)
+    {
+        const uint flag = (uint)(FootprintTypes.Directory | FootprintTypes.TempDirectory);
+
+        if (value)
+        {
+            filter |= flag;
+        }
+        else
+        {
+            filter &= ~flag;
+        }
+
+        UpdateItemsList();
+    }
+
+    partial void OnFilterInFilesChanged(bool value)
+    {
+        const uint flag = (uint)(FootprintTypes.File | FootprintTypes.TempFile);
+
+        if (value)
+        {
+            filter |= flag;
+        }
+        else
+        {
+            filter &= ~flag;
+        }
+
+        UpdateItemsList();
+    }
+
     private static string GetFormattedItems(IEnumerable<FootprintInfo> list)
     {
+        if (!list.Any())
+        {
+            return string.Empty;
+        }
+
         int folderCount = 0, fileCount = 0, apkCount = 0;
 
         foreach (FootprintInfo item in list)
@@ -371,10 +369,12 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
                 case FootprintTypes.TempDirectory:
                     folderCount++;
                     break;
+
                 case FootprintTypes.File:
                 case FootprintTypes.TempFile:
                     fileCount++;
                     break;
+
                 case FootprintTypes.RenamedApk:
                     apkCount++;
                     break;

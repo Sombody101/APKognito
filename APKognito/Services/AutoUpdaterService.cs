@@ -1,4 +1,5 @@
-﻿// This is setup so that even if left defined will not break release builds.
+﻿// Makes the auto updater fetch a public release rather than a debug or bugfix release (if those are ever used)
+// It's setup so that even if left defined will not break release builds.
 // #define EMULATE_RELEASE_ON_DEBUG
 
 using APKognito.Configurations;
@@ -15,7 +16,6 @@ namespace APKognito.Services;
 
 public sealed class AutoUpdaterService : IHostedService, IDisposable
 {
-    private const string API_URL = "https://api.github.com/repos/Sombody101/APKognito/releases";
     private const int LATEST = 0;
 
     public static readonly string UpdatesFolder = Path.Combine(App.AppData!.FullName, "updates");
@@ -85,19 +85,17 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         // Fetch the download URL and release tag
-        string?[] jsonData = await Installer.FetchAsync(API_URL, cToken, [
+        string?[] jsonData = await Installer.FetchAsync(Constants.GITHUB_API_URL, HomeViewModel.Instance, cToken, [
             [LATEST, "tag_name"],
             [LATEST, "assets", 0, "browser_download_url"],
         ]);
 
         // Only accept debug releases for debug builds, public releases for release builds
-        if (!jsonData[0]!.StartsWith(
 #if DEBUG && EMULATE_RELEASE_ON_DEBUG
-            'v'
+        if (!jsonData[0]!.StartsWith('v'))
 #else
-            App.IsDebugRelease ? 'd' : 'v'
+        if (!jsonData[0]!.StartsWith(App.IsDebugRelease ? 'd' : 'v'))
 #endif
-            ))
         {
 #if RELEASE || EMULATE_RELEASE_ON_DEBUG
             FileLogger.Log($"Most recent release isn't a public build: {jsonData[0]}");
@@ -108,25 +106,56 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             goto LogUpdateAndExit;
         }
 
-        // Check that the release tag is valid (for teh current build)
-        if (!Version.TryParse( /* Remove the 'v' (v.1.5.1.1) */ jsonData[0]?[1..], out Version? newVersion))
+        // Check that the release tag is valid (for the current build)
+        if (!Version.TryParse( /* Remove the prefix letter (v1.5.1.1) */ jsonData[0]?[1..], out Version? newVersion))
         {
             // The version isn't viable
             FileLogger.LogError($"Aborting update, invalid release tag: {jsonData[0]}");
             goto LogUpdateAndExit;
         }
 
+        switch (await ValidatePackageVersion(currentVersion, jsonData))
+        {
+            case ValidationResult.UpdateComplete:
+            case ValidationResult.CancelUpdate:
+                goto LogUpdateAndExit;
+
+            case ValidationResult.ContinueToUpdate:
+                // Do nothing
+                break;
+        }
+
+        FileLogger.Log($"Downloading release {jsonData[0]}");
+
+        _ = Directory.CreateDirectory(UpdatesFolder);
+        string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{jsonData[0]![1..]}.zip");
+        if (!await Installer.DownloadAsync(jsonData[1]!, downloadZip, null, cToken))
+        {
+            FileLogger.LogFatal("Failed to download latest release.");
+            goto LogUpdateAndExit;
+        }
+
+        // A cheap way to encode the update info in a way that the user won't dick around easily (they still can if they try hard enough, but a binary file should scare them away)
+        cache.UpdateSourceLocation = $"{downloadZip}\0{jsonData[0]}";
+        await ImplementUpdate(downloadZip, jsonData[0]!);
+
+    LogUpdateAndExit:
+        LogNextUpdate(config.CheckDelay);
+    }
+
+    private async Task<ValidationResult> ValidatePackageVersion(Version newVersion, string?[] jsonData)
+    {
         // Already running the newest version
         if (newVersion == currentVersion)
         {
             FileLogger.Log("Currently using newest release.");
-            goto LogUpdateAndExit;
+            return ValidationResult.CancelUpdate;
         }
         // New release is older than current (?)
         else if (newVersion < currentVersion)
         {
             FileLogger.Log($"Found new release version {jsonData[0]}, but currently using v{currentVersion}. No need to update.");
-            goto LogUpdateAndExit;
+            return ValidationResult.CancelUpdate;
         }
         // New release has already been downloaded and is ready to install
         else if (cache.UpdateSourceLocation is not null)
@@ -138,7 +167,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             if (!File.Exists(updateInfo[0]))
             {
                 FileLogger.LogError("Previously downloaded update files are gone, proceeding with new release fetch.");
-                goto FetchAndDownloadNew;
+                return ValidationResult.ContinueToUpdate;
             }
 
             if (updateInfo.Length is 2
@@ -147,7 +176,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             {
                 FileLogger.Log($"Installing previous session update ({lastVersion} >= {newVersion})");
                 await ImplementUpdate(updateInfo[0], updateInfo[1]);
-                return;
+                return ValidationResult.UpdateComplete;
             }
             else
             {
@@ -155,23 +184,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             }
         }
 
-    FetchAndDownloadNew:
-        FileLogger.Log($"Downloading release {jsonData[0]}");
-
-        _ = Directory.CreateDirectory(UpdatesFolder);
-        string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{jsonData[0]![1..]}.zip");
-        if (!await Installer.DownloadAsync(jsonData[1]!, downloadZip, cToken))
-        {
-            FileLogger.LogFatal("Failed to download latest release.");
-            goto LogUpdateAndExit;
-        }
-
-        cache.UpdateSourceLocation = $"{downloadZip}\0{jsonData[0]}";
-
-        await ImplementUpdate(downloadZip, jsonData[0]!);
-
-    LogUpdateAndExit:
-        LogNextUpdate(config.CheckDelay);
+        return ValidationResult.ContinueToUpdate;
     }
 
     public void Dispose()
@@ -241,7 +254,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         {
             Arguments = command,
             // CreateNoWindow = true,
-            FileName = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            FileName = Constants.POWERSHELL_PATH,
         });
 
         Environment.Exit(0);
@@ -253,5 +266,12 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
     private static void LogNextUpdate(int minuteCount)
     {
         FileLogger.Log($"Next update check will be at {DateTime.UtcNow.AddMinutes(minuteCount)}");
+    }
+
+    private enum ValidationResult
+    {
+        CancelUpdate,
+        UpdateComplete,
+        ContinueToUpdate,
     }
 }

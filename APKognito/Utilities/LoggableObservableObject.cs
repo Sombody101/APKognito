@@ -62,7 +62,11 @@ public class LoggableObservableObject : ObservableObject, IAntiMvvmRtb
 
     public void ClearLogs()
     {
-        richTextBox.Dispatcher.Invoke(richTextBox.Document.Blocks.Clear);
+        richTextBox.Dispatcher.Invoke(() =>
+        {
+            richTextBox.Document.Blocks.Clear();
+            richTextBox.Document.Blocks.Add(new Paragraph());
+        });
     }
 
     public virtual void AntiMvvm_SetRichTextbox(RichTextBox rtb)

@@ -1,4 +1,5 @@
 ﻿using APKognito.ViewModels.Pages;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
@@ -25,9 +26,9 @@ public static partial class Installer
     /// <param name="url"></param>
     /// <param name="num"></param>
     /// <returns></returns>
-    public static async Task<string?> FetchAsync(string url, CancellationToken cToken, int num = 0)
+    public static async Task<string?> FetchAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, int num = 0)
     {
-        var result = await FetchParseDocument(url, [[0, "assets", num, "browser_download_url"]], cToken);
+        var result = await FetchParseDocument(url, [[0, "assets", num, "browser_download_url"]], logger, cToken);
 
         if (result is string[] strArray)
         {
@@ -43,14 +44,14 @@ public static partial class Installer
     /// <param name="url"></param>
     /// <param name="indexes"></param>
     /// <returns></returns>
-    public static async Task<string?[]> FetchAsync(string url, CancellationToken cToken, params object[][] indexes)
+    public static async Task<string?[]> FetchAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, params object[][] indexes)
     {
-        return await FetchParseDocument(url, indexes, cToken) as string?[] ?? [];
+        return await FetchParseDocument(url, indexes, logger, cToken) as string?[] ?? [];
     }
 
-    public static async Task<bool> DownloadAsync(string url, string name, CancellationToken cToken)
+    public static async Task<bool> DownloadAsync(string url, string name, LoggableObservableObject? logger, CancellationToken cToken)
     {
-        if (!await VerifyConnection())
+        if (!await VerifyConnection(logger))
         {
             return false;
         }
@@ -58,45 +59,45 @@ public static partial class Installer
         try
         {
             string fileName = Path.GetFileName(name);
-            HomeViewModel.Instance?.Log($"Fetching {fileName}");
+            logger?.Log($"Fetching {fileName}");
             using HttpResponseMessage response = await App.SharedHttpClient.GetAsync(url, cToken);
             _ = response.EnsureSuccessStatusCode();
 
             await using FileStream fileStream = File.Create(name);
-            HomeViewModel.Instance?.Log($"Installing {fileName}");
+            logger?.Log($"Installing {fileName}");
             await response.Content.CopyToAsync(fileStream, cToken);
 
             return true;
         }
         catch (HttpRequestException ex)
         {
-            HomeViewModel.Instance?.LogError($"Unable to download a tool: {ex.Message}");
+            logger?.LogError($"Unable to download a tool: {ex.Message}");
             FileLogger.LogException(ex);
         }
         catch (Exception ex)
         {
-            HomeViewModel.Instance?.LogError($"An error occurred: {ex.Message}");
+            logger?.LogError($"An error occurred: {ex.Message}");
             FileLogger.LogException(ex);
         }
 
         return false;
     }
 
-    public static async Task<bool> FetchAndDownload(string url, string name, CancellationToken cToken, int assetIndex = 0)
+    public static async Task<bool> FetchAndDownload(string url, string name, LoggableObservableObject? logger, CancellationToken cToken, int assetIndex = 0)
     {
-        string? downloadUrl = await FetchAsync(url, cToken, assetIndex);
+        string? downloadUrl = await FetchAsync(url, logger, cToken, assetIndex);
 
         if (downloadUrl is null)
         {
             return false;
         }
 
-        return await DownloadAsync(downloadUrl, name, cToken);
+        return await DownloadAsync(downloadUrl, name, logger, cToken);
     }
 
-    private static async Task<object?> FetchParseDocument(string url, object[][] indexes, CancellationToken cToken)
+    private static async Task<object?> FetchParseDocument(string url, object[][] indexes, LoggableObservableObject? logger, CancellationToken cToken)
     {
-        if (!await VerifyConnection())
+        if (!await VerifyConnection(logger))
         {
             return null;
         }
@@ -134,7 +135,7 @@ public static partial class Installer
 
                     if (currentToken is null)
                     {
-                        HomeViewModel.Instance?.LogError($"Failed to find '{index}' in JSON response.");
+                        logger?.LogError($"Failed to find '{index}' in JSON response.");
                         FileLogger.LogDebug($"Json token: {lastToken.ToString().Truncate(1500) ?? "[NULL]"}");
                         output[i] = null;
                         break;
@@ -150,12 +151,12 @@ public static partial class Installer
         }
         catch (HttpRequestException ex)
         {
-            HomeViewModel.Instance?.LogError($"Failed to fetch JSON: {ex.Message}");
+            logger?.LogError($"Failed to fetch JSON: {ex.Message}");
             FileLogger.LogException(ex);
         }
         catch (Exception ex)
         {
-            HomeViewModel.Instance?.LogError($"An error occurred: {ex.Message}");
+            logger?.LogError($"An error occurred: {ex.Message}");
             FileLogger.LogException(ex);
         }
 
@@ -163,7 +164,7 @@ public static partial class Installer
         return null;
     }
 
-    private static async Task<bool> VerifyConnection()
+    private static async Task<bool> VerifyConnection(LoggableObservableObject? logger)
     {
         try
         {
@@ -182,15 +183,15 @@ public static partial class Installer
             switch (result)
             {
                 case 1:
-                    HomeViewModel.Instance?.LogError("No network device found. A WiFi adapter or ethernet is required.");
+                    logger?.LogError("No network device found. A WiFi adapter or ethernet is required.");
                     return false;
 
                 case 2:
-                    HomeViewModel.Instance?.LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
+                    logger?.LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
                     return false;
 
                 case 3:
-                    HomeViewModel.Instance?.LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
+                    logger?.LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
                     return false;
             }
         }

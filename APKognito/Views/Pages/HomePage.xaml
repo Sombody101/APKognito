@@ -101,6 +101,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition />
                     <RowDefinition />
+                    <RowDefinition />
                 </Grid.RowDefinitions>
 
                 <!--  Field Labels  -->
@@ -179,6 +180,27 @@
                     Command="{Binding SaveSettingsCommand}"
                     Content="Save APK Settings"
                     ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
+
+                <!--
+                <ui:CardAction
+                    Grid.Row="3"
+                    Grid.ColumnSpan="2"
+                    Icon="{ui:SymbolIcon TextBoxSettings24}">
+                    <StackPanel>
+                        <ui:TextBlock
+                            Margin="0"
+                            FontTypography="BodyStrong"
+                            Text="Advanced Settings"
+                            TextWrapping="WrapWithOverflow" />
+
+                        <ui:TextBlock
+                            Appearance="Secondary"
+                            Text="Advanced APK and OBB configurations"
+                            TextWrapping="WrapWithOverflow" />
+                    </StackPanel>
+                </ui:CardAction>
+                -->
+
             </Grid>
         </ui:CardExpander>
 

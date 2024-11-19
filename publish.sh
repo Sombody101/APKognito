@@ -2,7 +2,7 @@
 
 ###
 # Exit codes:
-#   1: Generic erro
+#   1: Generic error
 #   2: Invalid or missing input argument
 #   3: Failed to change directory
 #   4: Dependency is missing (jq, hub, etc)
@@ -15,7 +15,7 @@
 
 [[ ! "$2" ]] && {
     echo "No VirusTotal API key provided."
-    echo 2
+    exit 2
 }
 
 [[ ! "$(which jq)" ]] && {
@@ -107,6 +107,10 @@ echo "Release created with the tag $release_tag"
 echo "Syncing remote tags..."
 git pull
 
-
 echo "Cleaning up"
 rm "$build_path/$zip_file"
+
+[[ "$*" =~ --gen ]] && {
+    echo "Release link:"
+    echo "[$release_tag](https://github.com/Sombody101/APKognito/releases/tag/$release_tag)"
+}

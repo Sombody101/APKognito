@@ -1,8 +1,6 @@
-﻿using APKognito.Configurations;
+﻿namespace APKognito.Configurations.ConfigModels;
 
-namespace APKognito.Configurations.ConfigModels;
-
-[ConfigFile("adb-history.bin", ConfigType.MemoryPacked, ConfigModifiers.MemoryPacked)]
+[ConfigFile("adb-history.bin", ConfigType.MemoryPacked, ConfigModifiers.MemoryPacked | ConfigModifiers.Compressed)]
 internal class AdbHistory : IKognitoConfig
 {
     public List<string> CommandHistory { get; set; } = [];

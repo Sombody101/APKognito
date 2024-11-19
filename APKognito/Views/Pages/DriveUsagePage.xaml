@@ -198,7 +198,7 @@
 
                 <ui:ListView
                     x:Name="FolderList"
-                    MaxHeight="{x:Static SystemParameters.FullPrimaryScreenHeight}"
+                    MaxHeight="{x:Static SystemParameters.MaximizedPrimaryScreenHeight}"
                     Margin="0,0,0,10"
                     VerticalAlignment="Stretch"
                     ItemsSource="{Binding FoundFolders}"

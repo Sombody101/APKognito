@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using APKognito.Views.Pages;
+using System.Collections.ObjectModel;
 using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Windows;
@@ -15,20 +16,35 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
         {
             Content = "Rename APK",
             Icon = new SymbolIcon { Symbol = SymbolRegular.Box16 },
-            TargetPageType = typeof(Views.Pages.HomePage)
+            TargetPageType = typeof(HomePage)
         },
         new NavigationViewItem()
         {
             Content = "Drive Footprint",
             Icon = new SymbolIcon { Symbol = SymbolRegular.HardDrive16 },
-            TargetPageType = typeof(Views.Pages.DriveUsagePage)
+            TargetPageType = typeof(DriveUsagePage)
         },
         new NavigationViewItem()
         {
             Content = "Rename History",
             Icon = new SymbolIcon { Symbol = SymbolRegular.History16 },
-            TargetPageType = typeof(Views.Pages.RenamingHistoryPage)
+            TargetPageType = typeof(RenamingHistoryPage)
         },
+#if DEBUG
+        new NavigationViewItem()
+        {
+            Content = "ADB",
+            Icon = new SymbolIcon { Symbol = SymbolRegular.Code16 },
+            TargetPageType = typeof(AdbConsolePage),
+            MenuItemsSource = new NavigationViewItem[] {
+                new("ADB Configuration", typeof(AdbConfigurationPage)),
+                new("Console", typeof(AdbConsolePage)),
+                // new("Quick Commands", typeof(AdbConsolePage)),
+                new("File Explorer", typeof(FileExplorerPage)),
+                new("File Uploader", typeof(FileUploaderPage)),
+            },
+        },
+#endif
     ];
 
     [ObservableProperty]
@@ -38,19 +54,14 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
         {
             Content = "Settings",
             Icon = new SymbolIcon { Symbol = SymbolRegular.Settings24 },
-            TargetPageType = typeof(Views.Pages.SettingsPage)
+            TargetPageType = typeof(SettingsPage)
         },
-        // new NavigationViewItem()
-        // {
-        //     Content = "How To",
-        //     Icon = new SymbolIcon { Symbol = SymbolRegular.QuestionCircle24 },
-        //     TargetPageType = typeof(Views.Pages.HowToPage)
-        // }
     ];
 
     [ObservableProperty]
     private ObservableCollection<MenuItem> _trayMenuItems =
     [
-        new MenuItem { Header = "Rename APK", Tag = "main_menu" },
+        new MenuItem { Header = "Rename APK", Tag = "tray_home" },
+        new MenuItem { Header = "Close", Tag = "tray_close" },
     ];
 }

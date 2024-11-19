@@ -38,9 +38,6 @@
 
 ![APKognito example](./gitassets/APKognito%20Example.png)
 
-> [!IMPORTANT]
-> Version numbering is going to change after `v1.5`. So, starting with `v1.6`, versions will look like this: `v1.6.9051.33421`. Debug builds will be constant at `d1.0.0.0` (using a `d` prefix to prevent debug releases from updating on user machines using a publish).
-
 # Requirements
 
 `APKognito` is precompiled for a _64 bit operating system_. If you're running 32 bit Windows 10, you need to compile `APKognito` yourself (which requires the SDK, see [build](#build) for more instructions).

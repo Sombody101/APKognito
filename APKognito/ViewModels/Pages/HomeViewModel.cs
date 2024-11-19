@@ -14,7 +14,6 @@ using System.Windows.Threading;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 using FontFamily = System.Windows.Media.FontFamily;
-using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -44,7 +43,6 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel? Instance { get; private set; }
 
-    //private static RichTextBox logBox;
     private CancellationTokenSource? _renameApksCancelationSource;
 
     /*
@@ -370,10 +368,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             Interval = TimeSpan.FromSeconds(1),
         };
 
-        taskTimer.Tick += (sender, e) =>
-        {
-            ElapsedTime = elapsedTime.Elapsed.ToString("hh\\:mm\\:ss");
-        };
+        taskTimer.Tick += (sender, e) => ElapsedTime = elapsedTime.Elapsed.ToString("hh\\:mm\\:ss");
 
         elapsedTime.Start();
         taskTimer.Start();
@@ -450,7 +445,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                 $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details.",
                 ControlAppearance.Danger,
                 new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(5)
+                TimeSpan.FromSeconds(10)
             );
         }
 
@@ -494,7 +489,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             if (!File.Exists(ApktoolJar))
             {
                 Log("Installing Apktool.jar...");
-                if (!await Installer.FetchAndDownload("https://api.github.com/repos/iBotPeaches/apktool/releases", ApktoolJar, cToken))
+                if (!await Installer.FetchAndDownload(Constants.APKTOOL_JAR_URL, ApktoolJar, this, cToken))
                 {
                     allSuccess = false;
                 }
@@ -503,7 +498,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             if (!File.Exists(ApktoolBat))
             {
                 Log("Installing Apktool.bat...");
-                if (!await Installer.DownloadAsync("https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat", ApktoolBat, cToken))
+                if (!await Installer.DownloadAsync(Constants.APKTOOL_BAT_URL, ApktoolBat, this, cToken))
                 {
                     allSuccess = false;
                 }
@@ -512,7 +507,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             if (!File.Exists(ApksignerJar))
             {
                 Log("Installing ApkSigner.jar");
-                if (!await Installer.FetchAndDownload("https://api.github.com/repos/patrickfav/uber-apk-signer/releases", ApksignerJar, cToken, 1))
+                if (!await Installer.FetchAndDownload(Constants.APL_SIGNER_URL, ApksignerJar, this, cToken, 1))
                 {
                     allSuccess = false;
                 }
@@ -614,29 +609,14 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         }
 
         // Check via Powershell
-        var proc = new Process()
-        {
-            StartInfo = new ProcessStartInfo()
-            {
-                FileName = "powershell.exe",
-                Arguments = "-c Get-Command java | Select-Object -ExpandProperty Source",
-                RedirectStandardOutput = true,
-                CreateNoWindow = true,
-                UseShellExecute = false
-            }
-        };
+        string psPath = AdbManager.QuickGenericCommand(
+            Constants.POWERSHELL_PATH,
+            "-c Get-Command java | Select-Object -ExpandProperty Source"
+        ).Result;
 
-        proc.Start();
-        proc.BeginOutputReadLine();
-        proc.WaitForExit();
-        string psPath = proc.StandardOutput.ReadToEnd();
-
-        if (proc.ExitCode is not 0)
-        {
-            LogWarning($"Java was found, but the version was unable to be verified: {psPath}");
-            javaPath = psPath;
-            return true;
-        }
+        LogWarning($"Java was found, but the version was unable to be verified: {psPath}");
+        javaPath = psPath;
+        return true;
 
     // A JRE check will be implemented. Eventually...
 

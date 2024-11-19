@@ -28,7 +28,7 @@ public partial class App
     private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
     private static HttpClient? _sharedHttpClient;
 
-    public static DirectoryInfo? AppData { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
+    public static DirectoryInfo AppData { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
 
     public static string GetVersion()
     {

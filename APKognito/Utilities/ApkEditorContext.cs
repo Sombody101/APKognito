@@ -46,6 +46,7 @@ public class ApkEditorContext
         _ = Directory.CreateDirectory(ApkTempDirectory);
     }
 
+
     /// <summary>
     /// Unpacks, replaces all package name occurrences with a new company name, repacks the package, then signs the package.
     /// </summary>
@@ -76,7 +77,7 @@ public class ApkEditorContext
             string finalOutputDirectory = Path.Combine(OutputDirectory, $"{newPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
 
             // Replace all instances in the APK and any OBBs
-            viewModel.Log($"Changing '{packageName}'  →  '{newPackageName}'");
+            viewModel.Log($"Changing '{packageName}'  |>  '{newPackageName}'");
             await ReplaceAllNameInstancesAsync(oldCompanyName, ReplacementCompanyName, cancellationToken);
             ReplaceObbFiles(packageName, ReplacementCompanyName, finalOutputDirectory);
 
@@ -196,8 +197,6 @@ public class ApkEditorContext
 
     private async Task ReplaceAllNameInstancesAsync(string searchCompanyName, string replacementName, CancellationToken cToken)
     {
-        // RenameDirectory(Path.Combine(ApkTempDirectory, "smali\\com", searchCompanyName), replacementName);
-
         ReplaceAllDirectoryNames(ApkTempDirectory, searchCompanyName, replacementName);
         
         IEnumerable<string> files = Directory.GetFiles(ApkTempDirectory, "smali\\*", SearchOption.AllDirectories)
@@ -262,28 +261,8 @@ public class ApkEditorContext
         await File.WriteAllTextAsync(
             filePath,
             (await File.ReadAllTextAsync(filePath, cToken)).Replace(searchText, replaceText),
-            cToken);
-
-        return;
-        using StreamReader reader = File.OpenText(filePath);
-        await using MemoryStream memoryStream = new();
-        await using StreamWriter writer = new(memoryStream);
-
-        string? line;
-        while ((line = await reader.ReadLineAsync(cToken)) is not null && !cToken.IsCancellationRequested)
-        {
-            await writer.WriteLineAsync(line.Replace(searchText, replaceText).AsMemory(), cToken);
-        }
-
-        memoryStream.SetLength(memoryStream.Position);
-        _ = memoryStream.Seek(0, SeekOrigin.Begin);
-
-        reader.Close();
-
-        // Flushing the stream here creates redundant data...
-
-        await using FileStream copyStream = File.OpenWrite(filePath);
-        await memoryStream.CopyToAsync(copyStream, cToken);
+            cToken
+        );
     }
 
     private Process CreateJavaProcess(string arguments)

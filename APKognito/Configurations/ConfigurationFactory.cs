@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Security.Permissions;
 using System.Text;
 
 namespace APKognito.Configurations;
@@ -19,7 +20,7 @@ public static class ConfigurationFactory
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static T GetConfig<T>() where T : IKognitoConfig, new()
+    public static T GetConfig<T>() where T : class, IKognitoConfig, new()
     {
         Type configType = typeof(T);
 
@@ -42,6 +43,18 @@ public static class ConfigurationFactory
         T config = LoadConfig<T>(configAttribute);
         _cachedConfigs[configType] = config;
         return config;
+    }
+
+    public static bool TryGetConfig<T>(out T? config) where T : class, IKognitoConfig, new()
+    {
+        if (_cachedConfigs.TryGetValue(typeof(T), out var fetchedConfig))
+        {
+            config = (T)fetchedConfig!;
+            return true;
+        }
+
+        config = null;
+        return false;
     }
 
     /// <summary>

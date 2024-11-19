@@ -26,6 +26,9 @@
             <Style TargetType="Control">
                 <Setter Property="FontFamily" Value="Segoe UI Symbol" />
             </Style>
+
+            <ui:ImageIcon x:Key="Dark-Wide" Source="pack://application:,,,/Assets/dark-wide.png" />
+            <ui:ImageIcon x:Key="Light-Wide" Source="pack://application:,,,/Assets/light-wide.png" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
