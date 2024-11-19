@@ -18,6 +18,10 @@
     exit 2
 }
 
+[[ "$3" == "-p" ]] && {
+    readonly prerelease=true
+}
+
 [[ ! "$(which jq)" ]] && {
     echo "jq is required to run."
     exit 4
@@ -45,8 +49,14 @@ scb() {
     }
 }
 
-readonly release_type="Beta"
-readonly release_tag_prefix="v"
+if [[ "$prerelease" ]]; then
+    readonly release_type="Prerelease"
+    readonly release_tag_prefix="d"
+else
+    readonly release_type="Beta"
+    readonly release_tag_prefix="v"
+fi
+
 readonly publish_profile="./APKognito/Properties/PublishProfiles/FolderProfile.pubxml"
 readonly git_remote_url="https://github.com/Sombody101/APKognito"
 
@@ -60,7 +70,7 @@ echo
 echo "Build version: |$appversion|"
 
 echo "Uploading to VirusTotal"
-permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll"| jq -r '.data.id')"
+permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll" | jq -r '.data.id')"
 readonly permlink
 
 readonly zip_file="APKognito-$appversion.zip"
@@ -101,7 +111,7 @@ echo "$release_tag"
 echo "$release_title"
 echo "$commit_messages"
 
-! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" && exit "$?"
+! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" "$3" && exit "$?"
 
 echo "Release created with the tag $release_tag"
 echo "Syncing remote tags..."
