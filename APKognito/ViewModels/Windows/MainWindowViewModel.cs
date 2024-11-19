@@ -30,7 +30,6 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
             Icon = new SymbolIcon { Symbol = SymbolRegular.History16 },
             TargetPageType = typeof(RenamingHistoryPage)
         },
-#if DEBUG
         new NavigationViewItem()
         {
             Content = "ADB",
@@ -44,7 +43,6 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
                 new("File Uploader", typeof(FileUploaderPage)),
             },
         },
-#endif
     ];
 
     [ObservableProperty]

@@ -141,6 +141,10 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     #endregion Properties
 
+    public HomeViewModel()
+    {
+    }
+
     public HomeViewModel(ISnackbarService _snackbarService)
     {
         Instance = this;
