@@ -99,6 +99,7 @@ public class ApkEditorContext
 
             // Copy to output and cleanup
             viewModel.Log($"Finished APK {newPackageName}");
+            viewModel.Log($"Placed into: {finalOutputDirectory}");
             viewModel.Log("Cleaning up...");
 
             if (config.ClearTempFilesOnRename)

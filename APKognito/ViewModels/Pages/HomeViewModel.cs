@@ -173,7 +173,8 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
         if (FilePath.Length is not 0)
         {
-            UpdateFootprintInfo();
+            // Finishes before the view, so shouldn't cause errors
+            _ = UpdateFootprintInfo();
         }
     }
 
@@ -212,7 +213,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     }
 
     [RelayCommand]
-    private void OnLoadApk()
+    private async Task OnLoadApk()
     {
         OpenFileDialog openFileDialog = new()
         {
@@ -254,7 +255,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                 Log(sb.ToString());
             }
 
-            UpdateFootprintInfo();
+            await UpdateFootprintInfo();
         }
         else
         {
@@ -313,7 +314,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     public async ValueTask OnRenameCopyChecked()
     {
-        UpdateFootprintInfo();
+        await UpdateFootprintInfo();
     }
 
     #endregion Commands
@@ -443,7 +444,8 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                     FileInfo apkInfo = new(editorContext.OutputApkPath);
                     Log($"Installing {FinalName} to {currentDevice.DeviceId} ({apkInfo.Length / 1024 / 1024} MB)");
 
-                    await AdbManager.QuickDeviceCommand($"install -g {apkInfo.FullName}", token: cancellationToken);
+                    await AdbManager.WakeDevice();
+                    await AdbManager.QuickDeviceCommand(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
 
                     if (editorContext.AssetPath is not null)
                     {
@@ -452,7 +454,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                         string obbPath = $"{currentDevice.InstallPaths.ObbPath}/{FinalName}";
                         Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbPath}");
 
-                        await AdbManager.QuickDeviceCommand($"shell mkdir {obbPath}", token: cancellationToken);
+                        await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbPath}""", token: cancellationToken);
 
                         int assetIndex = 0;
                         foreach (string file in assets)
@@ -460,7 +462,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                             var assetInfo = new FileInfo(file);
                             Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
 
-                            await AdbManager.QuickDeviceCommand($"push {file} {obbPath}", token: cancellationToken);
+                            await AdbManager.QuickDeviceCommand(@$"push ""{file}"" ""{obbPath}""", token: cancellationToken);
                         }
                     }
                 }
@@ -469,13 +471,13 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             catch (OperationCanceledException)
             {
                 // Handle cancellation
-                LogWarning("Job canceled.");
-                errorReason = "Job canceled.";
+                LogWarning(errorReason = "Job canceled.");
             }
             catch (Exception ex)
             {
                 apkFailed = true;
                 errorReason = ex.Message;
+                FileLogger.LogException(errorReason, ex);
             }
 
             if (!apkFailed)

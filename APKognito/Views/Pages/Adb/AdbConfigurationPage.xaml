@@ -56,9 +56,6 @@
             <ui:Card Margin="0,0,0,10" IsEnabled="{Binding ViewModel.OverridePathsEnabled}">
                 <StackPanel>
 
-                    <Label Content="APK Install Path" />
-                    <ui:TextBox Margin="0,0,0,10" Text="{Binding ViewModel.OverrideApkPath, UpdateSourceTrigger=PropertyChanged}" />
-
                     <Label Content="OBB Install Path" />
                     <ui:TextBox Margin="0,0,0,10" Text="{Binding ViewModel.OverrideObbPath, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -66,7 +63,11 @@
 
                 </StackPanel>
             </ui:Card>
+
         </StackPanel>
+
+        <Label Content="Platform Tools Path" />
+        <ui:TextBox Text="{Binding ViewModel.PlatformToolsPath}" />
 
     </StackPanel>
 </Page>

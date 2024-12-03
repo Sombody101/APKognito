@@ -508,8 +508,12 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
             WriteGenericLogLine("Unpacking platform tools.");
 
-            using (ZipArchive archive = new(File.OpenRead(zipFile), ZipArchiveMode.Read))
+            // Keeps track of the most recent file extraction attempt and shows it to the user
+            // in the try/catch.
+            string lastFile = string.Empty;
+            try
             {
+                using ZipArchive archive = new(File.OpenRead(zipFile), ZipArchiveMode.Read);
                 foreach (ZipArchiveEntry entry in archive.Entries)
                 {
                     string entryPath = Path.Combine(appDataPath, entry.FullName);
@@ -520,8 +524,14 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
                         continue;
                     }
 
+                    lastFile = Path.GetFileName(entryPath);
                     entry.ExtractToFile(entryPath, true);
                 }
+            }
+            catch (Exception ex)
+            {
+                LogError($"Failed to install platform tools [{lastFile}]: {ex.Message}");
+                return; 
             }
 
             File.Delete(zipFile);

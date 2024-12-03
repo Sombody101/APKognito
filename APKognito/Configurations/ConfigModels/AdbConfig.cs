@@ -3,7 +3,7 @@ using System.IO;
 
 namespace APKognito.Configurations.ConfigModels;
 
-[ConfigFile("adb-config.json", ConfigType.Json, ConfigModifiers.JsonIndented )]
+[ConfigFile("adb-config.json", ConfigType.Json, ConfigModifiers.JsonIndented | ConfigModifiers.JsonIgnoreMissing)]
 internal sealed class AdbConfig : IKognitoConfig
 {
     /// <summary>
@@ -45,13 +45,13 @@ public sealed class AdbDeviceInfo
     [JsonProperty("device_paths")]
     public DevicePaths InstallPaths { get; set; }
 
-    public AdbDeviceInfo(string id, DeviceType type, string ovrd1 = "", string ovrd2 = "")
+    public AdbDeviceInfo(string id, DeviceType type, string ovrd = "")
     {
         DeviceId = id;
-        SetDeviceType(type, ovrd1, ovrd2);
+        SetDeviceType(type, ovrd);
     }
 
-    public void SetDeviceType(DeviceType deviceType, string ovrd1 = "", string ovrd2 = "")
+    public void SetDeviceType(DeviceType deviceType, string ovrd = "")
     {
         if (deviceType == DeviceType)
         {
@@ -61,36 +61,30 @@ public sealed class AdbDeviceInfo
         DeviceType = deviceType;
 
         InstallPaths = deviceType is DeviceType.UserOverridePaths
-            ? new(ovrd1, ovrd2)
+            ? new(ovrd)
             : new(deviceType);
     }
 }
 
 public sealed class DevicePaths
 {
-    [JsonProperty("device_apk_path")]
-    public string ApkPath { get; set; }
-
     [JsonProperty("device_obb_path")]
     public string ObbPath { get; set; }
 
-    public DevicePaths(DeviceType deviceType, string ovrd1 = "", string ovrd2 = "")
+    public DevicePaths(DeviceType deviceType, string ovrd = "")
     {
         switch (deviceType)
         {
             case DeviceType.BasicAndroid:
-                ApkPath = "/data/app/";
                 ObbPath = "/data/media/obb";
                 return;
 
             case DeviceType.MetaQuest:
-                ApkPath = "/sdcard/Android/data/";
                 ObbPath = "/sdcard/Android/obb/";
                 return;
 
             case DeviceType.UserOverridePaths:
-                ApkPath = ovrd1;
-                ObbPath = ovrd2;
+                ObbPath = ovrd;
                 break;
 
             default:
@@ -99,9 +93,8 @@ public sealed class DevicePaths
     }
 
     [JsonConstructor]
-    public DevicePaths(string overrideApkPath, string overrideObbPath)
+    public DevicePaths(string overrideObbPath)
     {
-        ApkPath = overrideApkPath;
         ObbPath = overrideObbPath;
     }
 }

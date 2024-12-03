@@ -113,7 +113,6 @@ internal class AdbManager
     {
         var proc = new Process()
         {
-
             StartInfo =
             {
                 FileName = command,
@@ -136,6 +135,11 @@ internal class AdbManager
         }
 
         return output;
+    }
+
+    public static async Task WakeDevice(string? deviceId = null)
+    {
+        await QuickDeviceCommand("shell input keyevent KEYCODE_WAKEUP", deviceId);
     }
 
     /// <summary>
@@ -173,7 +177,7 @@ internal class AdbManager
 
         if (!Directory.Exists(adbDirectory))
         {
-            throw new DirectoryNotFoundException($"PlatformTools are not installed at {adbDirectory}\nInstall it from https://dl.google.com/android/repository/platform-tools-latest-windows.zip, or you can run 'install-adb' to auto install them.");
+            throw new DirectoryNotFoundException($"PlatformTools are not installed at '{adbDirectory}'.\nInstall them from https://dl.google.com/android/repository/platform-tools-latest-windows.zip, or you can run ':install-adb' to auto install them.");
         }
 
         if (!File.Exists(adbPath))

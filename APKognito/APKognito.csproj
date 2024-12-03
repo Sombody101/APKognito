@@ -6,18 +6,18 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\apkognito.ico</ApplicationIcon>
     <UseWPF>true</UseWPF>
-	<UseWindowsForms>true</UseWindowsForms>
-	<Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageIcon>apkognito.png</PackageIcon>
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
     <Platforms>AnyCPU;x64</Platforms>
     <Deterministic>false</Deterministic>
-	<EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
 
-	<!--  Thank god for this  -->
-	<StartupObject>APKognito.MainOverride</StartupObject>
-	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--  Thank god for this  -->
+    <StartupObject>APKognito.MainOverride</StartupObject>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -34,8 +34,8 @@
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <AssemblyVersion>1.7.*</AssemblyVersion>
-	<FileVersion>1.7.*</FileVersion>
-	<ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+    <FileVersion>1.7.*</FileVersion>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
   </PropertyGroup>
 
   <ItemGroup>

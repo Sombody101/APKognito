@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using Wpf.Ui;
+using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -42,10 +43,17 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject, IView
     private bool _overridePathsEnabled = false;
 
     [ObservableProperty]
-    private string _overrideApkPath = string.Empty;
-
-    [ObservableProperty]
     private string _overrideObbPath = string.Empty;
+
+    public string PlatformToolsPath
+    {
+        get => adbConfig.PlatformToolsPath;
+        set
+        {
+            adbConfig.PlatformToolsPath = value;
+            OnPropertyChanged(nameof(PlatformToolsPath));
+        }
+    }
 
     #endregion Properties
 
@@ -80,7 +88,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject, IView
     [RelayCommand]
     private void OnSetOverridePaths()
     {
-        adbConfig.GetCurrentDevice()!.InstallPaths = new(OverrideApkPath, OverrideObbPath);
+        adbConfig.GetCurrentDevice()!.InstallPaths = new(OverrideObbPath);
         ConfigurationFactory.SaveConfig(adbConfig);
     }
 
@@ -142,7 +150,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject, IView
             return AdbDevicesStatus.NoAdb;
         }
 
-        string[] foundDevices = [..await AdbManager.GetDeviceList()];
+        string[] foundDevices = [.. await AdbManager.GetDeviceList()];
 
         if (foundDevices.Length is 0)
         {
@@ -187,7 +195,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject, IView
                 value.DisplayName.Contains("Quest")
                     ? DeviceType.MetaQuest
                     : DeviceType.BasicAndroid,
-                string.Empty, string.Empty
+                string.Empty
             );
 
             adbConfig.AdbDevices.Add(newDeviceProfile);
@@ -198,7 +206,6 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject, IView
 
         // Allow for controls to update their values, even if they're disabled right after
         SelectedDeviceType = DeviceTypeList.First(type => type.Value == currentDevice.DeviceType);
-        OverrideApkPath = currentDevice.InstallPaths.ApkPath;
         OverrideObbPath = currentDevice.InstallPaths.ObbPath;
 
         RefreshItemEligibility(currentDevice);
@@ -207,10 +214,9 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject, IView
     partial void OnSelectedDeviceTypeChanged(HumanComboBoxItem<DeviceType> value)
     {
         var currentDevice = adbConfig.GetCurrentDevice();
-    
+
         currentDevice!.DeviceType = value.Value;
-        currentDevice.InstallPaths = new(value.Value, OverrideApkPath, OverrideObbPath);
-        OverrideApkPath = currentDevice.InstallPaths.ApkPath;
+        currentDevice.InstallPaths = new(value.Value, OverrideObbPath);
         OverrideObbPath = currentDevice.InstallPaths.ObbPath;
 
         UpdatePathVariables();
@@ -231,7 +237,6 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject, IView
     private void UpdatePathVariables()
     {
         // Update path variables for console
-        adbHistory.SetVariable("APK_PATH", OverrideApkPath);
         adbHistory.SetVariable("OBB_PATH", OverrideObbPath);
     }
 }

@@ -87,12 +87,12 @@ public partial class FileUploaderViewModel : LoggableObservableObject, IViewable
         {
             try
             {
-                await AdbManager.QuickDeviceCommand($"push {path} {adbPaths.InstallPaths.ApkPath}");
+                await AdbManager.QuickDeviceCommand(@$"install -g ""{path}""");
             }
             catch (Exception ex)
             {
                 FileLogger.LogException(ex);
-                SnackError($"Failed to upload {Path.GetFileName(path)}", ex.Message);
+                SnackError($"Failed to install {Path.GetFileName(path)}", ex.Message);
             }
 
             FileLogger.Log($"Pushing {_files.Count} files to {adbConfig.CurrentDeviceId}");

@@ -22,15 +22,21 @@
     readonly prerelease=true
 }
 
-[[ ! "$(which jq)" ]] && {
-    echo "jq is required to run."
-    exit 4
-}
+libs=(
+    jq
+    hub
+    zip
+)
 
-[[ ! "$(which hub)" ]] && {
-    echo "hub is required to run."
-    exit 4
-}
+exit_code=
+for lib in "${libs[@]}"; do
+    [[ ! "$(which $lib)" ]] && {
+        echo "$lib is required to run."
+        exit_code=4
+    }
+done
+
+[[ "$exit_code" ]] && exit $exit_code
 
 # Safe Change Directory
 scd() {
