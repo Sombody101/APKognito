@@ -27,4 +27,10 @@ public class KognitoConfig : IKognitoConfig
     /// </summary>
     [JsonProperty("copy_when_renaming")]
     public bool CopyFilesWhenRenaming { get; set; } = true;
+
+    [JsonProperty("clear_temp_on_rename")]
+    public bool ClearTempFilesOnRename { get; set; } = true;
+
+    [JsonProperty("push_after_rename")]
+    public bool PushAfterRename { get; set; } = false;
 }

@@ -19,6 +19,11 @@ public class AdbFolderInfo : ObservableObject
 
     public TreeViewItem? ParentTreeViewItem { get; }
 
+    /// <summary>
+    /// Specifically for the view to help locate the corresponding TreeViewItem.
+    /// </summary>
+    public string TreeViewItemTag { get; }
+
     public string RawCreationDate { get; }
 
     public string CreationDate => string.IsNullOrWhiteSpace(RawCreationDate)
@@ -109,6 +114,7 @@ public class AdbFolderInfo : ObservableObject
         }
 
         ParentTreeViewItem = parentItem;
+        TreeViewItemTag = Random.Shared.Next().ToString("x");
     }
 
     private static AdbFolderType ResolveType(string type)

@@ -248,7 +248,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         ZipFile.ExtractToDirectory(updateFilePath, unpackedPath, true);
 
         const string script = "-c Start-Sleep -Seconds 5; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; Start-Process -FilePath '{1}APKognito.exe' -Args '{2}'";
-        string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, MainOverride.UpdateInstalledArgument);
+        string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, Constants.UpdateInstalledArgument);
 
         _ = Process.Start(new ProcessStartInfo()
         {

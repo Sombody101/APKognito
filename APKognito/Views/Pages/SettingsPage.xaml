@@ -110,6 +110,8 @@
                     Command="{Binding ViewModel.OpenAppDataCommand}"
                     Content="Open AppData" />
 
+                <CheckBox Content="Delete temporary files after rename" IsChecked="{Binding ViewModel.ClearTempFilesOnRename}" />
+
             </StackPanel>
         </ui:CardExpander>
 

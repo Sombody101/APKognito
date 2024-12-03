@@ -2,6 +2,7 @@
     x:Class="APKognito.Views.Pages.AdbConfigurationPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -17,7 +18,9 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
 
-    <StackPanel Margin="0,10">
+    <StackPanel Margin="0,30">
+
+        <Label Content="Selected Device" />
         <Grid Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition />
@@ -31,13 +34,39 @@
                 IsReadOnly="True"
                 IsSynchronizedWithCurrentItem="True"
                 ItemsSource="{Binding ViewModel.DeviceList}"
-                SelectedItem="{Binding ViewModel.SelectedDevice, UpdateSourceTrigger=PropertyChanged}"
-                Text="Select ADB Device" />
+                SelectedItem="{Binding ViewModel.SelectedDevice, UpdateSourceTrigger=PropertyChanged}" />
 
             <ui:Button
                 Grid.Column="1"
-                Command="{Binding TryConnectionCommand}"
+                Command="{Binding ViewModel.TryConnectionCommand}"
                 Content="Connect" />
+
         </Grid>
+
+        <StackPanel IsEnabled="{Binding ViewModel.DevicePropertiesEnabled}">
+            <Label Content="Detected Device Type" FontSize="24" />
+            <ComboBox
+                Margin="0,0,0,10"
+                IsReadOnly="True"
+                IsSynchronizedWithCurrentItem="True"
+                ItemsSource="{Binding ViewModel.DeviceTypeList}"
+                SelectedItem="{Binding ViewModel.SelectedDeviceType}" />
+
+            <Label Content="Install Override Paths" FontSize="24" />
+            <ui:Card Margin="0,0,0,10" IsEnabled="{Binding ViewModel.OverridePathsEnabled}">
+                <StackPanel>
+
+                    <Label Content="APK Install Path" />
+                    <ui:TextBox Margin="0,0,0,10" Text="{Binding ViewModel.OverrideApkPath, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <Label Content="OBB Install Path" />
+                    <ui:TextBox Margin="0,0,0,10" Text="{Binding ViewModel.OverrideObbPath, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <ui:Button Command="{Binding ViewModel.SetOverridePathsCommand}" Content="Set paths" />
+
+                </StackPanel>
+            </ui:Card>
+        </StackPanel>
+
     </StackPanel>
 </Page>

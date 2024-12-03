@@ -1,4 +1,5 @@
 ﻿using APKognito.Configurations;
+using APKognito.Exceptions;
 using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
 using System.Diagnostics;
@@ -24,6 +25,9 @@ public class ApkEditorContext
     private readonly string OutputDirectory;
 
     private readonly string ApkTempDirectory;
+
+    public string OutputApkPath { get; private set; } = string.Empty;
+    public string? AssetPath { get; private set; }
 
     public ApkEditorContext(
         HomeViewModel homeViewModel,
@@ -72,14 +76,18 @@ public class ApkEditorContext
             string packageName = GetApkPackageName(androidManifest);
 
             // format new package name and get original company name
-            (string oldCompanyName, string newPackageName) = SplitPackageName(packageName);
+            (
+                string packagePrefix,
+                string oldCompanyName, 
+                string newPackageName
+            ) = SplitPackageName(packageName);
             viewModel.FinalName = newPackageName;
             string finalOutputDirectory = Path.Combine(OutputDirectory, $"{newPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
 
             // Replace all instances in the APK and any OBBs
             viewModel.Log($"Changing '{packageName}'  |>  '{newPackageName}'");
-            await ReplaceAllNameInstancesAsync(oldCompanyName, ReplacementCompanyName, cancellationToken);
-            ReplaceObbFiles(packageName, ReplacementCompanyName, finalOutputDirectory);
+            await ReplaceAllNameInstancesAsync(packagePrefix, oldCompanyName, ReplacementCompanyName, cancellationToken);
+            await ReplaceObbFiles(packageName, ReplacementCompanyName, finalOutputDirectory);
 
             // Repack
             viewModel.Log("Packing APK...");
@@ -92,7 +100,11 @@ public class ApkEditorContext
             // Copy to output and cleanup
             viewModel.Log($"Finished APK {newPackageName}");
             viewModel.Log("Cleaning up...");
-            Directory.Delete(ApkTempDirectory, true);
+
+            if (config.ClearTempFilesOnRename)
+            {
+                Directory.Delete(ApkTempDirectory, true);
+            }
 
             if (!config.CopyFilesWhenRenaming)
             {
@@ -144,7 +156,6 @@ public class ApkEditorContext
         {
             if (!config.CopyFilesWhenRenaming)
             {
-                // No need to move the source, if it's already unpacked
                 File.Delete(FullSourceApkPath);
             }
 
@@ -172,9 +183,9 @@ public class ApkEditorContext
             : outputApkName;
     }
 
-    private async Task SignApkTool(string apkPath, string outputApkPath, CancellationToken cToken)
+    private async Task SignApkTool(string apkPath, string outputApkDirectory, CancellationToken cToken)
     {
-        string args = $"-jar \"{viewModel.ApksignerJar}\" -a \"{apkPath}\" -o \"{outputApkPath}\" --allowResign";
+        string args = $"-jar \"{viewModel.ApksignerJar}\" -a \"{apkPath}\" -o \"{outputApkDirectory}\" --allowResign";
         using Process process = CreateJavaProcess(args);
 
         _ = process.Start();
@@ -188,19 +199,26 @@ public class ApkEditorContext
         }
 
         // Rename the output APK
-        string trueName = Path.Combine(outputApkPath, Path.GetFileName(apkPath).Replace(".unsigned.apk", string.Empty));
-        string newSignedName = $"{trueName}.unsigned-aligned-debugSigned";
+        // fullTrueName is also the OBB asset path when it doesn't have the file extension
+        string fullTrueName = Path.Combine(outputApkDirectory, Path.GetFileName(apkPath).Replace(".unsigned.apk", string.Empty));
+        string newSignedName = $"{fullTrueName}.unsigned-aligned-debugSigned";
 
-        File.Move($"{newSignedName}.apk", $"{trueName}.apk", true);
-        File.Move($"{newSignedName}.apk.idsig", $"{trueName}.apk.idsig", true);
+        // Paths for pushing to a device
+        AssetPath = fullTrueName;
+        OutputApkPath = $"{fullTrueName}.apk";
+
+        File.Move($"{newSignedName}.apk", OutputApkPath, true);
+        File.Move($"{newSignedName}.apk.idsig", $"{fullTrueName}.apk.idsig", true);
     }
 
-    private async Task ReplaceAllNameInstancesAsync(string searchCompanyName, string replacementName, CancellationToken cToken)
+    private async Task ReplaceAllNameInstancesAsync(string packagePrefix, string searchCompanyName, string replacementName, CancellationToken cToken)
     {
         ReplaceAllDirectoryNames(ApkTempDirectory, searchCompanyName, replacementName);
-        
-        IEnumerable<string> files = Directory.GetFiles(ApkTempDirectory, "smali\\*", SearchOption.AllDirectories)
-            .Where(file => file.EndsWith(".smali")).Append($"{ApkTempDirectory}\\AndroidManifest.xml").Append($"{ApkTempDirectory}\\apktool.yml");
+
+        string[] files = Directory.GetFiles(Path.Combine(ApkTempDirectory, "smali", packagePrefix, replacementName), "*", SearchOption.AllDirectories)
+            .Where(file => file.EndsWith(".smali"))
+            .Append($"{ApkTempDirectory}\\AndroidManifest.xml")
+            .Append($"{ApkTempDirectory}\\apktool.yml").ToArray();
 
         await Parallel.ForEachAsync(files, cToken,
             async (filePath, subcToken) =>
@@ -208,7 +226,7 @@ public class ApkEditorContext
         );
     }
 
-    private void ReplaceObbFiles(string sourcePackageName, string newApkCompany, string outputDirectory)
+    private async Task ReplaceObbFiles(string sourcePackageName, string newApkCompany, string outputDirectory)
     {
         string originalCompanyName = sourcePackageName.Split('.')[1];
         string? sourceDirectory = Path.GetDirectoryName(FullSourceApkPath);
@@ -219,9 +237,7 @@ public class ApkEditorContext
             return;
         }
 
-        // Rename OBB file (if there is one)
         string obbDirectory = Path.Combine(sourceDirectory, sourcePackageName);
-
         if (!Directory.Exists(obbDirectory))
         {
             return;
@@ -230,7 +246,7 @@ public class ApkEditorContext
         string newObbDirectory = Path.Combine(outputDirectory, Path.GetFileName(obbDirectory));
         if (config.CopyFilesWhenRenaming)
         {
-            CopyDirectory(obbDirectory, newObbDirectory, true);
+            await CopyDirectory(obbDirectory, newObbDirectory, true);
         }
         else
         {
@@ -238,21 +254,20 @@ public class ApkEditorContext
             Directory.Move(obbDirectory, newObbDirectory);
         }
 
-        string finalPath = Path.Combine(outputDirectory, sourcePackageName);
         string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(FullSourceApkFileName);
 
         foreach (string filePath in Directory.GetFiles(newObbDirectory, $"*{fileNameWithoutExtension}.obb"))
         {
-            viewModel.Log($"Renaming app file {Path.GetFileName(filePath)}");
+            string newAssetName = $"{Path.GetFileNameWithoutExtension(filePath).Replace(originalCompanyName, newApkCompany)}.obb";
 
-            string newFileName = fileNameWithoutExtension.Replace(originalCompanyName, newApkCompany);
-            string newFilePath = Path.Combine(finalPath, $"{newFileName}{Path.GetExtension(filePath)}");
+            viewModel.Log($"Renaming asset file: {Path.GetFileName(filePath)}  |>  {newAssetName}");
 
-            File.Move(filePath, newFilePath, true);
+            File.Move(filePath, Path.Combine(newObbDirectory, newAssetName));
         }
 
         string newApkName = sourcePackageName.Replace(originalCompanyName, newApkCompany);
         RenameDirectory(newObbDirectory, newApkName);
+        AssetPath = Path.Combine(newObbDirectory, newApkName);
     }
 
     private static async Task ReplaceTextInFileAsync(string filePath, string searchText, string replaceText, CancellationToken cToken)
@@ -280,29 +295,14 @@ public class ApkEditorContext
         };
     }
 
-    public static string GetCompanyName(string apkName)
-    {
-        string[] split = apkName.Split('.');
-
-        /*
-         * app => app
-         * com.app => app
-         * com.company.app => app
-         */
-        return split.Length switch
-        {
-            1 => split[0],
-            _ => split[1],
-        };
-    }
-
     private void RenameDirectory(string directory, string newName)
     {
         string newFolderPath = Path.Combine(Path.GetDirectoryName(directory)!, newName);
 
         if (Directory.Exists(newFolderPath))
         {
-            viewModel.LogWarning($"Directory '{newName}' already exists, deleting and replacing.");
+            viewModel.LogWarning($"Directory '{newName}' already exists, deleting and replacing. This may cause your APK to not load, " +
+                "if so, pick a new company name so it's not conflicting.");
         }
 
         Directory.Move(directory, newFolderPath);
@@ -316,7 +316,7 @@ public class ApkEditorContext
         );
     }
 
-    private static void CopyDirectory(string sourceDir, string destinationDir, bool recursive = false)
+    private static async Task CopyDirectory(string sourceDir, string destinationDir, bool recursive = false)
     {
         DirectoryInfo dir = new(sourceDir);
 
@@ -329,18 +329,19 @@ public class ApkEditorContext
 
         _ = Directory.CreateDirectory(destinationDir);
 
-        foreach (FileInfo file in dir.GetFiles())
+        await Parallel.ForEachAsync(dir.GetFiles(), (file, token) =>
         {
             string targetFilePath = Path.Combine(destinationDir, file.Name);
             _ = file.CopyTo(targetFilePath, true);
-        }
+            return ValueTask.CompletedTask;
+        });
 
         if (recursive)
         {
             foreach (DirectoryInfo subDir in dirs)
             {
                 string newDestinationDir = Path.Combine(destinationDir, subDir.Name);
-                CopyDirectory(subDir.FullName, newDestinationDir, true);
+                await CopyDirectory(subDir.FullName, newDestinationDir, true);
             }
         }
     }
@@ -354,10 +355,24 @@ public class ApkEditorContext
             ?? throw new RenameFailedException("Failed to get package name.");
     }
 
-    private (string, string) SplitPackageName(string packageName)
+    private (string, string, string) SplitPackageName(string packageName)
     {
-        string oldCompanyName = GetCompanyName(packageName);
-        return (oldCompanyName, packageName.Replace(oldCompanyName, ReplacementCompanyName));
+        string[] split = packageName.Split('.');
+
+        /*
+         * app => app
+         * com.app => app
+         * com.company.app => company
+         * com.company.app.something... => company
+         */
+        string oldCompanyName = split.Length switch
+        {
+            1 => split[0],
+            _ => split[1],
+        };
+
+        // Prefix, old company name, new package name
+        return (split[0], oldCompanyName, packageName.Replace(oldCompanyName, ReplacementCompanyName));
     }
 
     public static long CalculateApkSize(string apkPath, bool copyingFile = true)

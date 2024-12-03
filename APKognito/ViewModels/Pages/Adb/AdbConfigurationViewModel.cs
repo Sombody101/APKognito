@@ -1,53 +1,108 @@
-﻿using APKognito.Utilities;
-using System.Windows.Controls;
-using System.Windows.Threading;
-using Wpf.Ui.Controls;
-using Wpf.Ui;
-using System.Collections.ObjectModel;
+﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
-using APKognito.Configurations;
+using APKognito.Models;
+using APKognito.Utilities;
+using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
+using System.Windows.Threading;
+using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class AdbConfigurationViewModel : ObservableObject, IViewable
+public partial class AdbConfigurationViewModel : LoggableObservableObject, IViewable
 {
-    private readonly ISnackbarService snackbarService;
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+    private readonly AdbHistory adbHistory = ConfigurationFactory.GetConfig<AdbHistory>();
 
     #region Properties
 
     [ObservableProperty]
-    private ObservableCollection<ComboBoxItem> _deviceList = [];
+    private ObservableCollection<ComboItemPair<string>> _deviceList = [];
 
     [ObservableProperty]
-    private ComboBoxItem _selectedDevice;
+    private ComboItemPair<string>? _selectedDevice;
+
+    [ObservableProperty]
+    private List<HumanComboBoxItem<DeviceType>> _deviceTypeList = [.. Enum.GetValues(typeof(DeviceType))
+        .Cast<DeviceType>()
+        // Don't show 'None'
+        .Skip(1)
+        .Select(type => new HumanComboBoxItem<DeviceType>(type))
+    ];
+
+    [ObservableProperty]
+    private HumanComboBoxItem<DeviceType> _selectedDeviceType;
+
+    // Field visibility
+
+    [ObservableProperty]
+    private bool _devicePropertiesEnabled = false;
+
+    [ObservableProperty]
+    private bool _overridePathsEnabled = false;
+
+    [ObservableProperty]
+    private string _overrideApkPath = string.Empty;
+
+    [ObservableProperty]
+    private string _overrideObbPath = string.Empty;
 
     #endregion Properties
 
+    public AdbConfigurationViewModel()
+    {
+        // For designer
+    }
+
     public AdbConfigurationViewModel(ISnackbarService _snackbarService)
     {
-        snackbarService = _snackbarService;
+        SetSnackbarProvider(_snackbarService);
     }
+
+    #region Commands
+
+    [RelayCommand]
+    private async Task OnTryConnection()
+    {
+        try
+        {
+            _ = await AdbManager.QuickDeviceCommand("shell echo 'Hello, World!'");
+        }
+        catch
+        {
+            SnackError("Device Not Connected", "Device connection test failed. Make sure developer mode is enabled.");
+            return;
+        }
+
+        SnackSuccess("Connection Successful", $"{adbConfig.CurrentDeviceId} is connected.");
+    }
+
+    [RelayCommand]
+    private void OnSetOverridePaths()
+    {
+        adbConfig.GetCurrentDevice()!.InstallPaths = new(OverrideApkPath, OverrideObbPath);
+        ConfigurationFactory.SaveConfig(adbConfig);
+    }
+
+    #endregion Commands
 
     public async Task RefreshDevicesList()
     {
         try
         {
             IEnumerable<string> foundDevices = await AdbManager.GetAllDevices();
+
             if (!foundDevices.Any())
             {
-                snackbarService.Show(
+                SnackError(
                     "No devices found",
-                    "Cannot get any ADB devices (Ensure they're plugged in and have developer mode enabled).",
-                    ControlAppearance.Danger,
-                    new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                    TimeSpan.FromSeconds(10)
+                    "Cannot get any ADB devices (Ensure they're plugged in and have developer mode enabled)."
                 );
 
                 return;
             }
 
-            ComboBoxItem[] devices = [.. foundDevices.Select(str => new ComboBoxItem() { Content = str })];
+            ComboItemPair<string>[] devices = [.. foundDevices.Select(str => new ComboItemPair<string>(str, str.Split(" -")[0]))];
 
             await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
             {
@@ -60,8 +115,14 @@ public partial class AdbConfigurationViewModel : ObservableObject, IViewable
                 }
                 else
                 {
-                    foreach (ComboBoxItem device in devices)
+                    foreach (ComboItemPair<string> device in devices)
                     {
+                        // The device previously used is available, so use it
+                        if (device.Value == adbConfig.CurrentDeviceId)
+                        {
+                            SelectedDevice = device;
+                        }
+
                         DeviceList.Add(device);
                     }
                 }
@@ -70,17 +131,43 @@ public partial class AdbConfigurationViewModel : ObservableObject, IViewable
         catch (Exception ex)
         {
             FileLogger.LogException(ex);
-            snackbarService.Show(
-                "Failed to get devices",
-                ex.Message,
-                ControlAppearance.Danger,
-                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(10)
-            );
+            SnackError("Failed to get devices", ex.Message);
         }
     }
 
-    partial void OnSelectedDeviceChanged(ComboBoxItem value)
+    internal static async Task<AdbDevicesStatus> TryConnectDevice([Optional] AdbConfig? adbConfig)
+    {
+        if (!AdbManager.AdbWorks())
+        {
+            return AdbDevicesStatus.NoAdb;
+        }
+
+        string[] foundDevices = [..await AdbManager.GetDeviceList()];
+
+        if (foundDevices.Length is 0)
+        {
+            return AdbDevicesStatus.NoDevices;
+        }
+
+        adbConfig ??= ConfigurationFactory.GetConfig<AdbConfig>();
+
+        if (adbConfig.CurrentDeviceId is not null && foundDevices.Contains(adbConfig.CurrentDeviceId))
+        {
+            return AdbDevicesStatus.DefaultDeviceSelected;
+        }
+        if (foundDevices.Length is 1)
+        {
+            adbConfig.CurrentDeviceId = foundDevices[0];
+            return AdbDevicesStatus.DefaultDeviceSelected;
+        }
+        else
+        {
+            // The user will have to select which device to target.
+            return AdbDevicesStatus.TooManyDevices;
+        }
+    }
+
+    partial void OnSelectedDeviceChanged(ComboItemPair<string>? value)
     {
         if (value is null)
         {
@@ -88,6 +175,71 @@ public partial class AdbConfigurationViewModel : ObservableObject, IViewable
             return;
         }
 
-        adbConfig.CurrentDeviceId = SelectedDevice.Content.ToString()!.Split(" -")[0];
+        adbConfig.CurrentDeviceId = value.Value;
+
+        // Check that the device has been selected, create new profile if not
+        var currentDevice = adbConfig.GetCurrentDevice();
+
+        if (currentDevice is null)
+        {
+            var newDeviceProfile = new AdbDeviceInfo(
+                value.Value,
+                value.DisplayName.Contains("Quest")
+                    ? DeviceType.MetaQuest
+                    : DeviceType.BasicAndroid,
+                string.Empty, string.Empty
+            );
+
+            adbConfig.AdbDevices.Add(newDeviceProfile);
+            currentDevice = newDeviceProfile;
+
+            SnackInfo("New device detected", $"A new ADB device profile has been created for {value.Value}");
+        }
+
+        // Allow for controls to update their values, even if they're disabled right after
+        SelectedDeviceType = DeviceTypeList.First(type => type.Value == currentDevice.DeviceType);
+        OverrideApkPath = currentDevice.InstallPaths.ApkPath;
+        OverrideObbPath = currentDevice.InstallPaths.ObbPath;
+
+        RefreshItemEligibility(currentDevice);
     }
+
+    partial void OnSelectedDeviceTypeChanged(HumanComboBoxItem<DeviceType> value)
+    {
+        var currentDevice = adbConfig.GetCurrentDevice();
+    
+        currentDevice!.DeviceType = value.Value;
+        currentDevice.InstallPaths = new(value.Value, OverrideApkPath, OverrideObbPath);
+        OverrideApkPath = currentDevice.InstallPaths.ApkPath;
+        OverrideObbPath = currentDevice.InstallPaths.ObbPath;
+
+        UpdatePathVariables();
+
+        RefreshItemEligibility(adbConfig.GetCurrentDevice());
+    }
+
+    private void RefreshItemEligibility(AdbDeviceInfo? deviceInfo)
+    {
+        // All device options
+        DevicePropertiesEnabled = deviceInfo is not null;
+
+        // Override options
+        OverridePathsEnabled = DevicePropertiesEnabled
+            && deviceInfo!.DeviceType is DeviceType.UserOverridePaths;
+    }
+
+    private void UpdatePathVariables()
+    {
+        // Update path variables for console
+        adbHistory.SetVariable("APK_PATH", OverrideApkPath);
+        adbHistory.SetVariable("OBB_PATH", OverrideObbPath);
+    }
+}
+
+public enum AdbDevicesStatus
+{
+    NoAdb,
+    NoDevices,
+    DefaultDeviceSelected,
+    TooManyDevices,
 }

@@ -8,18 +8,25 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Wpf.Ui;
-using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
 
+using ActionCommand = Action<AdbConsoleViewModel.ParsedCommand>;
+
 public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 {
-    private readonly ISnackbarService snackbarService;
+    private const string NO_USAGE = "";
+    private const string VARIABLE_SETTER = "__VARIABLE_SETTER";
+
     private readonly AdbManager adbManager;
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+    private readonly AdbHistory adbHistory = ConfigurationFactory.GetConfig<AdbHistory>();
+
+    private int historyIndex;
 
     #region Properties
 
@@ -38,12 +45,18 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     [ObservableProperty]
     private string _commandBuffer;
 
+    [ObservableProperty]
+    private int _cursorPosition = 0;
+
     #endregion Properties
 
     public AdbConsoleViewModel(ISnackbarService _snackbarService)
     {
-        snackbarService = _snackbarService;
+        SetSnackbarProvider(_snackbarService);
+        LogPrefix = LogWarningPrefix = LogErrorPrefix = string.Empty;
         adbManager = new();
+
+        historyIndex = adbHistory.CommandHistory.Count;
 
         if (commands.Count is 0)
         {
@@ -56,8 +69,48 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     [RelayCommand]
     private async Task OnExecute()
     {
-        WriteGenericLogLine($"> {CommandBuffer}");
-        await EnterCommand();
+        try
+        {
+            WriteGenericLogLine($"{adbHistory.GetVariable("PS1")}{CommandBuffer}");
+
+            adbHistory.CommandHistory.Add(CommandBuffer);
+            historyIndex = adbHistory.CommandHistory.Count;
+            ConfigurationFactory.SaveConfig(adbHistory);
+
+            if (!string.IsNullOrWhiteSpace(CommandBuffer))
+            {
+                await EnterCommand();
+            }
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            LogError($"Failed to execute command: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private void OnHistoryUp()
+    {
+        if (historyIndex - 1 > adbHistory.CommandHistory.Count || historyIndex is 0)
+        {
+            return;
+        }
+
+        CommandBuffer = adbHistory.CommandHistory[--historyIndex];
+        CursorPosition = CommandBuffer.Length;
+    }
+
+    [RelayCommand]
+    private void OnHistoryDown()
+    {
+        if (historyIndex >= adbHistory.CommandHistory.Count)
+        {
+            return;
+        }
+
+        CommandBuffer = adbHistory.CommandHistory[historyIndex++];
+        CursorPosition = CommandBuffer.Length;
     }
 
     #endregion Commands
@@ -89,13 +142,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         catch (Exception ex)
         {
             FileLogger.LogException(ex);
-            snackbarService.Show(
-                "Failed to get devices",
-                ex.Message,
-                ControlAppearance.Danger,
-                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(10)
-            );
+            SnackError("Failed to get devices", ex.Message);
         }
     }
 
@@ -103,10 +150,33 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     {
         // Allows for the command to be overridden if passed
         command ??= CommandBuffer;
+        CommandBuffer = string.Empty;
 
-        if (RunInternalCommand(command))
+        // Variable resolution
+        foreach (Match match in ParsedCommand.VariableUsageRegex().Matches(command))
         {
-            CommandBuffer = string.Empty;
+            string variableValue = adbHistory.GetVariable(match.Value[1..]);
+
+            command = command.Remove(match.Index, match.Length)
+                .Insert(match.Index, variableValue);
+        }
+
+        Match setterMatch = ParsedCommand.VariableAssignmentRegex().Match(command);
+        if (setterMatch.Success)
+        {
+            // A variable setter is technically an individual action, so this is
+            // reformatted to be a command call.
+            command = $":{VARIABLE_SETTER} {setterMatch.Groups["var_name"]} {setterMatch.Groups["var_value"]}";
+        }
+
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            return;
+        }
+
+        // If the command is internal, run it and return
+        if (await RunInternalCommand(command))
+        {
             return;
         }
 
@@ -123,14 +193,12 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
         else
         {
-            await adbManager.AdbProcess!.StandardInput.WriteLineAsync(CommandBuffer);
+            await adbManager.AdbProcess!.StandardInput.WriteLineAsync(command);
             await adbManager.AdbProcess.StandardInput.FlushAsync();
         }
-
-        CommandBuffer = string.Empty;
     }
 
-    private bool RunInternalCommand(string rawCommand)
+    private async ValueTask<bool> RunInternalCommand(string rawCommand)
     {
         rawCommand = rawCommand.Trim();
 
@@ -140,19 +208,40 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             return false;
         }
 
-        ParsedCommand command = new(rawCommand[1..]);
+        ParsedCommand command = new(rawCommand[1..], adbHistory);
 
-        KeyValuePair<CommandAttribute, Action> wantedPair = commands.FirstOrDefault(commandPair => commandPair.Key.CommandName == command.Command);
-
-        if (wantedPair.Equals(default(KeyValuePair<CommandAttribute, Action>)))
+        if (command.IsCmdlet)
         {
-            WriteGenericLogLine($"Unknown command '{rawCommand}'");
+            // This is a cmdlet
+            if (!adbConfig.UserCmdlets.TryGetValue(command.Command, out string? cmdletBody))
+            {
+                LogError($"Unknown cmdlet '{command.Command}'");
+
+                string closest = StringMatch.GetClosestMatch(command.Command, adbConfig.UserCmdlets.Select(cmd => cmd.Key));
+                Log($"Did you mean '::{closest}'?");
+
+                return true;
+            }
+
+            await EnterCommand($"{cmdletBody} {string.Join(' ', command.Args)}");
+            return true;
+        }
+
+        KeyValuePair<CommandAttribute, ActionCommand> wantedPair = commands.FirstOrDefault(commandPair => commandPair.Key.CommandName == command.Command);
+
+        if (wantedPair.Equals(default(KeyValuePair<CommandAttribute, ActionCommand>)))
+        {
+            LogError($"Unknown command '{command.Command}'");
+
+            string closest = StringMatch.GetClosestMatch(command.Command, commands.Select(cmd => cmd.Key.CommandName));
+            Log($"Did you mean ':{closest}'?");
+
             return true;
         }
 
         try
         {
-            wantedPair.Value.Invoke();
+            wantedPair.Value.Invoke(command);
         }
         catch (Exception ex)
         {
@@ -167,14 +256,52 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         return true;
     }
 
-    private sealed class ParsedCommand
+    internal sealed partial class ParsedCommand
     {
         public string Command { get; }
 
         public string[] Args { get; }
 
-        public ParsedCommand(string command)
+        public int ArgCount => Args.Length;
+
+        public string? this[int index]
         {
+            get
+            {
+                if (ArgCount <= index || ArgCount is 0)
+                {
+                    return null;
+                }
+
+                return Args[index];
+            }
+        }
+
+        public string[] this[Range range]
+        {
+            get
+            {
+                try
+                {
+                    return Args[range];
+                }
+                catch
+                {
+                    return [];
+                }
+            }
+        }
+
+        public bool IsCmdlet { get; }
+
+        public ParsedCommand(string command, AdbHistory adbHistory)
+        {
+            if (command.StartsWith(':'))
+            {
+                IsCmdlet = true;
+                command = command[1..];
+            }
+
             string[] split = command.Split();
 
             if (split.Length is 1)
@@ -192,13 +319,29 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
                 throw new ArgumentException("Command isn't long enough.");
             }
         }
+
+        public override string ToString()
+        {
+            return $"{Command} {string.Join(' ', Args)}";
+        }
+
+        /*
+         * Regex
+         */
+
+        [GeneratedRegex(@"\$\{(?<var>[a-zA-Z_][a-zA-Z0-9_]*)\}|\$(?<var>[a-zA-Z0-9_][a-zA-Z0-9_]*)")]
+        internal static partial Regex VariableUsageRegex();
+
+        [GeneratedRegex(@"(?<var_name>[a-zA-Z_][a-zA-Z0-9_]*)[ ]*\=[ ]*(?<var_value>.*)")]
+        internal static partial Regex VariableAssignmentRegex();
     }
 
     /*
      * Internal Commands
      */
 
-    private readonly Dictionary<CommandAttribute, Action> commands = [];
+    private readonly Dictionary<CommandAttribute, ActionCommand> commands = [];
+
     private int longestCommandName = 0;
 
 #pragma warning disable S3011 // Reflection should not be used to increase accessibility of classes, methods, or fields
@@ -207,9 +350,14 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         foreach (MethodInfo methodInfo in typeof(AdbConsoleViewModel).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance))
         {
             CommandAttribute? attribute = methodInfo.GetCustomAttribute<CommandAttribute>();
-            if (attribute is not null)
+            if (attribute is null)
             {
-                Action action = (Action)Delegate.CreateDelegate(typeof(Action), this, methodInfo);
+                continue;
+            }
+
+            try
+            {
+                ActionCommand action = (ActionCommand)Delegate.CreateDelegate(typeof(ActionCommand), this, methodInfo);
                 commands.Add(attribute, action);
 
                 if (attribute.CommandName.Length > longestCommandName)
@@ -217,31 +365,51 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
                     longestCommandName = attribute.CommandName.Length;
                 }
             }
+            catch (Exception ex)
+            {
+                LogError($"Failed to initialize '{attribute.CommandName}' ({methodInfo.Name}()): {ex.Message}");
+            }
         }
     }
 
-    [Command("help", "Prints this help information.")]
-    private void GetHelpInfoCommand()
+#pragma warning disable IDE0051 // Remove unused private members
+
+    [Command("help", "Prints this help information.", NO_USAGE)]
+    private void GetHelpInfoCommand(ParsedCommand __)
     {
         StringBuilder output = new();
 
-        foreach (var pair in commands.Select(p => p.Key))
+        foreach (var command in commands.Select(p => p.Key).Where(p => p.Visible))
         {
-            _ = output.Append(':').Append(pair.CommandName.PadRight(longestCommandName + 3))
-                .AppendLine(pair.HelpInfo);
+            _ = output.Append(':')
+                .Append(command.CommandName.PadRight(longestCommandName))
+                .Append(' ');
+
+            if (command.CommandUsage.Length is not 0)
+            {
+                output.AppendLine(command.CommandUsage)
+                    .Append('\t');
+            }
+            else
+            {
+                output.AppendLine("(no parameters)")
+                    .Append(new string('\t', longestCommandName / 8));
+            }
+
+            output.AppendLine(command.HelpInfo).AppendLine();
         }
 
         WriteGenericLogLine(output.ToString());
     }
 
-    [Command("clear", "Clears the log buffer.")]
-    private void ClearLogsCommand()
+    [Command("clear", "Clears the log buffer.", NO_USAGE)]
+    private void ClearLogsCommand(ParsedCommand _)
     {
         ClearLogs();
     }
 
-    [Command("active", "Gets information about the currently running ADB process.")]
-    private void ActiveStatusCommand()
+    [Command("active", "Gets information about the currently running ADB process.", NO_USAGE)]
+    private void ActiveStatusCommand(ParsedCommand _)
     {
         if (!adbManager.IsRunning)
         {
@@ -255,11 +423,83 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         Log($"Start time:\t\t{process.StartTime}");
     }
 
-    [Command("install-adb", "Auto installs platform tools.")]
-    private void InstallAdbCommand()
+    [Command("set",
+        "Sets and saves a custom cmdlet. Use '--list' to see all currently set cmdlets.",
+        "[--list] || <command name> <command body>...")]
+    private void SetCommandletCommand(ParsedCommand ctx)
+    {
+        if (ctx.ArgCount is 0 || ctx[0] == "--list")
+        {
+            if (adbConfig.UserCmdlets.Count is 0)
+            {
+                Log("No cmdlets set.");
+                return;
+            }
+
+            foreach (var command in adbConfig.UserCmdlets)
+            {
+                Log($"{command.Key}: {command.Value}");
+            }
+
+            return;
+        }
+
+        if (ctx.ArgCount is 0)
+        {
+            LogError("No cmdlet name or body supplied.");
+            return;
+        }
+
+        if (ctx.ArgCount is 1)
+        {
+            LogError("No cmdlet body supplied.");
+            return;
+        }
+
+        string cmdlet = ctx[0]!;
+        adbConfig.UserCmdlets[cmdlet] = string.Join(' ', ctx[1..]);
+        Log($"Cmdlet '::{cmdlet}' created.");
+        ConfigurationFactory.SaveConfig(adbConfig);
+    }
+
+    [Command("unset", "Removes a custom cmdlet.", "<cmdlet name>")]
+    private void RemoveCommandletCommand(ParsedCommand ctx)
+    {
+        if (ctx.ArgCount > 1)
+        {
+            LogError("Too many arguments.");
+            return;
+        }
+
+        if (ctx.ArgCount is not 1)
+        {
+            LogError("No cmdlet name supplied.");
+            return;
+        }
+
+        string cmdlet = ctx[0] ?? "[NO CMDLET]";
+        if (adbConfig.UserCmdlets.Remove(cmdlet))
+        {
+            Log($"Removed cmdlet '{cmdlet}'");
+            ConfigurationFactory.SaveConfig(adbConfig);
+        }
+        else
+        {
+            LogError($"Commandlet '{cmdlet}' not defined, no cmdlet removed.");
+        }
+    }
+
+    [Command("install-adb", "Auto installs platform tools.", "[--force]")]
+    private void InstallAdbCommand(ParsedCommand ctx)
     {
         bool result = ThreadPool.QueueUserWorkItem(async (__) =>
         {
+            if (AdbManager.AdbWorks())
+            {
+                LogError("ADB is already installed. Run with '--force' to force a reinstall.");
+                return;
+            }
+
             string appDataPath = App.AppData.FullName;
             WriteGenericLogLine($"Installing platform tools to: {appDataPath}\\platform-tools");
 
@@ -280,7 +520,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
                         continue;
                     }
 
-                    entry.ExtractToFile(entryPath);
+                    entry.ExtractToFile(entryPath, true);
                 }
             }
 
@@ -288,15 +528,49 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
             WriteGenericLogLine("Updating ADB configuration.");
             adbConfig.PlatformToolsPath = $"{appDataPath}\\platform-tools";
+            ConfigurationFactory.SaveConfig(adbConfig);
 
             WriteGenericLogLine("Testing adb...");
-            await EnterCommand("--version");
+            string adbVersion = await AdbManager.QuickCommand("--version");
+            WriteGenericLogLine(adbVersion);
         });
 
         if (!result)
         {
             LogError("Failed to queue download on the thread pool. Close some apps or try again later.");
         }
+    }
+
+    [Command("echo", "Prints all arguments to the console.", "[text ...]")]
+    private void EchoCommand(ParsedCommand ctx)
+    {
+        Log(string.Join(' ', ctx.Args));
+    }
+
+    [Command("vars", "Prints all set variables.", NO_USAGE)]
+    private void PrintAllVariablesCommand(ParsedCommand _)
+    {
+        if (adbHistory.Variables.Count is 0)
+        {
+            Log("There are no set variables.");
+            return;
+        }
+
+        StringBuilder builder = new();
+        foreach (var pair in adbHistory.Variables)
+        {
+            builder.Append(pair.Key).Append("=\'").Append(pair.Value).AppendLine("'");
+        }
+
+        Log(builder.ToString());
+    }
+
+    [Command(VARIABLE_SETTER)]
+    private void SetVariableCommand(ParsedCommand ctx)
+    {
+        // Args 0: Variable name
+        // Args 1: Variable value
+        adbHistory.SetVariable(ctx.Args[0], ctx.Args[1]);
     }
 
     [AttributeUsage(AttributeTargets.Method)]
@@ -306,10 +580,97 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
         public string HelpInfo { get; }
 
-        public CommandAttribute(string commandName, string helpInfo)
+        public string CommandUsage { get; }
+
+        public bool Visible { get; }
+
+        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "It's literally used in this class, how does Sonar not see that?")]
+        [SuppressMessage("CodeQuality",
+            "IDE0079:Remove unnecessary suppression",
+            Justification = "Without the suppression, there's a warning for the suppression that should suppress another warning. Am I having a stroke?")]
+        public CommandAttribute(string commandName, string helpInfo, string usage, bool visible = true)
         {
             CommandName = commandName;
             HelpInfo = helpInfo;
+            CommandUsage = usage;
+            Visible = visible;
+        }
+
+        /// <summary>
+        /// Creates an invisible command. It will not be listed when using the ':help' command.
+        /// </summary>
+        /// <param name="commandName"></param>
+        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "")]
+        [SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression", Justification = "")]
+        public CommandAttribute(string commandName)
+        {
+            CommandName = commandName;
+            HelpInfo = CommandUsage = string.Empty;
+            Visible = false;
+        }
+
+        public override string ToString()
+        {
+            return CommandName;
+        }
+    }
+
+    private struct StringMatch
+    {
+        public static string GetClosestMatch(string input, IEnumerable<string> compare)
+        {
+            int bestDistance = int.MaxValue;
+            int index = int.MaxValue;
+
+            for (int i = 0; i < compare.Count(); i++)
+            {
+                int distance = CompareStrings(input, compare.ElementAt(i));
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    index = i;
+                }
+            }
+
+            return compare.ElementAt(index);
+        }
+
+        private static int CompareStrings(string s, string t)
+        {
+            int n = s.Length;
+            int m = t.Length;
+            int[,] d = new int[n + 1, m + 1];
+
+            if (n is 0)
+            {
+                return m;
+            }
+
+            if (m is 0)
+            {
+                return n;
+            }
+
+            for (int i = 0; i <= n; d[i, 0] = i++)
+                ;
+            for (int j = 0; j <= m; d[0, j] = j++)
+                ;
+
+            for (int i = 1; i <= n; i++)
+            {
+                for (int j = 1; j <= m; j++)
+                {
+                    int cost = (t[j - 1] == s[i - 1])
+                        ? 0
+                        : 1;
+
+                    d[i, j] = Math.Min(
+                        Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                        d[i - 1, j - 1] + cost
+                    );
+                }
+            }
+            return d[n, m];
         }
     }
 }

@@ -6,16 +6,14 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Controls;
 using Wpf.Ui;
-using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class FileUploaderViewModel : ObservableObject, IViewable
+public partial class FileUploaderViewModel : LoggableObservableObject, IViewable
 {
-    private readonly ISnackbarService snackbarService;
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
-    private List<string> _files = [];
+    private readonly List<string> _files = [];
 
     #region Properties
 
@@ -29,7 +27,7 @@ public partial class FileUploaderViewModel : ObservableObject, IViewable
 
     public FileUploaderViewModel(ISnackbarService _snackbarService)
     {
-        snackbarService = _snackbarService;
+        SetSnackbarProvider(_snackbarService);
     }
 
     #region Commands
@@ -57,12 +55,9 @@ public partial class FileUploaderViewModel : ObservableObject, IViewable
     {
         if (adbConfig.CurrentDeviceId is null)
         {
-            snackbarService.Show(
+            SnackError(
                  "No device selected",
-                "No ADB device has been selected. Go to the ADB Configuration page and choose a device.",
-                ControlAppearance.Danger,
-                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(10)
+                "No ADB device has been selected. Go to the ADB Configuration page and choose a device."
             );
 
             return;
@@ -70,12 +65,9 @@ public partial class FileUploaderViewModel : ObservableObject, IViewable
 
         if (_files.Count is 0)
         {
-            snackbarService.Show(
+            SnackError(
                  "No files selected",
-                "No files have been selected to upload.",
-                ControlAppearance.Danger,
-                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(10)
+                "No files have been selected to upload."
             );
 
             return;
@@ -83,27 +75,45 @@ public partial class FileUploaderViewModel : ObservableObject, IViewable
 
         IsUploading = true;
 
+        AdbDeviceInfo? adbPaths = adbConfig.GetCurrentDevice();
+
+        if (adbPaths is null)
+        {
+            SnackError("No ADB device selected", "No ADB device is selected");
+            return;
+        }
+
         foreach (string path in _files)
         {
-            await AdbManager.QuickCommand($"-s {adbConfig.CurrentDeviceId} push {path} /sdcard/Android/data/");
+            try
+            {
+                await AdbManager.QuickDeviceCommand($"push {path} {adbPaths.InstallPaths.ApkPath}");
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogException(ex);
+                SnackError($"Failed to upload {Path.GetFileName(path)}", ex.Message);
+            }
 
             FileLogger.Log($"Pushing {_files.Count} files to {adbConfig.CurrentDeviceId}");
 
             string? assets = GetApkAssetsDirectory(path);
             if (assets is not null)
             {
-                string output = await AdbManager.QuickCommand($"-s {adbConfig.CurrentDeviceId} push {assets} /sdcard/Android/obb/");
-                FileLogger.Log(output);
+                try
+                {
+                    string output = await AdbManager.QuickDeviceCommand($"push {assets} {adbPaths.InstallPaths.ObbPath}");
+                    FileLogger.Log(output);
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogException(ex);
+                    SnackError($"Failed to upload {Path.GetDirectoryName(assets)}", ex.Message);
+                }
             }
         }
 
-        snackbarService.Show(
-             "Upload complete",
-            "Upload complete",
-            ControlAppearance.Success,
-            new SymbolIcon { Symbol = SymbolRegular.CheckmarkCircle24 },
-            TimeSpan.FromSeconds(10)
-        );
+        SnackSuccess("Upload complete", string.Empty);
 
         IsUploading = false;
     }
@@ -151,12 +161,9 @@ public partial class FileUploaderViewModel : ObservableObject, IViewable
 
             if (duplicatePaths is not 0)
             {
-                snackbarService.Show(
+                SnackWarning(
                     $"{duplicatePaths} duplicate path{(duplicatePaths is 1 ? string.Empty : "s")} left out",
-                    $"{duplicatePaths}/{openFileDialog.FileNames.Length} paths were not added to the list as they were already in the list.",
-                    ControlAppearance.Caution,
-                    new SymbolIcon { Symbol = SymbolRegular.Warning24 },
-                    TimeSpan.FromSeconds(10)
+                    $"{duplicatePaths}/{openFileDialog.FileNames.Length} paths were not added to the list as they were already in the list."
                 );
             }
         });
@@ -199,7 +206,7 @@ public partial class FileUploaderViewModel : ObservableObject, IViewable
 
     private static string? GetApkAssetsDirectory(string path)
     {
-        string obbDirectory = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path));
+        string obbDirectory = Path.Combine(Path.GetDirectoryName(path) ?? path, Path.GetFileNameWithoutExtension(path));
 
         if (Directory.Exists(obbDirectory))
         {

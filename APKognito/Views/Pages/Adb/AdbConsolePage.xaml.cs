@@ -63,16 +63,12 @@ public partial class AdbConsolePage : INavigableView<AdbConsoleViewModel>, IView
             baseHeight = screen.Bounds.Height;
         }
 
-        ViewModel.MaxHeight = baseHeight - 250;
+        ViewModel.MaxHeight = baseHeight - 150;
     }
 
     private void TextBox_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        TextBox tBox = (TextBox)sender;
-        DependencyProperty prop = TextBox.TextProperty;
-
-        BindingExpression binding = BindingOperations.GetBindingExpression(tBox, prop);
-        binding?.UpdateSource();
+        BindingOperations.GetBindingExpression((TextBox)sender, TextBox.TextProperty)?.UpdateSource();
     }
 
     private void ComboBox_DropDownOpened(object sender, EventArgs e)

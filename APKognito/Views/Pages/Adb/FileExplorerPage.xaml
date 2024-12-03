@@ -20,7 +20,7 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
 
-    <Grid Margin="0,10">
+    <Grid Margin="0,30">
         <Grid.RowDefinitions>
             <RowDefinition Height="auto" />
             <RowDefinition />
@@ -50,10 +50,10 @@
                             </HierarchicalDataTemplate.Resources>
 
                             <ui:TreeViewItem
-                                x:Name="ViewItem"
                                 Expanded="TreeViewItem_Expanded"
                                 Icon="{Binding ItemIcon}"
-                                MouseLeftButtonUp="TreeViewItem_MouseLeftButtonUp">
+                                MouseLeftButtonUp="TreeViewItem_MouseLeftButtonUp"
+                                Tag="{Binding TreeViewItemTag}">
 
                                 <ui:TreeViewItem.Header>
                                     <Grid>
@@ -79,7 +79,6 @@
                                     <Binding Path="Children" />
                                 </ui:TreeViewItem.ItemsSource>
 
-                                <!--
                                 <ui:TreeViewItem.ContextMenu>
                                     <ContextMenu>
                                         <ui:MenuItem Header="Open">
@@ -97,7 +96,6 @@
                                         </ui:MenuItem>
                                     </ContextMenu>
                                 </ui:TreeViewItem.ContextMenu>
-                                -->
 
                             </ui:TreeViewItem>
                         </HierarchicalDataTemplate>

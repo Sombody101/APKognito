@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Exceptions;
 using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
@@ -12,7 +13,6 @@ using System.Text.RegularExpressions;
 using System.Windows.Documents;
 using System.Windows.Threading;
 using Wpf.Ui;
-using Wpf.Ui.Controls;
 using FontFamily = System.Windows.Media.FontFamily;
 
 namespace APKognito.ViewModels.Pages;
@@ -28,10 +28,9 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     private static readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
 
     // Configs
-    private readonly KognitoConfig config;
-    private readonly CacheStorage cache;
-
-    private readonly ISnackbarService snackbarService;
+    private readonly KognitoConfig kognitoConfig;
+    private readonly CacheStorage kognitoCache;
+    private readonly AdbConfig adbConfig;
 
     // Tool paths
     internal DirectoryInfo TempData;
@@ -92,11 +91,21 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     /// </summary>
     public bool CopyWhenRenaming
     {
-        get => config.CopyFilesWhenRenaming;
+        get => kognitoConfig.CopyFilesWhenRenaming;
         set
         {
-            config.CopyFilesWhenRenaming = value;
+            kognitoConfig.CopyFilesWhenRenaming = value;
             OnPropertyChanged(nameof(CopyWhenRenaming));
+        }
+    }
+
+    public bool PushAfterRename
+    {
+        get => kognitoConfig.PushAfterRename;
+        set
+        {
+            kognitoConfig.PushAfterRename = value;
+            OnPropertyChanged(nameof(PushAfterRename));
         }
     }
 
@@ -105,10 +114,10 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     /// </summary>
     public string FilePath
     {
-        get => cache?.ApkSourcePath ?? DEFAULT_PROP_MESSAGE;
+        get => kognitoCache?.ApkSourcePath ?? DEFAULT_PROP_MESSAGE;
         set
         {
-            cache.ApkSourcePath = value;
+            kognitoCache.ApkSourcePath = value;
             OnPropertyChanged(nameof(FilePath));
         }
     }
@@ -118,10 +127,10 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     /// </summary>
     public string OutputDirectory
     {
-        get => config.ApkOutputDirectory;
+        get => kognitoConfig.ApkOutputDirectory;
         set
         {
-            config.ApkOutputDirectory = value;
+            kognitoConfig.ApkOutputDirectory = value;
             OnPropertyChanged(nameof(OutputDirectory));
         }
     }
@@ -131,10 +140,10 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     /// </summary>
     public string ApkReplacementName
     {
-        get => config?.ApkNameReplacement ?? "apkognito";
+        get => kognitoConfig?.ApkNameReplacement ?? "apkognito";
         set
         {
-            config.ApkNameReplacement = value;
+            kognitoConfig.ApkNameReplacement = value;
             OnPropertyChanged(nameof(ApkReplacementName));
         }
     }
@@ -149,10 +158,11 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     {
         Instance = this;
 
-        snackbarService = _snackbarService;
+        SetSnackbarProvider(_snackbarService);
 
-        config = ConfigurationFactory.GetConfig<KognitoConfig>();
-        cache = ConfigurationFactory.GetConfig<CacheStorage>();
+        kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
+        kognitoCache = ConfigurationFactory.GetConfig<CacheStorage>();
+        adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
         string appDataTools = Path.Combine(App.AppData!.FullName, "tools");
 
@@ -193,6 +203,8 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
         __handlingRenameExitDebounce = true;
 
+        LogWarning("Attempting to cancel...");
+
         // Cancel the job(s)
         await _renameApksCancelationSource.CancelAsync();
 
@@ -206,7 +218,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         {
             Filter = "APK files (*.apk)|*.apk",
             Multiselect = true,
-            DefaultDirectory = cache.LastDialogDirectory
+            DefaultDirectory = kognitoCache.LastDialogDirectory
         };
 
         bool? result = openFileDialog.ShowDialog();
@@ -294,11 +306,12 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     [RelayCommand]
     private void OnSaveSettings()
     {
-        ConfigurationFactory.SaveConfig(config);
+        ConfigurationFactory.SaveConfig(kognitoConfig);
+        ConfigurationFactory.SaveConfig(kognitoCache);
         Log("Settings saved!");
     }
 
-    public void OnRenameCopyChecked()
+    public async ValueTask OnRenameCopyChecked()
     {
         UpdateFootprintInfo();
     }
@@ -309,7 +322,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     {
         CanStart = false;
 
-        if (string.IsNullOrWhiteSpace(cache.ApkSourcePath))
+        if (string.IsNullOrWhiteSpace(kognitoCache.ApkSourcePath))
         {
             CantStartReason = "No input APKs given. Click 'Select' and pick some.";
             return;
@@ -320,7 +333,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     public string[] GetFilePaths()
     {
-        return cache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
+        return kognitoCache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
     }
 
     private async Task RenameApks(CancellationToken cancellationToken)
@@ -343,12 +356,20 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             goto ChecksFailed;
         }
 
-        Log("Verifying that Java 9+ and APK tools are installed...");
-
-        if (!VerifyJavaInstallation(out string javaPath) || !await VerifyToolInstallation())
+        if (PushAfterRename && !await VerifyAdbDevice())
         {
             goto ChecksFailed;
         }
+
+        Log("Verifying that Java 9+ and APK tools are installed...");
+
+        string javaPath = (await VerifyJavaInstallation())!;
+        if (javaPath is null || !await VerifyToolInstallation())
+        {
+            goto ChecksFailed;
+        }
+
+        Log("Completed all checks, ");
 
         if (!Directory.Exists(OutputDirectory))
         {
@@ -365,6 +386,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
         // Create a temp directory for the APK(s)
         TempData = Directory.CreateTempSubdirectory("APKognito-");
+        Log($"Using temp directory: {TempData.FullName}");
 
         Stopwatch elapsedTime = new();
         DispatcherTimer taskTimer = new()
@@ -400,19 +422,63 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
 
             string? errorReason = null;
+            bool apkFailed = false;
 
             try
             {
                 errorReason = await editorContext.RenameApk(cancellationToken);
+                apkFailed = errorReason is not null;
+
+                if (!apkFailed && PushAfterRename)
+                {
+                    var currentDevice = adbConfig.GetCurrentDevice();
+
+                    if (currentDevice is null)
+                    {
+                        const string error = "Failed to get ADB device profile.";
+                        LogError(error);
+                        throw new AdbPushFailedException(JobbedApk, error);
+                    }
+
+                    FileInfo apkInfo = new(editorContext.OutputApkPath);
+                    Log($"Installing {FinalName} to {currentDevice.DeviceId} ({apkInfo.Length / 1024 / 1024} MB)");
+
+                    await AdbManager.QuickDeviceCommand($"install -g {apkInfo.FullName}", token: cancellationToken);
+
+                    if (editorContext.AssetPath is not null)
+                    {
+                        string[] assets = Directory.GetFiles(editorContext.AssetPath);
+
+                        string obbPath = $"{currentDevice.InstallPaths.ObbPath}/{FinalName}";
+                        Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbPath}");
+
+                        await AdbManager.QuickDeviceCommand($"shell mkdir {obbPath}", token: cancellationToken);
+
+                        int assetIndex = 0;
+                        foreach (string file in assets)
+                        {
+                            var assetInfo = new FileInfo(file);
+                            Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
+
+                            await AdbManager.QuickDeviceCommand($"push {file} {obbPath}", token: cancellationToken);
+                        }
+                    }
+                }
+
             }
             catch (OperationCanceledException)
             {
                 // Handle cancellation
+                LogWarning("Job canceled.");
+                errorReason = "Job canceled.";
+            }
+            catch (Exception ex)
+            {
+                apkFailed = true;
+                errorReason = ex.Message;
             }
 
-            bool apkFailed = errorReason is null;
-
-            if (apkFailed)
+            if (!apkFailed)
             {
                 ++completeJobs;
             }
@@ -444,23 +510,24 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         if (completeJobs != files.Length)
         {
             LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
-            snackbarService.Show(
+            SnackError(
                 "Jobs failed!",
-                $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details.",
-                ControlAppearance.Danger,
-                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(10)
+                $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details."
             );
         }
 
-        try
+        if (kognitoConfig.ClearTempFilesOnRename)
         {
-            // Remove temp directory
-            TempData.Delete(true);
-        }
-        catch
-        {
-            // A file in the temp directory is still being used
+            try
+            {
+                // Remove temp directory
+                TempData.Delete(true);
+            }
+            catch (Exception ex)
+            {
+                // A file in the temp directory is still being used
+                LogWarning($"Failed to cleanup temp files: {ex.Message}");
+            }
         }
 
         // Finalize session and write it to the history file
@@ -528,7 +595,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         }
     }
 
-    private bool VerifyJavaInstallation(out string javaPath)
+    private async ValueTask<string?> VerifyJavaInstallation()
     {
         static bool VerifyVersion(string versionStr)
         {
@@ -542,6 +609,8 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             return int.TryParse(versionStr.Split('.')[0], out int major) && major >= 9;
         }
 
+        string? javaPath = null;
+
         // Check with the environment variable first
         string? javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
 
@@ -554,7 +623,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             // Try the registry if this path isn't correct
             if (File.Exists(javaPath))
             {
-                return true;
+                return javaPath;
             }
 
             StringBuilder logBuffer = new();
@@ -605,32 +674,35 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             if (!File.Exists(javaPath))
             {
                 LogError($"Java version {rawJdkVersion} found, but the Java directory it points to does not exist: {javaPath}");
-                return false;
+                return null;
             }
 
+            // Still working on Powershell check, just keeping this to prevent 'no await' warning
+            await Task.Delay(1);
             Log($"Using Java version {rawJdkVersion} at {javaPath}");
-            return true;
+            return javaPath;
+
         }
 
-        // Check via Powershell
-        string psPath = AdbManager.QuickGenericCommand(
-            Constants.POWERSHELL_PATH,
-            "-c Get-Command java | Select-Object -ExpandProperty Source"
-        ).Result;
+    // Check via Powershell
+    // string psPath = await AdbManager.QuickGenericCommand(
+    //     Constants.POWERSHELL_PATH,
+    //     "-c Get-Command java | Select-Object -ExpandProperty Source"
+    // );
 
-        LogWarning($"Java was found, but the version was unable to be verified: {psPath}");
-        javaPath = psPath;
-        return true;
+    // LogWarning($"Java was found, but the version was unable to be verified: {psPath}");
+    // javaPath = psPath;
+    // return javaPath;
 
     // A JRE check will be implemented. Eventually...
 
     JavaSearchFailed:
         LogError("Failed to find a valid JDK installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
-        javaPath = string.Empty;
-        return false;
+        LogError("If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
+        return null;
     }
 
-    private void UpdateFootprintInfo()
+    private async ValueTask UpdateFootprintInfo()
     {
         FootprintSizeBytes = 0;
 
@@ -649,11 +721,29 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             // Solution for issue: https://github.com/Sombody101/APKognito/issues/4
             if (Directory.Exists(obbDirectory))
             {
-                string[] foundFiles = Directory.GetFiles(obbDirectory, $"*{apkFileName}.obb");
-                if (foundFiles.Length > 0)
+                try
                 {
-                    FootprintSizeBytes += new FileInfo(foundFiles[0]).Length;
+                    using var cts = new CancellationTokenSource();
+                    cts.CancelAfter(TimeSpan.FromSeconds(5));
+
+                    FootprintSizeBytes += await DriveUsageViewModel.DirSizeAsync(new(obbDirectory), cts.Token);
                 }
+                catch (TaskCanceledException ex)
+                {
+                    LogError($"Failed to get asset directory size within time span: {ex.Message}");
+                    FileLogger.LogException(ex);
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Failed to get asset directory size: {ex.Message}");
+                    FileLogger.LogException(ex);
+                }
+
+                // string[] foundFiles = Directory.GetFiles(obbDirectory, $"*");
+                // if (foundFiles.Length > 0)
+                // {
+                //     FootprintSizeBytes += new FileInfo(foundFiles[0]).Length;
+                // }
             }
         }
     }
@@ -670,6 +760,30 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             StartButtonVisibility = Visibility.Visible;
             CancelButtonVisibility = Visibility.Collapsed;
         }
+    }
+
+    private async Task<bool> VerifyAdbDevice()
+    {
+        switch (await AdbConfigurationViewModel.TryConnectDevice(adbConfig))
+        {
+            case AdbDevicesStatus.NoAdb:
+                LogError("Platform tools are not installed. Either:\n\t1. Go to the ADB Console page and run the command ':install-adb'.\nOr:\n\t2. Install platform tools and manually set the path in the ADB Configuration page.");
+                return false;
+
+            case AdbDevicesStatus.NoDevices:
+                LogError("Failed to find any ADB devices to push renamed APKs to. Connect a device and ensure Developer Mode is enabled.");
+                return false;
+
+            case AdbDevicesStatus.TooManyDevices:
+                LogError("More than one ADB device was found. Please go to the ADB Configuration page and select a device, then try again.");
+                return false;
+
+            case AdbDevicesStatus.DefaultDeviceSelected:
+                Log($"Using default device {adbConfig.CurrentDeviceId}");
+                return true;
+        }
+
+        return false;
     }
 
     private static readonly List<Run> _runLogBuffer = [];

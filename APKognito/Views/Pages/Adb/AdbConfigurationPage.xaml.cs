@@ -10,6 +10,11 @@ public partial class AdbConfigurationPage : INavigableView<AdbConfigurationViewM
 {
     public AdbConfigurationViewModel ViewModel { get; }
 
+    public AdbConfigurationPage()
+    {
+        // For designer
+    }
+
     public AdbConfigurationPage(AdbConfigurationViewModel viewModel)
     {
         InitializeComponent();

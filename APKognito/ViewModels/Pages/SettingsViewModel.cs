@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Models.Settings;
 using APKognito.Utilities;
 using System.IO;
 using System.Reflection;
@@ -11,6 +12,7 @@ namespace APKognito.ViewModels.Pages;
 public partial class SettingsViewModel : ObservableObject, INavigationAware, IViewable
 {
     private readonly UpdateConfig updateConfig;
+    private readonly KognitoConfig kognitoConfig;
 
     private bool _isInitialized = false;
 
@@ -27,6 +29,17 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
 
     [ObservableProperty]
     private string _clearedSize = string.Empty;
+
+    public bool ClearTempFilesOnRename
+    {
+        get => kognitoConfig.ClearTempFilesOnRename;
+        set
+        {
+            OnPropertyChanging(nameof(ClearTempFilesOnRename));
+            kognitoConfig.ClearTempFilesOnRename = value;
+            OnPropertyChanged(nameof(ClearTempFilesOnRename));
+        }
+    }
 
     /* Update properties */
 
@@ -57,6 +70,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     public SettingsViewModel()
     {
         updateConfig = ConfigurationFactory.GetConfig<UpdateConfig>();
+        kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
     }
 
     [RelayCommand]

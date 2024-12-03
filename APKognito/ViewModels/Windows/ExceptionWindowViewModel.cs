@@ -1,17 +1,13 @@
 ﻿using APKognito.Utilities;
 using APKognito.ViewModels.Pages;
 using System.Runtime.InteropServices;
-using System.Windows.Documents;
-using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Windows;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRtb
+public partial class ExceptionWindowViewModel : LoggableObservableObject
 {
-    private RichTextBox _exceptionBox;
-
     private string exceptionDetails;
 
     #region Properties
@@ -83,12 +79,7 @@ public partial class ExceptionWindowViewModel : ObservableObject, IAntiMvvmRtb
 
         exceptionDetails = $"{exceptionDetails}[Main Exception Details]\n\tFailure: \t{IsFailure}\n\tFacility: \t0x{Facility:x0} ({Facility})\n\tCode: \t0x{ExceptionCode:x00} ({ExceptionCode})\n" +
             $"{exception.GetType().Name}: {exception.Message}\n{exception.StackTrace}";
-        ((Paragraph)_exceptionBox.Document.Blocks.LastBlock).Inlines.Add(exceptionDetails);
-        _exceptionBox.ScrollToEnd();
-    }
 
-    public void AntiMvvm_SetRichTextbox(RichTextBox rtb)
-    {
-        _exceptionBox = rtb;
+        WriteGenericLogLine(exceptionDetails);
     }
 }

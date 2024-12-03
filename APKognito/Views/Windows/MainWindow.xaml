@@ -7,8 +7,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="{Binding ViewModel.ApplicationTitle, Mode=OneWay}"
-    Width="1200"
-    Height="600"
+    Width="1345"
+    Height="835"
     MinWidth="600"
     MinHeight="300"
     d:DataContext="{d:DesignInstance local:MainWindow,
@@ -34,8 +34,9 @@
             x:Name="TitleBar"
             Title="{Binding ViewModel.ApplicationTitle}"
             Grid.Row="0"
+            Height="50"
             CloseWindowByDoubleClickOnIcon="True"
-            FontFamily="{StaticResource TechSans}" Height="50">
+            FontFamily="{StaticResource TechSans}">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon
                     Width="25"

@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Windows.Documents;
-
+using Wpf.Ui;
+using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
 
 namespace APKognito.Utilities;
@@ -10,31 +11,36 @@ namespace APKognito.Utilities;
 /// </summary>
 public class LoggableObservableObject : ObservableObject, IAntiMvvmRtb
 {
+    /* Log box */
     private RichTextBox richTextBox = null!;
-
     public RichTextBox? RichTextBoxInUse => richTextBox;
-
     public Block RichTextLastBlock => richTextBox.Document.Blocks.LastBlock;
 
+    /* Snackbar */
+    private ISnackbarService snackbarService = null!;
+    public ISnackbarService? SnackbarService => snackbarService;
+
+    private List<(string, Brush?)>? logBuffer = [];
     public void WriteGenericLog(string text, [Optional] Brush color)
     {
         if (richTextBox is null)
         {
+            logBuffer?.Add(new(text, color));
             return;
         }
 
-        richTextBox.Dispatcher.Invoke(() =>
+        if (logBuffer is not null)
         {
-            Run log = new(text);
-
-            if (color is not null)
+            foreach (var logPair in logBuffer)
             {
-                log.Foreground = color;
+                AppendRunToLogbox(logPair.Item1, logPair.Item2);
             }
 
-            ((Paragraph)RichTextLastBlock).Inlines.Add(log);
-            richTextBox.ScrollToEnd();
-        });
+            logBuffer.Clear();
+            logBuffer = null;
+        }
+
+        AppendRunToLogbox(text, color);
     }
 
     public void WriteGenericLogLine(string text, [Optional] Brush color)
@@ -42,22 +48,32 @@ public class LoggableObservableObject : ObservableObject, IAntiMvvmRtb
         WriteGenericLog($"{text}\n", color);
     }
 
+    protected string LogPrefix { get; set; } = "[INFO]    ~ ";
     public void Log(string log)
     {
         FileLogger.Log(log);
-        WriteGenericLog($"[INFO]    ~ {log}\n");
+        WriteGenericLog($"{LogPrefix}{log}\n");
     }
 
+    protected string LogSuccessPrefix { get; set; } = "[SUCCESS] @ ";
+    public void LogSuccess(string log)
+    {
+        FileLogger.Log(log);
+        WriteGenericLog($"{LogSuccessPrefix}{log}\n", Brushes.Green);
+    }
+
+    protected string LogWarningPrefix { get; set; } = "[WARNING] # ";
     public void LogWarning(string log)
     {
         FileLogger.LogWarning(log);
-        WriteGenericLog($"[WARNING] # {log}\n", Brushes.Yellow);
+        WriteGenericLog($"{LogWarningPrefix}{log}\n", Brushes.Yellow);
     }
 
+    protected string LogErrorPrefix { get; set; } = "[ERROR]   ! ";
     public void LogError(string log)
     {
         FileLogger.LogError(log);
-        WriteGenericLog($"[ERROR]   ! {log}\n", Brushes.Red);
+        WriteGenericLog($"{LogErrorPrefix}{log}\n", Brushes.Red);
     }
 
     public void ClearLogs()
@@ -72,5 +88,73 @@ public class LoggableObservableObject : ObservableObject, IAntiMvvmRtb
     public virtual void AntiMvvm_SetRichTextbox(RichTextBox rtb)
     {
         richTextBox = rtb;
+    }
+
+    protected void SetSnackbarProvider(ISnackbarService _snackbarService)
+    {
+        snackbarService = _snackbarService;
+    }
+
+    public void DisplaySnack(string header, string body, ControlAppearance appearance, int time_ms = 10_000)
+    {
+        if (snackbarService is null)
+        {
+            throw new InvalidOperationException("No Snackpresenter was set.");
+        }
+
+        if (body.Length is 0)
+        {
+            body = header;
+        }
+
+        SymbolIcon icon = new()
+        {
+            Symbol = appearance switch
+            {
+                ControlAppearance.Info => SymbolRegular.Info24,
+                ControlAppearance.Success => SymbolRegular.CheckmarkCircle24,
+                ControlAppearance.Caution => SymbolRegular.Warning24,
+                ControlAppearance.Danger => SymbolRegular.ErrorCircle24,
+                _ => SymbolRegular.Empty
+            },
+        };
+
+        snackbarService.Show(header, body, appearance, icon, TimeSpan.FromMilliseconds(time_ms));
+    }
+
+    public void SnackInfo(string header, string body)
+    {
+        DisplaySnack(header, body, ControlAppearance.Info);
+    }
+
+    public void SnackSuccess(string header, string body)
+    {
+        DisplaySnack(header, body, ControlAppearance.Success);
+    }
+
+    public void SnackWarning(string header, string body)
+    {
+        DisplaySnack(header, body, ControlAppearance.Caution);
+    }
+
+    public void SnackError(string header, string body)
+    {
+        DisplaySnack(header, body, ControlAppearance.Danger);
+    }
+
+    private void AppendRunToLogbox(string text, [Optional] Brush? color)
+    {
+        richTextBox.Dispatcher.Invoke(() =>
+        {
+            Run log = new(text);
+
+            if (color is not null)
+            {
+                log.Foreground = color;
+            }
+
+            ((Paragraph)RichTextLastBlock).Inlines.Add(log);
+            richTextBox.ScrollToEnd();
+        });
     }
 }

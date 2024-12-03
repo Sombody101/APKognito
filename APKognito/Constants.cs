@@ -4,6 +4,8 @@
 
 internal static class Constants
 {
+    public const string UpdateInstalledArgument = "[::updated::]";
+
     public const string POWERSHELL_PATH = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
 
     /*

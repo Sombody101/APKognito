@@ -147,23 +147,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             goto Exit;
         }
 
-        foreach (FootprintInfo? item in itemsToDelete)
-        {
-            if (item.ItemType is FootprintTypes.File)
-            {
-                File.Delete(item.FolderPath);
-            }
-            else
-            {
-                Directory.Delete(item.FolderPath, true);
-            }
-        }
-
-        // Get all item references that apply to the filter
-        foreach (FootprintInfo? item in itemsToDelete)
-        {
-            _ = FoundFolders.Remove(item);
-        }
+        await DeleteFileCollection(itemsToDelete);
+        FoundFolders.Clear();
 
     Exit:
         CanDelete = true;
@@ -198,19 +183,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             goto Exit;
         }
 
-        // Get all item references that apply to the filter
-        foreach (FootprintInfo item in FoundFolders)
-        {
-            if (item.ItemType is FootprintTypes.File)
-            {
-                File.Delete(item.FolderPath);
-            }
-            else
-            {
-                Directory.Delete(item.FolderPath, true);
-            }
-        }
-
+        await DeleteFileCollection(FoundFolders);
         FoundFolders.Clear();
 
     Exit:
@@ -306,6 +279,25 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         TotalUsedSpace = folderStats.Sum(f => f.FolderSizeBytes);
     }
 
+    public static async Task<long> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation)
+    {
+        List<Task<long>> tasks = [];
+        foreach (FileInfo fi in d.GetFiles())
+        {
+            tasks.Add(Task.Run(() => fi.Length, cancellation));
+        }
+
+        foreach (DirectoryInfo di in d.GetDirectories())
+        {
+            tasks.Add(DirSizeAsync(di, cancellation));
+        }
+
+        _ = await Task.WhenAll(tasks);
+        long[] results = await Task.WhenAll(tasks);
+
+        return results.Sum();
+    }
+
     partial void OnFilterInRenamedApksChanged(bool value)
     {
         if (value)
@@ -350,6 +342,23 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         }
 
         UpdateItemsList();
+    }
+
+    private static async ValueTask DeleteFileCollection(IEnumerable<FootprintInfo> files)
+    {
+        await Parallel.ForEachAsync(files, (item, token) =>
+        {
+            if (item.ItemType is FootprintTypes.File)
+            {
+                File.Delete(item.FolderPath);
+            }
+            else
+            {
+                Directory.Delete(item.FolderPath, true);
+            }
+
+            return ValueTask.CompletedTask;
+        });
     }
 
     private static string GetFormattedItems(IEnumerable<FootprintInfo> list)
@@ -410,25 +419,6 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
         }
 
         return sb.ToString();
-    }
-
-    private static async Task<long> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation)
-    {
-        List<Task<long>> tasks = [];
-        foreach (FileInfo fi in d.GetFiles())
-        {
-            tasks.Add(Task.Run(() => fi.Length, cancellation));
-        }
-
-        foreach (DirectoryInfo di in d.GetDirectories())
-        {
-            tasks.Add(DirSizeAsync(di, cancellation));
-        }
-
-        _ = await Task.WhenAll(tasks);
-        long[] results = await Task.WhenAll(tasks);
-
-        return results.Sum();
     }
 
     #region DEBUG_ONLY

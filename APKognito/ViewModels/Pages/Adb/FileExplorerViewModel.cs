@@ -3,17 +3,14 @@ using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities;
 using System.Collections.ObjectModel;
-using System.Windows.Controls;
 using System.Windows.Threading;
 using Wpf.Ui;
-using Wpf.Ui.Controls;
 using TreeViewItem = Wpf.Ui.Controls.TreeViewItem;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class FileExplorerViewModel : ObservableObject, IViewable
+public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
 {
-    private readonly ISnackbarService snackbarService;
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
     #region Properties
@@ -35,7 +32,7 @@ public partial class FileExplorerViewModel : ObservableObject, IViewable
 
     public FileExplorerViewModel(ISnackbarService _snackbarService)
     {
-        snackbarService = _snackbarService;
+        SetSnackbarProvider(_snackbarService);
     }
 
     #region Commands
@@ -44,12 +41,23 @@ public partial class FileExplorerViewModel : ObservableObject, IViewable
     private async Task OnTryConnection()
     {
         await GetFolders(null);
+        
     }
 
     [RelayCommand]
     private async Task OnTryRefreshDirectory(AdbFolderInfo info)
     {
-        // await GetFolders(item);
+        TreeViewItem? itemToRefresh = null;
+        if (info.ParentTreeViewItem is not null)
+        { 
+            var thing = info.ParentTreeViewItem.Items;
+        }
+        else
+        {
+
+        }
+
+        await GetFolders(itemToRefresh);
     }
 
     #endregion Commands
@@ -58,12 +66,9 @@ public partial class FileExplorerViewModel : ObservableObject, IViewable
     {
         if (string.IsNullOrWhiteSpace(adbConfig.CurrentDeviceId))
         {
-            snackbarService.Show(
+            SnackError(
                 "No device selected",
-                "Cannot get directory or file information without a selected device",
-                ControlAppearance.Danger,
-                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(10)
+                "Cannot get directory or file information without a selected device"
             );
 
             return;
@@ -88,8 +93,8 @@ public partial class FileExplorerViewModel : ObservableObject, IViewable
                 return;
             }
 
-            string[] response = (await AdbManager.QuickCommand(
-                $"-s {adbConfig.CurrentDeviceId} shell stat -c {AdbFolderInfo.FormatString} {basePath}/* 2>/dev/null"))
+            string[] response = (await AdbManager.QuickDeviceCommand(
+                $"shell stat -c {AdbFolderInfo.FormatString} {basePath}/* 2>/dev/null"))
                 .Split("\r\n");
 
             if (response.Length is 1)
@@ -101,9 +106,10 @@ public partial class FileExplorerViewModel : ObservableObject, IViewable
             }
 
             // Get items here before giving the UI thread control
-            AdbFolderInfo[] newItems = response
+            var filtered = response
                 .Where(str => !string.IsNullOrWhiteSpace(str))
-                .Select(str => new AdbFolderInfo(str, expandingItem)).ToArray();
+                .Select(str => new AdbFolderInfo(str, expandingItem));
+            AdbFolderInfo[] newItems = [.. filtered];
 
             await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
             {
@@ -130,13 +136,7 @@ public partial class FileExplorerViewModel : ObservableObject, IViewable
                 ? " for root directory"
                 : $" for {(expandingItem.ItemsSource as IEnumerable<AdbFolderInfo>)?.First()?.FileName ?? string.Empty}";
 
-            snackbarService.Show(
-                $"Failed to get directory descendants{forItem}",
-                ex.Message,
-                ControlAppearance.Danger,
-                new SymbolIcon { Symbol = SymbolRegular.ErrorCircle24 },
-                TimeSpan.FromSeconds(10)
-            );
+            SnackError($"Failed to get directory descendants{forItem}", ex.Message);
         }
     }
 
