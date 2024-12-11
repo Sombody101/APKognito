@@ -715,7 +715,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                 continue;
             }
 
-            FootprintSizeBytes += ApkEditorContext.CalculateApkSize(file, CopyWhenRenaming);
+            FootprintSizeBytes += ApkEditorContext.CalculateUnpackedApkSize(file, CopyWhenRenaming);
 
             string apkFileName = Path.GetFileNameWithoutExtension(file);
             string obbDirectory = Path.Combine(Path.GetDirectoryName(file)!, apkFileName);
@@ -740,12 +740,6 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                     LogError($"Failed to get asset directory size: {ex.Message}");
                     FileLogger.LogException(ex);
                 }
-
-                // string[] foundFiles = Directory.GetFiles(obbDirectory, $"*");
-                // if (foundFiles.Length > 0)
-                // {
-                //     FootprintSizeBytes += new FileInfo(foundFiles[0]).Length;
-                // }
             }
         }
     }

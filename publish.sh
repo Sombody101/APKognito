@@ -18,10 +18,6 @@
     exit 2
 }
 
-[[ "$3" == "-p" ]] && {
-    readonly prerelease=true
-}
-
 libs=(
     jq
     hub
@@ -55,6 +51,20 @@ scb() {
     }
 }
 
+case "$3" in
+
+"pre")
+    echo "Building prerelease."
+    readonly prerelease=true
+    ;;
+
+"deb")
+    echo "Building debug release."
+    buildflag="$buildflag -p:DefineConstants=DEBUG_RELEASE"
+    ;;
+
+esac
+
 if [[ "$prerelease" ]]; then
     readonly release_type="Prerelease"
     readonly release_tag_prefix="d"
@@ -67,13 +77,15 @@ readonly publish_profile="./APKognito/Properties/PublishProfiles/FolderProfile.p
 readonly git_remote_url="https://github.com/Sombody101/APKognito"
 
 readonly build_path="./APKognito/bin/Release/net8.0-windows/publish/win-x64"
-! dotnet publish -c Release -p:PublishProfile="$publish_profile" && exit "$?"
+! dotnet publish -c Release -p:PublishProfile="$publish_profile" "$buildflag" && exit "$?"
 
 appversion="$($build_path/APKognito.exe --version | tr -d '\000-\037\177')"
 readonly appversion
 
 echo
 echo "Build version: |$appversion|"
+
+exit
 
 echo "Uploading to VirusTotal"
 permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll" | jq -r '.data.id')"

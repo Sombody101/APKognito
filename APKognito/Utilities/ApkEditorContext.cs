@@ -78,7 +78,7 @@ public class ApkEditorContext
             // format new package name and get original company name
             (
                 string packagePrefix,
-                string oldCompanyName, 
+                string oldCompanyName,
                 string newPackageName
             ) = SplitPackageName(packageName);
             viewModel.FinalName = newPackageName;
@@ -220,7 +220,6 @@ public class ApkEditorContext
             .Where(file => file.EndsWith(".smali"))
             .Append($"{ApkTempDirectory}\\AndroidManifest.xml")
             .Append($"{ApkTempDirectory}\\apktool.yml").ToArray();
-
         await Parallel.ForEachAsync(files, cToken,
             async (filePath, subcToken) =>
             await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, subcToken)
@@ -376,7 +375,7 @@ public class ApkEditorContext
         return (split[0], oldCompanyName, packageName.Replace(oldCompanyName, ReplacementCompanyName));
     }
 
-    public static long CalculateApkSize(string apkPath, bool copyingFile = true)
+    public static long CalculateUnpackedApkSize(string apkPath, bool copyingFile = true)
     {
         long estimatedUnpackedSize = 0;
 

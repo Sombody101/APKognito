@@ -76,6 +76,16 @@ public class LoggableObservableObject : ObservableObject, IAntiMvvmRtb
         WriteGenericLog($"{LogErrorPrefix}{log}\n", Brushes.Red);
     }
 
+#if DEBUG
+
+    public void LogDebug(string log)
+    {
+        FileLogger.LogDebug(log);
+        WriteGenericLog($"[DEBUG]   & {log}\n", Brushes.Cyan);
+    }
+
+#endif
+
     public void ClearLogs()
     {
         richTextBox.Dispatcher.Invoke(() =>

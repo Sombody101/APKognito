@@ -36,7 +36,7 @@ public partial class App
     }
 
     public static bool IsDebugRelease =>
-#if DEBUG
+#if DEBUG || DEBUG_RELEASE
             true;
 #else
             false;

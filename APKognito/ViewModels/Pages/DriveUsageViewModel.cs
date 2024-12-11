@@ -129,7 +129,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         if (itemsToDelete.Count < 1)
         {
-            return;
+            goto Exit;
         }
 
         MessageBox confirmation = new()
@@ -165,7 +165,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         if (cachedFootprints.Count < 1)
         {
-            return;
+            goto Exit;
         }
 
         MessageBox confirmation = new()
