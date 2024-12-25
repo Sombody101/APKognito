@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Collections;
 using System.IO;
 
 namespace APKognito.Configurations.ConfigModels;
@@ -36,6 +37,9 @@ internal sealed class AdbConfig : IKognitoConfig
 
 public sealed class AdbDeviceInfo
 {
+    [JsonIgnore]
+    public static readonly byte[] DefaultIp = [0, 0, 0, 0];
+
     [JsonProperty("device_id")]
     public string DeviceId { get; set; }
 
@@ -44,6 +48,12 @@ public sealed class AdbDeviceInfo
 
     [JsonProperty("device_paths")]
     public DevicePaths InstallPaths { get; set; }
+
+    [JsonProperty("device_local_ip")]
+    public byte[] IpAddress { get; set; } = DefaultIp;
+
+    [JsonIgnore]
+    public bool ConnectedByLan => StructuralComparisons.StructuralEqualityComparer.Equals(IpAddress, new byte[0, 0, 0, 0]);
 
     public AdbDeviceInfo(string id, DeviceType type, string ovrd = "")
     {
@@ -66,7 +76,7 @@ public sealed class AdbDeviceInfo
     }
 }
 
-public sealed class DevicePaths
+public struct DevicePaths
 {
     [JsonProperty("device_obb_path")]
     public string ObbPath { get; set; }

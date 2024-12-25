@@ -94,7 +94,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
             }
 
             string[] response = (await AdbManager.QuickDeviceCommand(
-                $"shell stat -c {AdbFolderInfo.FormatString} {basePath}/* 2>/dev/null"))
+                $"shell stat -c {AdbFolderInfo.FormatString} {basePath}/* 2>/dev/null")).StdOut
                 .Split("\r\n");
 
             if (response.Length is 1)

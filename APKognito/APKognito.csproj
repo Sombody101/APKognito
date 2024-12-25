@@ -101,4 +101,23 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Assets\AdbScripts\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="AdbScripts.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>AdbScripts.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="AdbScripts.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>AdbScripts.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

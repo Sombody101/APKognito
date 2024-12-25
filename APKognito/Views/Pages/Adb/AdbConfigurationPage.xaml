@@ -20,28 +20,9 @@
 
     <StackPanel Margin="0,30">
 
-        <Label Content="Selected Device" />
-        <Grid Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-
-            <ComboBox
-                Margin="0,0,10,0"
-                DropDownOpened="ComboBox_DropDownOpened"
-                IsEditable="False"
-                IsReadOnly="True"
-                IsSynchronizedWithCurrentItem="True"
-                ItemsSource="{Binding ViewModel.DeviceList}"
-                SelectedItem="{Binding ViewModel.SelectedDevice, UpdateSourceTrigger=PropertyChanged}" />
-
-            <ui:Button
-                Grid.Column="1"
-                Command="{Binding ViewModel.TryConnectionCommand}"
-                Content="Connect" />
-
-        </Grid>
+        <ui:Card Margin="0,0,0,10">
+            <ctrls:AndroidDeviceInfo />
+        </ui:Card>
 
         <StackPanel IsEnabled="{Binding ViewModel.DevicePropertiesEnabled}">
             <Label Content="Detected Device Type" FontSize="24" />

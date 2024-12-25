@@ -20,12 +20,5 @@ public partial class AdbConfigurationPage : INavigableView<AdbConfigurationViewM
         InitializeComponent();
         DataContext = this;
         ViewModel = viewModel;
-
-        Loaded += async (sender, e) => await viewModel.RefreshDevicesList();
-    }
-
-    private void ComboBox_DropDownOpened(object sender, EventArgs e)
-    {
-        _ = Dispatcher.Invoke(ViewModel.RefreshDevicesList);
     }
 }

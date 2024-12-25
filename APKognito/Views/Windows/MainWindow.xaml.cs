@@ -1,4 +1,5 @@
-﻿using APKognito.ViewModels.Windows;
+﻿using APKognito.Utilities;
+using APKognito.ViewModels.Windows;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -27,6 +28,30 @@ public partial class MainWindow : INavigationWindow
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
 
         navigationService.SetNavigationControl(RootNavigation);
+
+        if (MainWindowViewModel.LaunchedAsAdministrator)
+        {
+            Loaded += async (sender, e) =>
+            {
+                // Give the window roughly a millisecond to render
+                await Task.Delay(1);
+
+                MessageBoxResult result = await new MessageBox()
+                {
+                    Title = "Launched as Admin!",
+                    Content = "It's not recommended to launch an application as admin, especially one that interacts with your drive(s)! " +
+                        "Continue only if you know what you're doing and are okay with the risk!",
+                    PrimaryButtonText = "Exit",
+                    CloseButtonText = "Continue anyway",
+                    CloseButtonAppearance = ControlAppearance.Caution,
+                }.ShowDialogAsync();
+
+                if (result is MessageBoxResult.Primary)
+                {
+                    App.Current.Shutdown();
+                }
+            };
+        }
     }
 
     #region INavigationWindow methods

@@ -168,7 +168,7 @@
                     Copy App Files
                     <ui:SymbolIcon Symbol="QuestionCircle24" />
                 </ui:TextBlock>
-                <CheckBox
+                <ui:ToggleSwitch
                     Grid.Row="3"
                     HorizontalAlignment="Right"
                     Checked="CheckBox_Checked"
@@ -186,7 +186,7 @@
                     Push After Rename
                     <ui:SymbolIcon Symbol="QuestionCircle24" />
                 </ui:TextBlock>
-                <CheckBox
+                <ui:ToggleSwitch
                     Grid.Row="4"
                     HorizontalAlignment="Right"
                     Checked="CheckBox_Checked"

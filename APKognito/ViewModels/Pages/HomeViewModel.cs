@@ -159,6 +159,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         Instance = this;
 
         SetSnackbarProvider(_snackbarService);
+        SetCurrentLogger();
 
         kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
         kognitoCache = ConfigurationFactory.GetConfig<CacheStorage>();
@@ -562,7 +563,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             if (!File.Exists(ApktoolJar))
             {
                 Log("Installing Apktool.jar...");
-                if (!await Installer.FetchAndDownload(Constants.APKTOOL_JAR_URL, ApktoolJar, this, cToken))
+                if (!await WebGet.FetchAndDownload(Constants.APKTOOL_JAR_URL, ApktoolJar, this, cToken))
                 {
                     allSuccess = false;
                 }
@@ -571,7 +572,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             if (!File.Exists(ApktoolBat))
             {
                 Log("Installing Apktool.bat...");
-                if (!await Installer.DownloadAsync(Constants.APKTOOL_BAT_URL, ApktoolBat, this, cToken))
+                if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, ApktoolBat, this, cToken))
                 {
                     allSuccess = false;
                 }
@@ -580,7 +581,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             if (!File.Exists(ApksignerJar))
             {
                 Log("Installing ApkSigner.jar");
-                if (!await Installer.FetchAndDownload(Constants.APL_SIGNER_URL, ApksignerJar, this, cToken, 1))
+                if (!await WebGet.FetchAndDownload(Constants.APL_SIGNER_URL, ApksignerJar, this, cToken, 1))
                 {
                     allSuccess = false;
                 }

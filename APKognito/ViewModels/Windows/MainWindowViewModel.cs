@@ -1,5 +1,6 @@
 ﻿using APKognito.Views.Pages;
 using System.Collections.ObjectModel;
+using System.Security.Principal;
 using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Windows;
@@ -7,7 +8,7 @@ namespace APKognito.ViewModels.Windows;
 public partial class MainWindowViewModel : ObservableObject, IViewable
 {
     [ObservableProperty]
-    private string _applicationTitle = "APKognito";
+    private string _applicationTitle = $"APKognito{(LaunchedAsAdministrator ? " [ADMIN]" : string.Empty)}";
 
     [ObservableProperty]
     private ObservableCollection<object> _menuItems =
@@ -41,6 +42,7 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
                 // new("Quick Commands", typeof(AdbConsolePage)),
                 new("File Explorer", typeof(FileExplorerPage)),
                 new("File Uploader", typeof(FileUploaderPage)),
+                new("Package Uninstaller", typeof(UninstallerPage)),
             },
         },
     ];
@@ -62,4 +64,8 @@ public partial class MainWindowViewModel : ObservableObject, IViewable
         new MenuItem { Header = "Rename APK", Tag = "tray_home" },
         new MenuItem { Header = "Close", Tag = "tray_close" },
     ];
+
+    public static readonly bool LaunchedAsAdministrator = 
+        new WindowsPrincipal(WindowsIdentity.GetCurrent())
+            .IsInRole(WindowsBuiltInRole.Administrator);
 }

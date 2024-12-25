@@ -85,7 +85,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         // Fetch the download URL and release tag
-        string?[] jsonData = await Installer.FetchAsync(Constants.GITHUB_API_URL, HomeViewModel.Instance, cToken, [
+        string?[] jsonData = await WebGet.FetchAsync(Constants.GITHUB_API_URL, HomeViewModel.Instance, cToken, [
             [LATEST, "tag_name"],
             [LATEST, "assets", 0, "browser_download_url"],
         ]);
@@ -129,7 +129,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
         _ = Directory.CreateDirectory(UpdatesFolder);
         string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{jsonData[0]![1..]}.zip");
-        if (!await Installer.DownloadAsync(jsonData[1]!, downloadZip, null, cToken))
+        if (!await WebGet.DownloadAsync(jsonData[1]!, downloadZip, null, cToken))
         {
             FileLogger.LogFatal("Failed to download latest release.");
             goto LogUpdateAndExit;

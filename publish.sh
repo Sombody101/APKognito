@@ -85,8 +85,6 @@ readonly appversion
 echo
 echo "Build version: |$appversion|"
 
-exit
-
 echo "Uploading to VirusTotal"
 permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll" | jq -r '.data.id')"
 readonly permlink

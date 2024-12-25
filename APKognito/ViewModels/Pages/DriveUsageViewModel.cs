@@ -5,7 +5,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Windows.Threading;
-using ListView = Wpf.Ui.Controls.ListView;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -23,6 +22,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     private bool _isRunning =
 #if DEBUG
         true;
+
 #else
         false;
 #endif
@@ -409,7 +409,10 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
                 _ = sb.Append("and ");
             }
 
-            string plural = apkCount != 1 ? "s" : string.Empty;
+            string plural = apkCount != 1
+                ? "s"
+                : string.Empty;
+
             _ = sb.Append($"{apkCount} renamed APK{plural} and OBB{plural}");
         }
         else
@@ -422,7 +425,9 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     }
 
     #region DEBUG_ONLY
+
 #if DEBUG
+
     public void PopulateList()
     {
         FoundFolders = [
@@ -448,6 +453,8 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             new("C:\\Windows\\System32\\APKognito.3847958.temp", 234095728),
         ];
     }
+
 #endif
-    #endregion
+
+    #endregion DEBUG_ONLY
 }

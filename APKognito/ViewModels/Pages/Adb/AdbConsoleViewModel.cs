@@ -53,7 +53,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     public AdbConsoleViewModel(ISnackbarService _snackbarService)
     {
         SetSnackbarProvider(_snackbarService);
-        LogPrefix = LogWarningPrefix = LogErrorPrefix = string.Empty;
+        LogPrefix = LogSuccessPrefix = LogWarningPrefix = LogErrorPrefix = string.Empty;
         adbManager = new();
 
         historyIndex = adbHistory.CommandHistory.Count;
@@ -494,7 +494,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     {
         bool result = ThreadPool.QueueUserWorkItem(async (__) =>
         {
-            if (AdbManager.AdbWorks())
+            if (AdbManager.AdbWorks() && !ctx.Args.Contains("--force"))
             {
                 LogError("ADB is already installed. Run with '--force' to force a reinstall.");
                 return;
@@ -504,7 +504,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             WriteGenericLogLine($"Installing platform tools to: {appDataPath}\\platform-tools");
 
             string zipFile = $"{appDataPath}\\adb.zip";
-            _ = await Installer.DownloadAsync(Constants.ADB_INSTALL_URL, zipFile, this, CancellationToken.None);
+            _ = await WebGet.DownloadAsync(Constants.ADB_INSTALL_URL, zipFile, this, CancellationToken.None);
 
             WriteGenericLogLine("Unpacking platform tools.");
 
@@ -531,7 +531,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             catch (Exception ex)
             {
                 LogError($"Failed to install platform tools [{lastFile}]: {ex.Message}");
-                return; 
+                return;
             }
 
             File.Delete(zipFile);
@@ -541,8 +541,16 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             ConfigurationFactory.SaveConfig(adbConfig);
 
             WriteGenericLogLine("Testing adb...");
-            string adbVersion = await AdbManager.QuickCommand("--version");
-            WriteGenericLogLine(adbVersion);
+            CommandOutput output = (await AdbManager.QuickCommand("--version"));
+            WriteGenericLogLine(output.StdOut);
+
+            if (output.Errored)
+            {
+                LogError("Failed to install platform tools!");
+                return;
+            }
+
+            LogSuccess("Platform tools installed successfully!");
         });
 
         if (!result)
