@@ -216,11 +216,15 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     [RelayCommand]
     private async Task OnLoadApk()
     {
+        string openDirectory = Directory.Exists(kognitoCache.LastDialogDirectory)
+            ? kognitoCache.LastDialogDirectory
+            : "C:\\";
+
         OpenFileDialog openFileDialog = new()
         {
             Filter = "APK files (*.apk)|*.apk",
             Multiselect = true,
-            DefaultDirectory = kognitoCache.LastDialogDirectory
+            DefaultDirectory = openDirectory
         };
 
         bool? result = openFileDialog.ShowDialog();

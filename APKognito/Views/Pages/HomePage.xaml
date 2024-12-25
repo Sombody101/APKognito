@@ -191,6 +191,7 @@
                     HorizontalAlignment="Right"
                     Checked="CheckBox_Checked"
                     IsChecked="{Binding PushAfterRename}"
+                    IsEnabled="{Binding CanEdit}"
                     Unchecked="CheckBox_Checked" />
 
                 <ui:Button
