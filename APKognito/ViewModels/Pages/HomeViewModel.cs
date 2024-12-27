@@ -456,7 +456,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                     {
                         string[] assets = Directory.GetFiles(editorContext.AssetPath);
 
-                        string obbPath = $"{currentDevice.InstallPaths.ObbPath}/{FinalName}";
+                        string obbPath = $"/storage/emulated/0/Android/{FinalName}";
                         Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbPath}");
 
                         await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbPath}""", token: cancellationToken);

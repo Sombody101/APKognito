@@ -24,28 +24,7 @@
             <ctrls:AndroidDeviceInfo />
         </ui:Card>
 
-        <StackPanel IsEnabled="{Binding ViewModel.DevicePropertiesEnabled}">
-            <Label Content="Detected Device Type" FontSize="24" />
-            <ComboBox
-                Margin="0,0,0,10"
-                IsReadOnly="True"
-                IsSynchronizedWithCurrentItem="True"
-                ItemsSource="{Binding ViewModel.DeviceTypeList}"
-                SelectedItem="{Binding ViewModel.SelectedDeviceType}" />
-
-            <Label Content="Install Override Paths" FontSize="24" />
-            <ui:Card Margin="0,0,0,10" IsEnabled="{Binding ViewModel.OverridePathsEnabled}">
-                <StackPanel>
-
-                    <Label Content="OBB Install Path" />
-                    <ui:TextBox Margin="0,0,0,10" Text="{Binding ViewModel.OverrideObbPath, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <ui:Button Command="{Binding ViewModel.SetOverridePathsCommand}" Content="Set paths" />
-
-                </StackPanel>
-            </ui:Card>
-
-        </StackPanel>
+        <!--  Not a whole lot here...  -->
 
         <Label Content="Platform Tools Path" />
         <ui:TextBox Text="{Binding ViewModel.PlatformToolsPath}" />

@@ -70,9 +70,4 @@ public partial class AdbConsolePage : INavigableView<AdbConsoleViewModel>, IView
     {
         BindingOperations.GetBindingExpression((TextBox)sender, TextBox.TextProperty)?.UpdateSource();
     }
-
-    private void ComboBox_DropDownOpened(object sender, EventArgs e)
-    {
-        Dispatcher.Invoke(ViewModel.RefreshDevicesList);
-    }
 }

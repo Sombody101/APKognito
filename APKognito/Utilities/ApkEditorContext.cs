@@ -25,9 +25,9 @@ public class ApkEditorContext
     private readonly string OutputDirectory;
 
     private readonly string ApkTempDirectory;
+    public string? AssetPath { get; private set; }
 
     public string OutputApkPath { get; private set; } = string.Empty;
-    public string? AssetPath { get; private set; }
 
     public ApkEditorContext(
         HomeViewModel homeViewModel,

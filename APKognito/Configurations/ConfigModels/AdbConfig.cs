@@ -35,6 +35,9 @@ internal sealed class AdbConfig : IKognitoConfig
     }
 }
 
+/// <summary>
+/// Information for a given ADB device/
+/// </summary>
 public sealed class AdbDeviceInfo
 {
     [JsonIgnore]
@@ -43,79 +46,20 @@ public sealed class AdbDeviceInfo
     [JsonProperty("device_id")]
     public string DeviceId { get; set; }
 
-    [JsonProperty("device_type")]
-    public DeviceType DeviceType { get; set; }
-
-    [JsonProperty("device_paths")]
-    public DevicePaths InstallPaths { get; set; }
+    [JsonProperty("device_name")]
+    public string DeviceName { get; set; }
 
     [JsonProperty("device_local_ip")]
     public byte[] IpAddress { get; set; } = DefaultIp;
 
     [JsonIgnore]
+    public bool DeviceAuthorized { get; set; } = false;
+
+    [JsonIgnore]
     public bool ConnectedByLan => StructuralComparisons.StructuralEqualityComparer.Equals(IpAddress, new byte[0, 0, 0, 0]);
 
-    public AdbDeviceInfo(string id, DeviceType type, string ovrd = "")
+    public AdbDeviceInfo(string id)
     {
         DeviceId = id;
-        SetDeviceType(type, ovrd);
     }
-
-    public void SetDeviceType(DeviceType deviceType, string ovrd = "")
-    {
-        if (deviceType == DeviceType)
-        {
-            return;
-        }
-
-        DeviceType = deviceType;
-
-        InstallPaths = deviceType is DeviceType.UserOverridePaths
-            ? new(ovrd)
-            : new(deviceType);
-    }
-}
-
-public struct DevicePaths
-{
-    [JsonProperty("device_obb_path")]
-    public string ObbPath { get; set; }
-
-    public DevicePaths(DeviceType deviceType, string ovrd = "")
-    {
-        switch (deviceType)
-        {
-            case DeviceType.BasicAndroid:
-                ObbPath = "/data/media/obb";
-                return;
-
-            case DeviceType.MetaQuest:
-                ObbPath = "/sdcard/Android/obb/";
-                return;
-
-            case DeviceType.UserOverridePaths:
-                ObbPath = ovrd;
-                break;
-
-            default:
-                throw new ArgumentException($"There is no case for {deviceType}");
-        }
-    }
-
-    [JsonConstructor]
-    public DevicePaths(string overrideObbPath)
-    {
-        ObbPath = overrideObbPath;
-    }
-}
-
-public enum DeviceType
-{
-    None,
-    BasicAndroid,
-    MetaQuest,
-
-    // More will be added if there's more device types
-
-    UserOverridePaths,
 }

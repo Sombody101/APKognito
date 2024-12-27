@@ -31,15 +31,6 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     #region Properties
 
     [ObservableProperty]
-    private ObservableCollection<AdbFolderInfo> _adbFolders = [];
-
-    [ObservableProperty]
-    private ObservableCollection<ComboBoxItem> _deviceList = [];
-
-    [ObservableProperty]
-    private ComboBoxItem _selectedDevice;
-
-    [ObservableProperty]
     private double _maxHeight = 500;
 
     [ObservableProperty]
@@ -114,37 +105,6 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     }
 
     #endregion Commands
-
-    public async Task RefreshDevicesList()
-    {
-        try
-        {
-            string[] devices = [.. await AdbManager.GetAllDevices()];
-
-            await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
-            {
-                DeviceList.Clear();
-
-                if (devices.Length is 1)
-                {
-                    SelectedDevice = new() { Content = devices[0] };
-                    DeviceList.Add(SelectedDevice);
-                }
-                else
-                {
-                    foreach (string device in devices)
-                    {
-                        DeviceList.Add(new() { Content = device });
-                    }
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            FileLogger.LogException(ex);
-            SnackError("Failed to get devices", ex.Message);
-        }
-    }
 
     public async Task EnterCommand(string? command = null)
     {

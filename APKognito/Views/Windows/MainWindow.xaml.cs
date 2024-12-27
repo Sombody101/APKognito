@@ -1,5 +1,4 @@
-﻿using APKognito.Utilities;
-using APKognito.ViewModels.Windows;
+﻿using APKognito.ViewModels.Windows;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;

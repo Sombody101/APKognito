@@ -19,6 +19,8 @@ internal class AdbManager
 
     private static readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
+    private static bool _noCommandRecurse = false;
+
     public void RunCommand(
         string arguments,
         Action<object?, DataReceivedEventArgs> stdOutRec,
@@ -49,6 +51,21 @@ internal class AdbManager
         _ = adbProcess.Start();
         CommandOutput commandOutput = await CommandOutput.GetCommandOutput(adbProcess);
         await adbProcess.WaitForExitAsync(token);
+
+        if (!_noCommandRecurse && commandOutput.StdErr.StartsWith("adb.exe: device unauthorized."))
+        {
+            LoggableObservableObject.CurrentLoggableObject?.SnackWarning("Command failed!", "An ADB command failed to execute! Running an ADB server restart... (may take some time).");
+            await QuickCommand("kill-server");
+            _noCommandRecurse = true;
+
+            return await QuickCommand(arguments, token, noThrow);
+        }
+        else if (_noCommandRecurse && commandOutput.DeviceNotAuthorized)
+        {
+            // If the error persists, then ADB is not enabled or authorized on the device.
+            _noCommandRecurse = false;
+            return commandOutput;
+        }
 
         commandOutput.ThrowIfError(noThrow);
 
@@ -104,27 +121,53 @@ internal class AdbManager
     /// Gets a formatted list of all available ADB devices.
     /// </summary>
     /// <returns></returns>
-    public static async Task<IEnumerable<string>> GetAllDevices(bool noThrow = false)
+    public static async Task<AdbDeviceInfo[]> GetAllDevices(bool noThrow = false)
     {
         CommandOutput response = await QuickCommand("devices -l", noThrow: noThrow);
 
-        return response.StdOut.Split("\r\n")
+        var enumeration = response.StdOut.Split("\r\n")
             // Trim empty lines
             .Where(str => !string.IsNullOrWhiteSpace(str))
             // Skip ADB list header
             .Skip(1)
-            .Select(str =>
+            .Select(async str =>
             {
                 string[] split = [.. str.Split().Where(str => !string.IsNullOrWhiteSpace(str))];
+                string deviceId = split[0];
 
-                string deviceActivity = split[1];
-                return deviceActivity switch
+                AdbDeviceInfo device = new(deviceId);
+
+                switch (split[2])
                 {
-                    "unauthorized" => $"{deviceActivity} - [ADB Not Enabled]",
-                    "offline" => $"{deviceActivity} - [Device Offline]",
-                    _ => $"{split[0]} - {split.First(str => str.StartsWith("model:"))[6..].Replace('_', ' ')}",
-                };
-            });
+                    case "unauthorized": device.DeviceName = $"[ADB Not Enabled]"; break;
+                    case "offline": device.DeviceName = "[Device Offline]"; break;
+                    default:
+                        {
+                            try
+                            {
+                                CommandOutput output = (await QuickCommand($@"-s {deviceId} shell getprop ro.product.model"));
+
+                                if (output.DeviceNotAuthorized)
+                                {
+                                    goto case "unauthorized";
+                                }
+
+                                device.DeviceName = output.StdOut.Trim();
+                                device.DeviceAuthorized = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                FileLogger.LogException(ex);
+                                goto case "unauthorized";
+                            }
+                        }
+                        break;
+                }
+
+                return device;
+            }).ToArray();
+
+        return await Task.WhenAll(enumeration);
     }
 
     /// <summary>
@@ -298,6 +341,8 @@ public readonly struct CommandOutput
     public readonly string StdErr { get; }
 
     public readonly bool Errored => !string.IsNullOrWhiteSpace(StdErr);
+
+    public readonly bool DeviceNotAuthorized => StdErr.StartsWith("adb.exe: device unauthorized.");
 
     public readonly void ThrowIfError(bool noThrow = false)
     {

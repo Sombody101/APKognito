@@ -102,7 +102,7 @@ public partial class FileUploaderViewModel : LoggableObservableObject, IViewable
             {
                 try
                 {
-                    CommandOutput result = await AdbManager.QuickDeviceCommand($"push {assets} {adbPaths.InstallPaths.ObbPath}");
+                    CommandOutput result = await AdbManager.QuickDeviceCommand($"push {assets} /storage/emulated/0/Android/obb/");
                     FileLogger.Log(result.StdOut);
                 }
                 catch (Exception ex)

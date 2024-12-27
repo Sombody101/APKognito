@@ -1,0 +1,151 @@
+﻿<Page
+    x:Class="APKognito.Views.Pages.UninstallerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctrls="clr-namespace:APKognito.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="clr-namespace:APKognito.Models"
+    xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="UninstallerPage"
+    d:DataContext="{d:DesignInstance pages:UninstallerViewModel,
+                                     IsDesignTimeCreatable=True}"
+    d:DesignHeight="700"
+    d:DesignWidth="1000"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    mc:Ignorable="d">
+
+    <Grid Margin="0,30,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto" />
+            <RowDefinition Height="auto" />
+            <RowDefinition Height="auto" />
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition Width="1.4*" />
+        </Grid.ColumnDefinitions>
+
+        <ui:Card Grid.ColumnSpan="2" Margin="0,0,0,10">
+            <ctrls:AndroidDeviceInfo />
+        </ui:Card>
+
+        <ProgressBar
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            Margin="0,0,0,10"
+            IsIndeterminate="{Binding EnableProgressBar}" />
+
+        <ui:Card
+            Grid.Row="2"
+            Margin="0,0,5,0"
+            VerticalAlignment="Top"
+            IsEnabled="{Binding EnableControls}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+
+                <ui:TextBlock>
+                    <Run />
+                </ui:TextBlock>
+
+                <ui:Button
+                    Margin="0,0,0,15"
+                    Command="{Binding UpdatePackageListCommand}"
+                    Content="Refresh" />
+
+                <StackPanel
+                    Grid.Row="1"
+                    Margin="0,0,0,10"
+                    Orientation="Horizontal">
+                    <ui:Button
+                        Margin="0,0,10,0"
+                        Command="{Binding UninstallPackagesCommand}"
+                        CommandParameter="{Binding ElementName=PackagesList}"
+                        Content="Uninstall Selected"
+                        ToolTip="Remove all files associated with the selected applications." />
+
+                    <ui:Button
+                        Margin="0,0,10,0"
+                        Command="{Binding SoftUninstallPackagesCommand}"
+                        CommandParameter="{Binding ElementName=PackagesList}"
+                        Content="Soft Uninstall Selected"
+                        ToolTip="Unintall the APK and asset files for each item selected, but keep all application data on the device (configurations, save data, etc)." />
+                </StackPanel>
+            </Grid>
+        </ui:Card>
+
+        <ui:Card
+            Grid.Row="2"
+            Grid.Column="1"
+            Height="{Binding ListHeight}"
+            Margin="5,0,0,0"
+            VerticalAlignment="Top"
+            IsEnabled="{Binding EnableControls}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto" />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+
+                <ui:TextBox
+                    Margin="0,0,0,5"
+                    PlaceholderText="Filter text"
+                    Text="{Binding SearchText}"
+                    TextChanged="TextBox_TextChanged" />
+
+                <ui:ListView
+                    x:Name="PackagesList"
+                    Grid.Row="1"
+                    ItemsSource="{Binding PackageList}"
+                    SelectionMode="Extended">
+                    <ui:ListView.ItemTemplate>
+                        <DataTemplate DataType="models:PackageEntry">
+                            <ui:Card>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition />
+                                        <RowDefinition />
+                                    </Grid.RowDefinitions>
+
+                                    <ui:TextBlock FontSize="18" FontWeight="Bold">
+                                        <Run Text="{Binding PackageName, Mode=OneWay}" />
+                                        <Run
+                                            FontSize="12"
+                                            FontWeight="Normal"
+                                            Text="{Binding FormattedTotalSize, Mode=OneWay}" />
+                                    </ui:TextBlock>
+
+                                    <StackPanel Grid.Row="1">
+                                        <ui:TextBlock>
+                                            <Run FontWeight="DemiBold" Text="Package Size:    " />
+                                            <Run Text="{Binding FormattedPackageSize, Mode=OneWay}" />
+                                        </ui:TextBlock>
+                                        <ui:TextBlock Grid.Column="1">
+                                            <Run FontWeight="DemiBold" Text="Assets Size:       " />
+                                            <Run Text="{Binding FormattedAssetsSize, Mode=OneWay}" />
+                                        </ui:TextBlock>
+                                        <ui:TextBlock>
+                                            <Run FontWeight="DemiBold" Text="Save Data Size: " />
+                                            <Run Text="{Binding FormattedSaveDataSize, Mode=OneWay}" />
+                                        </ui:TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </ui:Card>
+                        </DataTemplate>
+                    </ui:ListView.ItemTemplate>
+                </ui:ListView>
+            </Grid>
+        </ui:Card>
+    </Grid>
+</Page>
