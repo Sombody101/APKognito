@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Documents;
 using System.Windows.Threading;
 using Wpf.Ui;
+
 using FontFamily = System.Windows.Media.FontFamily;
 
 namespace APKognito.ViewModels.Pages;
@@ -40,7 +41,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             ApksignerJar;
 
     // By the time this is used anywhere, it will not be null
-    public static HomeViewModel? Instance { get; private set; }
+    public static HomeViewModel Instance { get; private set; } = null!;
 
     private CancellationTokenSource? _renameApksCancelationSource;
 
@@ -130,6 +131,19 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         get => kognitoConfig.ApkOutputDirectory;
         set
         {
+            Match match = GetPathVariable().Match(value);
+
+            if (match.Success)
+            {
+                string varName = match.Groups["var_name"].Value;
+                string? envVar = Environment.GetEnvironmentVariable(varName.Trim('%'));
+
+                if (envVar is not null)
+                {
+                    value = value.Replace(match.Value, envVar);
+                }
+            }
+
             kognitoConfig.ApkOutputDirectory = value;
             OnPropertyChanged(nameof(OutputDirectory));
         }
@@ -140,7 +154,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     /// </summary>
     public string ApkReplacementName
     {
-        get => kognitoConfig?.ApkNameReplacement ?? "apkognito";
+        get => kognitoConfig.ApkNameReplacement;
         set
         {
             kognitoConfig.ApkNameReplacement = value;
@@ -171,11 +185,13 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         ApktoolJar = Path.Combine(appDataTools, "apktool.jar");
         ApktoolBat = Path.Combine(appDataTools, "apktool.bat");
         ApksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
+    }
 
+    public async Task Initialize()
+    {
         if (FilePath.Length is not 0)
         {
-            // Finishes before the view, so shouldn't cause errors
-            _ = UpdateFootprintInfo();
+            await UpdateFootprintInfo();
         }
     }
 
@@ -216,58 +232,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     [RelayCommand]
     private async Task OnLoadApk()
     {
-        string openDirectory = Directory.Exists(kognitoCache.LastDialogDirectory)
-            ? kognitoCache.LastDialogDirectory
-            : "C:\\";
-
-        OpenFileDialog openFileDialog = new()
-        {
-            Filter = "APK files (*.apk)|*.apk",
-            Multiselect = true,
-            DefaultDirectory = openDirectory
-        };
-
-        bool? result = openFileDialog.ShowDialog();
-
-        if (result is null)
-        {
-            Log("Failed to get file. Please try again.");
-            return;
-        }
-
-        if ((bool)result)
-        {
-            string[] selectedFilePaths = openFileDialog.FileNames;
-
-            if (selectedFilePaths.Length is 1)
-            {
-                string selectedFilePath = selectedFilePaths[0];
-                FilePath = selectedFilePath;
-                string apkName = ApkName = Path.GetFileName(selectedFilePath);
-                Log($"Selected {apkName} from: {selectedFilePath}");
-            }
-            else
-            {
-                FilePath = string.Join(PATH_SEPARATOR, selectedFilePaths);
-
-                StringBuilder sb = new($"Selected {selectedFilePaths.Length} APKs\n");
-
-                foreach (string str in selectedFilePaths)
-                {
-                    _ = sb.Append("\tAt: ").AppendLine(str);
-                }
-
-                Log(sb.ToString());
-            }
-
-            await UpdateFootprintInfo();
-        }
-        else
-        {
-            Log("Did you forget to select a file from the File Explorer window?");
-        }
-
-        UpdateCanStart();
+        await LoadApk();
     }
 
     [RelayCommand]
@@ -317,12 +282,12 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         Log("Settings saved!");
     }
 
+    #endregion Commands
+
     public async ValueTask OnRenameCopyChecked()
     {
         await UpdateFootprintInfo();
     }
-
-    #endregion Commands
 
     public void UpdateCanStart()
     {
@@ -367,10 +332,9 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             goto ChecksFailed;
         }
 
-        Log("Verifying that Java 9+ and APK tools are installed...");
+        Log("Verifying that Java 8+ and APK tools are installed...");
 
-        string javaPath = (await VerifyJavaInstallation())!;
-        if (javaPath is null || !await VerifyToolInstallation())
+        if (!VerifyJavaInstallation(out string? javaPath) || !await VerifyToolInstallation())
         {
             goto ChecksFailed;
         }
@@ -425,7 +389,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
             JobbedApk = Path.GetFileName(sourceApkPath);
 
-            ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
+            ApkEditorContext editorContext = new(this, javaPath!, sourceApkPath);
 
             string? errorReason = null;
             bool apkFailed = false;
@@ -602,12 +566,68 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         }
     }
 
-    private async ValueTask<string?> VerifyJavaInstallation()
+    private async Task LoadApk()
+    {
+        string openDirectory = Directory.Exists(kognitoCache.LastDialogDirectory)
+            ? kognitoCache.LastDialogDirectory
+            : "C:\\";
+
+        OpenFileDialog openFileDialog = new()
+        {
+            Filter = "APK files (*.apk)|*.apk",
+            Multiselect = true,
+            DefaultDirectory = openDirectory
+        };
+
+        bool? result = openFileDialog.ShowDialog();
+
+        if (result is null)
+        {
+            Log("Failed to get file. Please try again.");
+            return;
+        }
+
+        if ((bool)result)
+        {
+            string[] selectedFilePaths = openFileDialog.FileNames;
+
+            if (selectedFilePaths.Length is 1)
+            {
+                string selectedFilePath = selectedFilePaths[0];
+                FilePath = selectedFilePath;
+                string apkName = ApkName = Path.GetFileName(selectedFilePath);
+                Log($"Selected {apkName} from: {selectedFilePath}");
+            }
+            else
+            {
+                FilePath = string.Join(PATH_SEPARATOR, selectedFilePaths);
+
+                StringBuilder sb = new($"Selected {selectedFilePaths.Length} APKs\n");
+
+                foreach (string str in selectedFilePaths)
+                {
+                    _ = sb.Append("\tAt: ").AppendLine(str);
+                }
+
+                Log(sb.ToString());
+            }
+
+            await UpdateFootprintInfo();
+        }
+        else
+        {
+            Log("Did you forget to select a file from the File Explorer window?");
+        }
+
+        UpdateCanStart();
+    }
+
+    private bool VerifyJavaInstallation(out string? javaPath)
     {
         static bool VerifyVersion(string versionStr)
         {
-            // Java versions 9-22
-            if (Version.TryParse(versionStr, out Version? jdkVersion) && jdkVersion.Major >= 18)
+            // Java versions 8-22
+            if (Version.TryParse(versionStr, out Version? jdkVersion) && jdkVersion.Major == 1 && jdkVersion.Minor >= 8)
             {
                 return true;
             }
@@ -615,8 +635,6 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             // Formatting for Java versions 23+ (or the JAVA_HOME path)
             return int.TryParse(versionStr.Split('.')[0], out int major) && major >= 9;
         }
-
-        string? javaPath = null;
 
         // Check with the environment variable first
         string? javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
@@ -630,7 +648,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             // Try the registry if this path isn't correct
             if (File.Exists(javaPath))
             {
-                return javaPath;
+                return true;
             }
 
             StringBuilder logBuffer = new();
@@ -658,55 +676,52 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             FileLogger.LogError(logBuffer.ToString());
         }
 
-        // Check for JDK via registry
-        RegistryKey? javaJdkKey = Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK");
-        if (javaJdkKey is not null)
+        bool GetKey(RegistryKey? javaJdkKey, out string? javaPath, string javaType = "JDK")
         {
+            javaPath = null;
+
+            if (javaJdkKey is null)
+            {
+                return false;
+            }
+
             if (javaJdkKey.GetValue("CurrentVersion") is not string rawJdkVersion)
             {
-                LogWarning("A JDK installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
-                goto JavaSearchFailed;
+                LogWarning($"A {javaType} installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
+                return false;
             }
 
             if (!VerifyVersion(rawJdkVersion))
             {
-                LogWarning($"JDK installation found with the version {rawJdkVersion}, but it's not Java 9+");
-                goto JavaSearchFailed;
+                LogWarning($"{javaType} installation found with the version {rawJdkVersion}, but it's not Java 8+");
+                return false;
             }
 
             string keyPath = (string)javaJdkKey.OpenSubKey(rawJdkVersion)!.GetValue("JavaHome")!;
-            javaPath = Path.Combine(keyPath, "bin\\java.exe");
+            string subJavaPath = Path.Combine(keyPath, "bin\\java.exe");
 
             // This is a VERY rare case
-            if (!File.Exists(javaPath))
+            if (!File.Exists(subJavaPath))
             {
-                LogError($"Java version {rawJdkVersion} found, but the Java directory it points to does not exist: {javaPath}");
-                return null;
+                LogError($"Java version {rawJdkVersion} found, but the Java directory it points to does not exist: {subJavaPath}");
+                return false;
             }
 
-            // Still working on Powershell check, just keeping this to prevent 'no await' warning
-            await Task.Delay(1);
-            Log($"Using Java version {rawJdkVersion} at {javaPath}");
-            return javaPath;
-
+            Log($"Using Java version {rawJdkVersion} at {subJavaPath}");
+            javaPath = subJavaPath;
+            return true;
         }
 
-    // Check via Powershell
-    // string psPath = await AdbManager.QuickGenericCommand(
-    //     Constants.POWERSHELL_PATH,
-    //     "-c Get-Command java | Select-Object -ExpandProperty Source"
-    // );
+        // Check for JDK via registry
+        if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
+            || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath))
+        {
+            return true;
+        }
 
-    // LogWarning($"Java was found, but the version was unable to be verified: {psPath}");
-    // javaPath = psPath;
-    // return javaPath;
-
-    // A JRE check will be implemented. Eventually...
-
-    JavaSearchFailed:
-        LogError("Failed to find a valid JDK installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
+        LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
         LogError("If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
-        return null;
+        return false;
     }
 
     private async ValueTask UpdateFootprintInfo()
@@ -809,4 +824,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     [GeneratedRegex("^[a-zA-Z0-9_]+$")]
     private static partial Regex ApkCompanyCheck();
+
+    [GeneratedRegex("(?<var_name>\\%[a-zA-Z_-]+\\%)")]
+    private static partial Regex GetPathVariable();
 }
