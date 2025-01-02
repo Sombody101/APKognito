@@ -7,6 +7,8 @@ public class PackageEntry
 {
     public string PackageName { get; }
 
+    public string PackagePath { get; }
+
     public string? AssetPath { get; }
 
     public long PackageSizeBytes { get; }
@@ -15,9 +17,10 @@ public class PackageEntry
 
     public long SaveDataSizeBytes { get; }
 
-    public PackageEntry(string packageName, long packageSizeBytes, string? assetPath, long assetsSizeBytes, long saveDataSizeBytes)
+    public PackageEntry(string packageName, string packagePath, long packageSizeBytes, string? assetPath, long assetsSizeBytes, long saveDataSizeBytes)
     {
         PackageName = packageName;
+        PackagePath = packagePath;
         AssetPath = string.IsNullOrWhiteSpace(assetPath)
             ? null
             : assetPath;

@@ -1,4 +1,6 @@
-﻿namespace APKognito.Utilities;
+﻿using System.Windows.Interop;
+
+namespace APKognito.Utilities;
 
 public class PageSizeTracker : ObservableObject
 {
@@ -7,10 +9,14 @@ public class PageSizeTracker : ObservableObject
     private FrameworkElement _page;
     private Window _window;
 
-    public event EventHandler<SizeChangedEventArgs> PageSizeChanged;
-    public event EventHandler<SizeChangedEventArgs> WindowSizeChanged;
+    private bool _isMaximized = false;
+    private double _maximizedHeight;
+    private double _maximizedWidth;
 
-    public void SetPage(FrameworkElement page)
+    public event EventHandler<SizeChangedEventArgs>? PageSizeChanged;
+    public event EventHandler<SizeChangedEventArgs>? WindowSizeChanged;
+
+    public void SetAndInitializePageSize(FrameworkElement page)
     {
         _page = page;
         page.SizeChanged += (sender, e) =>
@@ -21,11 +27,37 @@ public class PageSizeTracker : ObservableObject
         _window = Window.GetWindow(page);
         _window.SizeChanged += (sender, e) =>
         {
+            if (e.NewSize == e.PreviousSize)
+            {
+                return;
+            }
+
             WindowSizeChanged?.Invoke(sender, e);
         };
 
+        // Set the max size if the window was maximized when navigating to the page
+        if (_window.WindowState == WindowState.Maximized)
+        {
+            _isMaximized = true;
+            SetMaximizedSize();
+        }
+
         _window.StateChanged += (sender, e) =>
         {
+            bool maximized = _window.WindowState == WindowState.Maximized;
+
+            if (maximized == _isMaximized)
+            {
+                return;
+            }
+
+            _isMaximized = maximized;
+
+            if (maximized)
+            {
+                SetMaximizedSize();
+            }
+
             WindowSizeChanged?.Invoke(sender, null!);
         };
 
@@ -36,8 +68,8 @@ public class PageSizeTracker : ObservableObject
     public double PageHeight => _page.Height;
     public double PageWidth => _page.Width;
 
-    public double WindowHeight => _window.Height;
-    public double WindowWidth => _window.Width;
+    public double WindowHeight => _isMaximized ? _maximizedHeight : _window.Height;
+    public double WindowWidth => _isMaximized ? _maximizedWidth : _window.Width;
 
     public double GetPageHeightPercent(double percent)
     {
@@ -57,5 +89,12 @@ public class PageSizeTracker : ObservableObject
     public double GetWindowWidthPercent(double percent)
     {
         return _window.Width * (percent / 100);
+    }
+
+    private void SetMaximizedSize()
+    {
+        Screen screen = Screen.FromHandle(new WindowInteropHelper(_window).Handle);
+        _maximizedHeight = screen.Bounds.Height;
+        _maximizedWidth = screen.Bounds.Width;
     }
 }

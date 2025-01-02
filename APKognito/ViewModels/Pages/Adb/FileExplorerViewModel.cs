@@ -1,4 +1,5 @@
-﻿using APKognito.Configurations;
+﻿using APKognito.AdbTools;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities;
@@ -14,6 +15,9 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
     #region Properties
+
+    [ObservableProperty]
+    private double _viewHeight = 500;
 
     [ObservableProperty]
     private ObservableCollection<AdbFolderInfo> _adbFolders = [];
@@ -33,6 +37,11 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
     public FileExplorerViewModel(ISnackbarService _snackbarService)
     {
         SetSnackbarProvider(_snackbarService);
+
+        WindowSizeChanged += (sender, e) =>
+        {
+            ViewHeight = WindowHeight - TitlebarHeight - 160;
+        };
     }
 
     #region Commands
@@ -41,7 +50,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
     private async Task OnTryConnection()
     {
         await GetFolders(null);
-        
+
     }
 
     [RelayCommand]
@@ -49,7 +58,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
     {
         TreeViewItem? itemToRefresh = null;
         if (info.ParentTreeViewItem is not null)
-        { 
+        {
             var thing = info.ParentTreeViewItem.Items;
         }
         else

@@ -1,4 +1,5 @@
-﻿using APKognito.Configurations;
+﻿using APKognito.AdbTools;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
 using APKognito.Models;
@@ -7,7 +8,6 @@ using APKognito.Utilities;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Documents;
@@ -45,9 +45,6 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     private CancellationTokenSource? _renameApksCancelationSource;
 
-    /*
-     * Properties
-     */
     #region Properties
 
     [ObservableProperty]
@@ -78,10 +75,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     private string _cantStartReason = string.Empty;
 
     [ObservableProperty]
-    private Visibility _startButtonVisibility = Visibility.Visible;
-
-    [ObservableProperty]
-    private Visibility _cancelButtonVisibility = Visibility.Collapsed;
+    private bool _startButtonVisible = true;
 
     [ObservableProperty]
     private long _footprintSizeBytes = 0;
@@ -131,19 +125,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         get => kognitoConfig.ApkOutputDirectory;
         set
         {
-            Match match = GetPathVariable().Match(value);
-
-            if (match.Success)
-            {
-                string varName = match.Groups["var_name"].Value;
-                string? envVar = Environment.GetEnvironmentVariable(varName.Trim('%'));
-
-                if (envVar is not null)
-                {
-                    value = value.Replace(match.Value, envVar);
-                }
-            }
-
+            value = VariablePathResolver.Resolve(value);
             kognitoConfig.ApkOutputDirectory = value;
             OnPropertyChanged(nameof(OutputDirectory));
         }
@@ -373,8 +355,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         string[] failedJobs = new string[files.Length];
         int completeJobs = 0;
 
-        // Enable a cancel button
-        InvertStartButtonVisibility();
+        StartButtonVisible = false;
 
         int jobIndex = 0;
         foreach (string sourceApkPath in files)
@@ -510,7 +491,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         elapsedTime.Stop();
         taskTimer.Stop();
 
-        InvertStartButtonVisibility();
+        StartButtonVisible = true;
 
         JobbedApk = FinalName = $"Finished {completeJobs}/{files.Length} APKs";
 
@@ -764,20 +745,6 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         }
     }
 
-    private void InvertStartButtonVisibility([Optional] bool? forceStartVisible)
-    {
-        if (StartButtonVisibility is Visibility.Visible || forceStartVisible is false)
-        {
-            StartButtonVisibility = Visibility.Collapsed;
-            CancelButtonVisibility = Visibility.Visible;
-        }
-        else
-        {
-            StartButtonVisibility = Visibility.Visible;
-            CancelButtonVisibility = Visibility.Collapsed;
-        }
-    }
-
     private async Task<bool> VerifyAdbDevice()
     {
         switch (await AdbConfigurationViewModel.TryConnectDevice(adbConfig))
@@ -824,7 +791,4 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     [GeneratedRegex("^[a-zA-Z0-9_]+$")]
     private static partial Regex ApkCompanyCheck();
-
-    [GeneratedRegex("(?<var_name>\\%[a-zA-Z_-]+\\%)")]
-    private static partial Regex GetPathVariable();
 }

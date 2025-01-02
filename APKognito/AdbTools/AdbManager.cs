@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Utilities;
 using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
@@ -7,11 +8,16 @@ using System.IO;
 using System.Resources;
 using System.Runtime.InteropServices;
 
-namespace APKognito.Utilities;
+namespace APKognito.AdbTools;
 
 internal class AdbManager
 {
-    private const string APKOGNITO_DIRECTORY = "/storage/emulated/0/apkognito";
+    private const string APKOGNITO_DIRECTORY = $"{ANDROID_EMULATED}/apkognito";
+
+    public const string ANDROID_EMULATED = "/storage/emulated/0";
+    public const string ANDROID_EMULATED_BASE = $"{ANDROID_EMULATED}/Android";
+    public const string ANDROID_DATA = $"{ANDROID_EMULATED_BASE}/data";
+    public const string ANDROID_OBB = $"{ANDROID_EMULATED_BASE}/obb";
 
     public Process? AdbProcess { get; private set; }
 
@@ -67,7 +73,7 @@ internal class AdbManager
             return commandOutput;
         }
 
-        commandOutput.ThrowIfError(noThrow);
+        commandOutput.ThrowIfError(noThrow, adbProcess.ExitCode);
 
         return commandOutput;
     }
@@ -112,7 +118,7 @@ internal class AdbManager
 
         await proc.WaitForExitAsync();
 
-        commandOutput.ThrowIfError(noThrow);
+        commandOutput.ThrowIfError(noThrow, proc.ExitCode);
 
         return commandOutput;
     }
@@ -145,7 +151,7 @@ internal class AdbManager
                         {
                             try
                             {
-                                CommandOutput output = (await QuickCommand($@"-s {deviceId} shell getprop ro.product.model"));
+                                CommandOutput output = await QuickCommand($@"-s {deviceId} shell getprop ro.product.model");
 
                                 if (output.DeviceNotAuthorized)
                                 {
@@ -201,14 +207,22 @@ internal class AdbManager
         CommandOutput output = await CommandOutput.GetCommandOutput(adbRestartProcess);
         await adbRestartProcess.WaitForExitAsync();
 
-        output.ThrowIfError(noThrow);
+        output.ThrowIfError(noThrow, adbRestartProcess.ExitCode);
     }
 
-    public static bool AdbWorks([Optional] string? platformToolsPath)
+    public static bool AdbWorks([Optional] string? platformToolsPath, LoggableObservableObject? snackService = null)
     {
         platformToolsPath ??= adbConfig.PlatformToolsPath;
+        bool isInstalled = Directory.Exists(platformToolsPath) || File.Exists(Path.Combine(platformToolsPath, "adb.exe"));
 
-        return Directory.Exists(platformToolsPath) || File.Exists(Path.Combine(platformToolsPath, "adb.exe"));
+        if (isInstalled)
+        {
+            snackService?.SnackError("Platform tools are not installed!", "You can:\n1. Install them by running ':install-adb' in the Console Page.\n" +
+                "2. Verify the Platform Tools path in the ADB Configuration Page.\n" +
+                "3. Install them manually at https://dl.google.com/android/repository/platform-tools-latest-windows.zip, then set the path in the ADB Configuration Page.");
+        }
+
+        return isInstalled;
     }
 
     /// <summary>
@@ -322,54 +336,5 @@ internal class AdbManager
         Success,
         NoScriptResources,
         ScriptsUpToDate,
-    }
-}
-
-/// <summary>
-/// Holds references to the STDOUT and STDERR output of an ADB command.
-/// </summary>
-public readonly struct CommandOutput
-{
-    /// <summary>
-    /// All text data from STDOUT of an ADB command.
-    /// </summary>
-    public readonly string StdOut { get; }
-
-    /// <summary>
-    /// All text data from STDERR of an ADB command.
-    /// </summary>
-    public readonly string StdErr { get; }
-
-    public readonly bool Errored => !string.IsNullOrWhiteSpace(StdErr);
-
-    public readonly bool DeviceNotAuthorized => StdErr.StartsWith("adb.exe: device unauthorized.");
-
-    public readonly void ThrowIfError(bool noThrow = false)
-    {
-        if (!noThrow && Errored)
-        {
-            throw new AdbCommandException(StdErr);
-        }
-    }
-
-    public CommandOutput(string stdout, string stderr)
-    {
-        StdOut = stdout;
-        StdErr = stderr;
-    }
-
-    public static async Task<CommandOutput> GetCommandOutput(Process proc)
-    {
-        return new(
-            await proc.StandardOutput.ReadToEndAsync(),
-            await proc.StandardError.ReadToEndAsync()
-        );
-    }
-
-    public class AdbCommandException : Exception
-    {
-        public AdbCommandException(string error)
-            : base(error)
-        { }
     }
 }

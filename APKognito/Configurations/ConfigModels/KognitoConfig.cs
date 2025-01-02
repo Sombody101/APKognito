@@ -16,11 +16,14 @@ public class KognitoConfig : IKognitoConfig
     [JsonProperty("apk_output")]
     public string ApkOutputDirectory { get; set; } = Path.Combine(App.AppData!.FullName, "output");
 
+    [JsonProperty("apk_pull_output")]
+    public string ApkPullDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+
     /// <summary>
     /// The name to replace the company name with in an APK (com.&lt;your_company&gt;.app -> com.apkognito.app)
     /// </summary>
     [JsonProperty("apk_replacement_name")]
-    public string? ApkNameReplacement { get; set; }
+    public string ApkNameReplacement { get; set; } = "apkognito";
 
     /// <summary>
     /// Rather than moving the files, preserves the old game.

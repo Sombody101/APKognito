@@ -18,7 +18,6 @@ public partial class AdbConfigurationPage : INavigableView<AdbConfigurationViewM
     public AdbConfigurationPage(AdbConfigurationViewModel viewModel)
     {
         InitializeComponent();
-        DataContext = this;
-        ViewModel = viewModel;
+        DataContext = ViewModel = viewModel;
     }
 }

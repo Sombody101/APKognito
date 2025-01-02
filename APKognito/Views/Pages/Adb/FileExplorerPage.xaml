@@ -21,11 +21,6 @@
     mc:Ignorable="d">
 
     <Grid Margin="0,30">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="auto" />
-            <RowDefinition />
-        </Grid.RowDefinitions>
-
         <ui:Card
             Grid.Row="1"
             VerticalAlignment="Stretch"
@@ -37,7 +32,7 @@
                     IsReadOnly="True"
                     Text="{Binding ItemPath}" />
 
-                <TreeView ItemsSource="{Binding AdbFolders, Mode=TwoWay}">
+                <TreeView Height="{Binding ViewHeight}" ItemsSource="{Binding AdbFolders, Mode=TwoWay}">
                     <TreeView.Resources>
                         <!--
                             d:DataContext="{d:DesignInstance pages:FileExplorerViewModel, IsDesignTimeCreatable=False}"

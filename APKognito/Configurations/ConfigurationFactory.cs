@@ -4,8 +4,6 @@ using Newtonsoft.Json;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
-using System.Text;
 
 namespace APKognito.Configurations;
 
@@ -96,6 +94,16 @@ public static class ConfigurationFactory
             case ConfigType.MemoryPacked:
                 Save_MemoryPack(config, filePath, configAttribute.ConfigModifier);
                 break;
+        }
+    }
+
+    public static void SaveConfig<T>()
+    {
+        Type passedType = typeof(T);
+
+        if (!_cachedConfigs.TryGetValue(passedType, out IKognitoConfig? config))
+        {
+            SaveConfig(config!);
         }
     }
 

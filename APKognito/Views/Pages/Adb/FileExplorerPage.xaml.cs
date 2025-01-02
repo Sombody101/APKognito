@@ -19,6 +19,8 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
 
         Loaded += (sender, e) =>
         {
+            viewModel.SetAndInitializePageSize(this);
+
             if (ConfigurationFactory.TryGetConfig<AdbConfig>(out var adbConfig) && adbConfig!.CurrentDeviceId is not null)
             {
                 // A default device exists, so start adding items early

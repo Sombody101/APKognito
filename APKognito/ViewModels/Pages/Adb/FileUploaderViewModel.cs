@@ -1,4 +1,5 @@
-﻿using APKognito.Configurations;
+﻿using APKognito.AdbTools;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
 using Microsoft.Win32;
@@ -28,6 +29,11 @@ public partial class FileUploaderViewModel : LoggableObservableObject, IViewable
     public FileUploaderViewModel(ISnackbarService _snackbarService)
     {
         SetSnackbarProvider(_snackbarService);
+    }
+
+    public FileUploaderViewModel()
+    {
+        // For designer
     }
 
     #region Commands

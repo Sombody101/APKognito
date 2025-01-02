@@ -42,6 +42,8 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
             viewModel.ApkName = Path.GetFileName(viewModel.FilePath);
             viewModel.UpdateCanStart();
         }
+
+        Loaded += async (sender, e) => await ViewModel.Initialize();
     }
 
     private void UpdateLogs(object sender, TextChangedEventArgs e)

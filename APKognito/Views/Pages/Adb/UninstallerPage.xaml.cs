@@ -21,7 +21,7 @@ public partial class UninstallerPage : INavigableView<UninstallerViewModel>, IVi
 
         Loaded += async (sender, e) =>
         {
-            ViewModel.SetPage(this);
+            ViewModel.SetAndInitializePageSize(this);
             await viewModel.UpdatePackageListCommand.ExecuteAsync(null);
         };
     }

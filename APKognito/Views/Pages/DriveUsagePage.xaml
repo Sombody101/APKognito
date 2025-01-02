@@ -24,33 +24,33 @@
         <helpers:StringFormatConverter x:Key="StringFormatConverter" />
         <helpers:GBConverter x:Key="GBConverter" />
         <helpers:IsFileConverter x:Key="IsFileConverter" />
+        <helpers:VisibilityInverter x:Key="VisibilityInverter" />
+        <helpers:BoolToVisibility x:Key="BoolToVisibility" />
     </Page.Resources>
 
     <Grid Margin="0,30">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width=".45*" MinWidth="350"/>
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
 
-        <Grid.ColumnDefinitions />
-
-        <Grid.RowDefinitions>
-            <RowDefinition Height="auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <ui:Card VerticalAlignment="Top">
+        <ui:Card
+            Grid.Column="0"
+            Margin="0,0,5,0"
+            VerticalAlignment="Stretch"
+            VerticalContentAlignment="Top">
             <Grid>
 
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="auto" />
+                    <RowDefinition />
+                    <RowDefinition />
                     <RowDefinition />
                 </Grid.RowDefinitions>
 
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-
-                <ui:Card>
+                <ui:Card Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock
+                            Grid.ColumnSpan="2"
                             Margin="0,0,0,10"
                             FontSize="18"
                             Text="Summary" />
@@ -64,11 +64,8 @@
                             ToolTip="The total disk space of all found items.">
                             <TextBlock.Inlines>
                                 <ui:SymbolIcon Symbol="QuestionCircle24" />
-                                <Run FontWeight="Bold" Text="Total Footprint" />
-                                <Run Text=": " />
-                                <Run FontWeight="Normal">
-                                    <Binding Converter="{StaticResource GBConverter}" Path="TotalUsedSpace" />
-                                </Run>
+                                <Run FontWeight="Bold" Text="Total Footprint: " />
+                                <Run FontWeight="Normal" Text="{Binding TotalUsedSpace, Converter={StaticResource GBConverter}}" />
                             </TextBlock.Inlines>
                         </TextBlock>
 
@@ -81,11 +78,8 @@
                             ToolTip="The total disk space of the items filtered from all other found items.">
                             <TextBlock.Inlines>
                                 <ui:SymbolIcon Symbol="QuestionCircle24" />
-                                <Run FontWeight="Bold" Text="Total Filtered" />
-                                <Run Text=": " />
-                                <Run FontWeight="Normal">
-                                    <Binding Converter="{StaticResource GBConverter}" Path="TotalFilteredSpace" />
-                                </Run>
+                                <Run FontWeight="Bold" Text="Total Filtered:    " />
+                                <Run FontWeight="Normal" Text="{Binding TotalFilteredSpace, Converter={StaticResource GBConverter}}" />
                             </TextBlock.Inlines>
                         </TextBlock>
 
@@ -98,11 +92,8 @@
                             ToolTip="The total disk space of all selected items below.">
                             <TextBlock.Inlines>
                                 <ui:SymbolIcon Symbol="QuestionCircle24" />
-                                <Run FontWeight="Bold" Text="Total Selected" />
-                                <Run Text=": " />
-                                <Run FontWeight="Normal">
-                                    <Binding Converter="{StaticResource GBConverter}" Path="TotalSelectedSpace" />
-                                </Run>
+                                <Run FontWeight="Bold" Text="Total Selected:   " />
+                                <Run FontWeight="Normal" Text="{Binding TotalSelectedSpace, Converter={StaticResource GBConverter}}" />
                             </TextBlock.Inlines>
                         </TextBlock>
 
@@ -116,7 +107,8 @@
                 </ui:Card>
 
                 <ui:Card
-                    Grid.Column="2"
+                    Grid.Row="1"
+                    Margin="0,0,0,10"
                     VerticalAlignment="Stretch"
                     VerticalContentAlignment="Top">
                     <Grid VerticalAlignment="Top">
@@ -131,6 +123,7 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock
+                            Grid.ColumnSpan="2"
                             Margin="0,0,0,10"
                             FontSize="18"
                             Text="Footprint Manipulation" />
@@ -174,37 +167,33 @@
                     </Grid>
                 </ui:Card>
 
-                <ProgressBar
-                    Grid.Row="1"
-                    Grid.ColumnSpan="2"
-                    Margin="0,13,0,0"
-                    IsIndeterminate="{Binding IsRunning}" />
+                <ProgressBar Grid.Row="2" IsIndeterminate="{Binding IsRunning}" />
             </Grid>
         </ui:Card>
 
         <ui:Card
-            Grid.Row="1"
-            Margin="0,10,0,0"
-            Padding="5"
+            Grid.Column="2"
+            Margin="5,0,0,0"
             VerticalAlignment="Top"
             VerticalContentAlignment="Top">
 
             <Grid>
-                <ui:Card Visibility="{Binding NoFilesPanelVisibility}">
-                    <ui:TextBlock HorizontalAlignment="Center" FontSize="18">
-                        No files to cleanup!
-                    </ui:TextBlock>
+                <ui:Card Visibility="{Binding FileListVisibility, Converter={StaticResource VisibilityInverter}}">
+                    <ui:TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="18"
+                        Text="No files to cleanup!" />
                 </ui:Card>
 
                 <ui:ListView
                     x:Name="FolderList"
-                    MaxHeight="{x:Static SystemParameters.MaximizedPrimaryScreenHeight}"
+                    Height="{Binding ListHeight}"
                     Margin="0,0,0,10"
                     VerticalAlignment="Stretch"
                     ItemsSource="{Binding FoundFolders}"
                     SelectionChanged="FolderList_SelectionChanged"
                     SelectionMode="Extended"
-                    Visibility="{Binding FileListVisibility}">
+                    Visibility="{Binding FileListVisibility, Converter={StaticResource BoolToVisibility}}">
 
                     <ListView.ItemTemplate>
                         <DataTemplate DataType="{x:Type models:FootprintInfo}">
@@ -223,7 +212,7 @@
 
                                     <TextBlock
                                         Grid.ColumnSpan="2"
-                                        FontSize="18"
+                                        FontSize="16"
                                         FontWeight="Bold"
                                         Text="{Binding FolderName}" />
 
@@ -236,19 +225,14 @@
 
                                         <TextBlock
                                             Margin="0,0,0,5"
-                                            FontSize="16"
+                                            FontSize="14"
                                             FontWeight="Medium"
+                                            Opacity=".75"
                                             Text="{Binding ItemType, Converter={StaticResource IsFileConverter}}" />
 
-                                        <TextBlock FontWeight="Bold">
-                                            Path:
-                                        </TextBlock>
-                                        <TextBlock FontWeight="Bold">
-                                            Size:
-                                        </TextBlock>
-                                        <TextBlock FontWeight="Bold">
-                                            Creation Date:
-                                        </TextBlock>
+                                        <TextBlock FontWeight="Bold" Text="Path:" />
+                                        <TextBlock FontWeight="Bold" Text="Size:" />
+                                        <TextBlock FontWeight="Bold" Text="Creation Date:" />
                                     </StackPanel>
 
                                     <StackPanel
@@ -256,7 +240,7 @@
                                         Grid.Column="1"
                                         VerticalAlignment="Center">
 
-                                        <TextBlock Margin="0,0,0,5" FontSize="16" />
+                                        <TextBlock Margin="0,0,0,5" FontSize="14" />
 
                                         <TextBlock Text="{Binding FolderPath}" />
                                         <TextBlock>
@@ -271,6 +255,7 @@
                                     </StackPanel>
                                 </Grid>
                             </ui:Card>
+
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ui:ListView>

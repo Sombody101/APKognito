@@ -13,7 +13,8 @@ public partial class MainWindow : INavigationWindow
         MainWindowViewModel viewModel,
         ISnackbarService snackbarService,
         IPageService pageService,
-        INavigationService navigationService
+        INavigationService navigationService,
+        IContentDialogService contentDialogService
     )
     {
         ViewModel = viewModel;
@@ -27,6 +28,7 @@ public partial class MainWindow : INavigationWindow
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
 
         navigationService.SetNavigationControl(RootNavigation);
+        contentDialogService.SetDialogHost(RootContentDialog);
 
         if (MainWindowViewModel.LaunchedAsAdministrator)
         {
@@ -51,6 +53,12 @@ public partial class MainWindow : INavigationWindow
                 }
             };
         }
+    }
+
+    public MainWindow()
+    {
+        // For designer
+        ViewModel = new();
     }
 
     #region INavigationWindow methods

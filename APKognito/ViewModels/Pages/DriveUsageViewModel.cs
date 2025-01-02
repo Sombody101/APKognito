@@ -1,6 +1,8 @@
 ﻿using APKognito.Configurations;
 using APKognito.Models;
 using APKognito.Models.Settings;
+using APKognito.Utilities;
+using Humanizer;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
@@ -8,7 +10,7 @@ using System.Windows.Threading;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class DriveUsageViewModel : ObservableObject, IViewable
+public partial class DriveUsageViewModel : PageSizeTracker, IViewable
 {
     private readonly KognitoConfig config;
 
@@ -19,19 +21,18 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
     #region Properties
 
     [ObservableProperty]
+    private double _listHeight = 500;
+
+    [ObservableProperty]
     private bool _isRunning =
 #if DEBUG
         true;
-
 #else
         false;
 #endif
 
     [ObservableProperty]
-    private Visibility _noFilesPanelVisibility = Visibility.Collapsed;
-
-    [ObservableProperty]
-    private Visibility _fileListVisibility = Visibility.Visible;
+    private bool _fileListVisibility = true;
 
     [ObservableProperty]
     private string _startButtonText = "Refresh";
@@ -71,6 +72,11 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         FilterInRenamedApks = false;
         FilterInFiles = FilterInDirectories = true;
+
+        WindowSizeChanged += (sender, e) =>
+        {
+            ListHeight = WindowHeight - TitlebarHeight - 105;
+        };
 
 #if DEBUG
         PopulateList();
@@ -137,6 +143,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             Title = $"Delete {GetFormattedItems(itemsToDelete)}?",
             Content = "All previously selected items will be deleted. (Click 'Cancel' to view once more if needed).\n\nContinue?",
             PrimaryButtonText = "Delete",
+            PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
             CloseButtonText = "Cancel",
         };
 
@@ -173,6 +180,7 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
             Title = $"Delete {GetFormattedItems(FoundFolders)}?",
             Content = "All items displayed will be deleted (Click 'Cancel' to view once more if needed).\n\nContinue?",
             PrimaryButtonText = "Delete",
+            PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
             CloseButtonText = "Cancel",
         };
 
@@ -215,18 +223,20 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
                 TotalFilteredSpace += item.FolderSizeBytes;
             }
 
-            if (cachedFootprints.Count is 0)
-            {
-                NoFilesPanelVisibility = Visibility.Visible;
-                FileListVisibility = Visibility.Collapsed;
-                CanDelete = false;
-            }
-            else
-            {
-                NoFilesPanelVisibility = Visibility.Collapsed;
-                FileListVisibility = Visibility.Visible;
-                CanDelete = true;
-            }
+            CanDelete = FileListVisibility = cachedFootprints.Count is not 0;
+
+            // if (cachedFootprints.Count is 0)
+            // {
+            //     NoFilesPanelVisibility = Visibility.Visible;
+            //     FileListVisibility = Visibility.Collapsed;
+            //     CanDelete = false;
+            // }
+            // else
+            // {
+            //     NoFilesPanelVisibility = Visibility.Collapsed;
+            //     FileListVisibility = Visibility.Visible;
+            //     CanDelete = true;
+            // }
         });
     }
 
@@ -394,12 +404,12 @@ public partial class DriveUsageViewModel : ObservableObject, IViewable
 
         if (folderCount > 0)
         {
-            _ = sb.Append($"{folderCount} folder{(folderCount != 1 ? "s" : string.Empty)}, ");
+            _ = sb.Append($"{folderCount} {"folder".PluralizeIfMany(folderCount)}, ");
         }
 
         if (fileCount > 0)
         {
-            _ = sb.Append($"{fileCount} file{(fileCount != 1 ? "s" : string.Empty)}, ");
+            _ = sb.Append($"{fileCount} {"file".PluralizeIfMany(fileCount)}, ");
         }
 
         if (apkCount > 0)

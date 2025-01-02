@@ -1,4 +1,6 @@
-﻿namespace APKognito.Utilities;
+﻿using Humanizer;
+
+namespace APKognito.Utilities;
 
 internal static class Tools
 {
@@ -30,5 +32,17 @@ internal static class Tools
         }
 
         elm.Visibility = Visibility.Visible;
+    }
+
+    public static string PluralizeIf(this string word, bool condition, bool knownToBeSingular = false)
+    {
+        return condition 
+            ? word.Pluralize(knownToBeSingular) 
+            : word;
+    }
+
+    public static string PluralizeIfMany(this string word, int count, bool knownToBeSingular = false)
+    {
+        return PluralizeIf(word, count is not 1, knownToBeSingular);
     }
 }

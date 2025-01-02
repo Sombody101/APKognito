@@ -1,4 +1,6 @@
-﻿using APKognito.Configurations;
+﻿#define NO_EXCEPTION_HANDLING
+
+using APKognito.Configurations;
 using APKognito.Services;
 using APKognito.Utilities;
 using APKognito.ViewModels.Pages;
@@ -89,6 +91,8 @@ public partial class App
             // Service containing navigation, same as INavigationWindow... but without window
             _ = services.AddSingleton<INavigationService, NavigationService>();
 
+            _ = services.AddSingleton<IContentDialogService, ContentDialogService>();
+
             // Main window with navigation
             _ = services.AddSingleton<INavigationWindow, MainWindow>()
                 .AddSingleton<MainWindowViewModel>();
@@ -128,8 +132,23 @@ public partial class App
     {
         FileLogger.Log($"App start. v{Assembly.GetExecutingAssembly().GetName().Version}, {(IsDebugRelease ? "Debug" : "Release")}");
 
-        TaskScheduler.UnobservedTaskException += (sender, e) => _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
-        Dispatcher.UnhandledException += (sender, e) => _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
+#if !NO_EXCEPTION_HANDLING || RELEASE
+        TaskScheduler.UnobservedTaskException += (sender, e) =>
+        {
+            Dispatcher.CurrentDispatcher.Invoke(() =>
+            {
+                _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
+            });
+        };
+
+        Dispatcher.UnhandledException += (sender, e) =>
+        {
+            Dispatcher.CurrentDispatcher.Invoke(() =>
+            {
+                _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
+            });
+        };
+#endif
 
         _host.Start();
 

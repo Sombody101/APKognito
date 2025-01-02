@@ -1,4 +1,5 @@
-﻿using APKognito.Configurations;
+﻿using APKognito.AdbTools;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls.ViewModel;
 using APKognito.Models;
@@ -177,7 +178,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
     {
         try
         {
-            string? line = Array.Find(output.Split('\n'), l => l.StartsWith("/data/media") || l.StartsWith("/dev/fuse"));
+            string? line = Array.Find(output.Split('\n'), x => x.StartsWith("/data/media") || x.StartsWith("/dev/fuse"));
 
             if (string.IsNullOrEmpty(line))
             {

@@ -16,4 +16,10 @@ public partial class FileUploaderPage : INavigableView<FileUploaderViewModel>, I
         DataContext = this;
         ViewModel = viewModel;
     }
+
+    public FileUploaderPage()
+    {
+        // For designer
+        ViewModel = new();
+    }
 }

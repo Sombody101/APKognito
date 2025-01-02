@@ -19,51 +19,10 @@ public partial class AdbConsolePage : INavigableView<AdbConsoleViewModel>, IView
 
         InitializeComponent();
 
-        Loaded += (sender, e) =>
-        {
-            Window window = Window.GetWindow(this);
-
-            // Initialize the size
-            UpdateSizeChanged(window, window.WindowState is WindowState.Maximized);
-
-            window.SizeChanged += (sender, e) =>
-            {
-                if ((long)ViewModel.MaxHeight != (long)window.Height)
-                {
-                    UpdateSizeChanged(window);
-                }
-            };
-
-            window.StateChanged += (sender, e) =>
-            {
-                if (window.WindowState == WindowState.Maximized)
-                {
-                    UpdateSizeChanged(window, true);
-
-                    // Assign the size to the window as it doesn't update when maximized
-                    window.Height = ViewModel.MaxHeight;
-                    return;
-                }
-
-                UpdateSizeChanged(window);
-            };
-        };
+        Loaded += (sender, e) => viewModel.SetAndInitializePageSize(this);
 
         viewModel.AntiMvvm_SetRichTextbox(CommandOutputBox);
         viewModel.WriteGenericLogLine("Enter `:help' for a list of APKognito commands, use `help' to get ADB commands.");
-    }
-
-    private void UpdateSizeChanged(Window window, bool useScreenHeight = false)
-    {
-        double baseHeight = window.Height;
-
-        if (useScreenHeight)
-        {
-            Screen screen = Screen.FromHandle(new WindowInteropHelper(window).Handle);
-            baseHeight = screen.Bounds.Height;
-        }
-
-        ViewModel.MaxHeight = baseHeight - 150;
     }
 
     private void TextBox_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)

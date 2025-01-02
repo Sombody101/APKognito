@@ -18,27 +18,28 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
 
-    <StackPanel Margin="0,30">
-        <ui:Card>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                    <ColumnDefinition Width="auto" />
-                </Grid.ColumnDefinitions>
+    <ui:Card
+        Margin="0,30"
+        VerticalAlignment="Stretch"
+        VerticalContentAlignment="Top">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="auto" />
+            </Grid.ColumnDefinitions>
 
-                <StackPanel>
-                    <Label>Selected Files</Label>
-                    <ui:Card Margin="0,0,0,10">
-                        <ListBox
-                            Height="400"
-                            d:ItemsSource="{d:SampleData ItemCount=5}"
-                            ItemsSource="{Binding ViewModel.SelectedItems}" />
-                    </ui:Card>
+            <StackPanel>
+                <Label>Selected Files</Label>
+                <ui:Card Margin="0,0,0,10">
+                    <ListBox
+                        Height="400"
+                        d:ItemsSource="{d:SampleData ItemCount=5}"
+                        ItemsSource="{Binding ViewModel.SelectedItems}" />
+                </ui:Card>
 
-                    <StackPanel
-                        Grid.Column="1"
-                        Margin="0,0,0,10"
-                        Orientation="Horizontal">
+                <Label Content="File Selection" />
+                <ui:Card Margin="0,0,0,10">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <ui:Button
                             Margin="0,0,10,0"
                             Command="{Binding ViewModel.SelectItemsCommand}"
@@ -70,17 +71,17 @@
                             Content="Add Recursively"
                             ToolTip="Scans an entire directory and it's subdirectories for APK and OBB files" />
                     </StackPanel>
+                </ui:Card>
 
-                    <ui:Button
-                        Margin="0,0,10,10"
-                        Command="{Binding ViewModel.UploadItemsToDeviceCommand}"
-                        Content="Upload Items" />
+                <Label Content="File Actions" />
+                <ui:Card Margin="0,0,0,10">
+                    <ui:Button Command="{Binding ViewModel.UploadItemsToDeviceCommand}" Content="Upload Items" />
+                </ui:Card>
 
-                    <ProgressBar IsEnabled="{Binding ViewModel.IsUploading}" IsIndeterminate="{Binding ViewModel.IsUploading}" />
+                <ProgressBar IsEnabled="{Binding ViewModel.IsUploading}" IsIndeterminate="{Binding ViewModel.IsUploading}" />
 
-                </StackPanel>
+            </StackPanel>
 
-            </Grid>
-        </ui:Card>
-    </StackPanel>
+        </Grid>
+    </ui:Card>
 </Page>

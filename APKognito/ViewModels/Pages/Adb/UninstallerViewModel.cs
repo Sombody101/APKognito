@@ -1,8 +1,13 @@
-﻿using APKognito.Configurations;
+﻿using APKognito.AdbTools;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Controls;
+using APKognito.Controls.ViewModel;
 using APKognito.Models;
+using APKognito.Models.Settings;
 using APKognito.Utilities;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Threading;
 using Wpf.Ui;
 
@@ -12,6 +17,8 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
 {
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
+    private readonly IContentDialogService dialogService;
+
     private readonly List<PackageEntry> cachedPackageList = [];
 
     #region Properties
@@ -19,13 +26,13 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
     [ObservableProperty]
     private ObservableCollection<PackageEntry> _packageList = [
 #if DEBUG
-        new("test", 10923, null, 0, 0),
-        new("test", 23874, "jsjs", 2399, -1),
-        new("test twice", 209374029374, "rueu", 23098, 023423),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", 0004334958374, "test/dddfsd", 38479828, 203984),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", 0004334958374, "test/dddfsd", 38479828, 203984),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", 0004334958374, "test/dddfsd", 38479828, 203984),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test","/apk.apk", 10923, null, 0, 0),
+        new("test","/apk.apk", 23874, "jsjs", 2399, -1),
+        new("test twice", "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE", 209374029374, "rueu", 23098, 023423),
+        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
 #endif
     ];
 
@@ -44,19 +51,27 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
     [ObservableProperty]
     private string _searchText = string.Empty;
 
+    [ObservableProperty]
+    private int _selectedItems = 0;
+
+    [ObservableProperty]
+    private string _currentlyPulling = "None";
+
     #endregion Properties
 
     public UninstallerViewModel()
     {
+        // For designer
     }
 
-    public UninstallerViewModel(ISnackbarService snackService)
+    public UninstallerViewModel(ISnackbarService snackService, IContentDialogService _dialogService)
     {
+        dialogService = _dialogService;
         SetSnackbarProvider(snackService);
 
         WindowSizeChanged += (sender, e) =>
         {
-            ListHeight = WindowHeight - TitlebarHeight - 225;
+            ListHeight = WindowHeight - TitlebarHeight - 160;
         };
     }
 
@@ -71,13 +86,45 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
     [RelayCommand]
     private async Task OnUninstallPackages(ListView list)
     {
-        await UninstallPackages(list, false);
+        try
+        {
+            await UninstallPackages(list, false);
+            await UpdatePackageList();
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            SnackError("Uninstall failed!", ex.Message);
+        }
     }
 
     [RelayCommand]
     private async Task OnSoftUninstallPackages(ListView list)
     {
-        await UninstallPackages(list);
+        try
+        {
+            await UninstallPackages(list);
+            await UpdatePackageList();
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            SnackError("Soft uninstall failed!", ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task OnPullPackages(ListView list)
+    {
+        try
+        {
+            await PullPackages(list);
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            SnackError("Package pull failed!", ex.Message);
+        }
     }
 
     #endregion Commands
@@ -89,25 +136,32 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
 
     private async Task UninstallPackages(ListView list, bool softUninstall = true)
     {
-        EnableControls = true;
+        EnableControls = false;
 
         var items = list.SelectedItems.Cast<PackageEntry>();
         int selected = items.Count();
-        string postfix = selected is 1 ? string.Empty : "s";
+
+        if (selected is 0)
+        {
+            SnackError("No packages selected!", "Select at least one package to uninstall.");
+            EnableControls = true;
+            return;
+        }
 
         var result = await new MessageBox()
         {
             Title = "Are you sure?",
             Content = $"This will {(softUninstall
                 ? "remove the APKs and asset files, but not save data, for"
-                : "completely remove all data associated with")} the following package{postfix}:\n  ⚬  {string.Join("\n  ⚬  ", items.Select(item => item.PackageName))}\n\nContinue?",
-            PrimaryButtonText = $"Uninstall {selected} app{postfix}",
+                : "completely remove all data associated with")} the following {"package".PluralizeIfMany(selected)}:\n  ⚬  {string.Join("\n  ⚬  ", items.Select(item => item.PackageName))}\n\nContinue?",
+            PrimaryButtonText = $"{(softUninstall ? "Soft uninstall" : "Uninstall")} {selected} {"app".PluralizeIfMany(selected)}",
+            PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
             CloseButtonText = "Cancel"
         }.ShowDialogAsync();
 
         if (result != MessageBoxResult.Primary)
         {
-            EnableControls = false;
+            EnableControls = true;
             return;
         }
 
@@ -116,6 +170,7 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
         if (device is null)
         {
             SnackError("No device selected!", "You need to select a device before uninstalling any packages.");
+            EnableControls = true;
             return;
         }
 
@@ -123,8 +178,10 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
 
         try
         {
-            foreach (string entryName in items.Select(package => package.PackageName))
+            foreach (var package in items)
             {
+                string entryName = package.PackageName;
+
                 if (string.IsNullOrWhiteSpace(entryName))
                 {
                     SnackError("Empty package name!", "An entry containing an empty package name was found. This package will not be uninstalled to prevent unintended data loss.");
@@ -136,15 +193,20 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
                 // Remove package
                 await AdbManager.QuickDeviceCommand($"{command} {entryName}");
 
+                if (package.AssetPath is not null)
+                {
+                    // Assets
+                    await AdbManager.QuickDeviceCommand($"shell rm -r \"{package.AssetPath}\"");
+                }
+
                 if (!softUninstall)
                 {
-                    // Remove assets
-                    await AdbManager.QuickDeviceCommand($"shell rm -r \"/storage/emulated/0/Android/obb/{entryName}\"");
-
-                    // Remove save data
-                    await AdbManager.QuickDeviceCommand($"shell rm -r \"/storage/emulated/0/Android/data/{entryName}\"");
+                    // Save data
+                    await AdbManager.QuickDeviceCommand($"shell rm -r \"/storage/emulated/0/Android/data/{entryName}\"", noThrow: true);
                 }
             }
+
+            SnackSuccess($"{selected} packages removed!", $"{selected} were {(softUninstall ? "soft" : string.Empty)} uninstalled successfully!");
         }
         catch (Exception ex)
         {
@@ -152,14 +214,14 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
             FileLogger.LogException(ex);
         }
 
-        EnableControls = false;
+        EnableControls = true;
     }
 
     private async Task UpdatePackageList()
     {
         /*
          * Current format:
-         *  <package name>|<package size>|<assets size>|<package save data size>
+         *  <package name>|<package path>|<package size>|<assets size>|<package save data size>
          */
 
         var device = adbConfig.GetCurrentDevice();
@@ -173,9 +235,10 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
 
         if (result.Errored)
         {
-            if (result.StdOut.Trim().EndsWith("No such file or directory"))
+            if (result.StdErr.Trim().EndsWith("No such file or directory"))
             {
                 SnackError("No ADB scripts!", "ADB scripts have not been installed on this device. Install them by pressing 'Upload ADB Scripts' at the top.");
+                return;
             }
 
             SnackError("Unable to get packages!", result.StdErr);
@@ -188,35 +251,112 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
         cachedPackageList.AddRange(rawPackages.Select(adbPackage =>
         {
             string[] split = adbPackage.Split('|');
-            if (split.Length != 4)
+            if (split.Length != 5)
             {
-                return new PackageEntry("[Invalid Format]", -1, null, -1, -1);
+                return new PackageEntry("[Invalid Format]", string.Empty, -1, null, -1, -1);
             }
 
-            if (!long.TryParse(split[1], out long packageSize))
+            string packageName = split[0];
+
+            string packagePath = split[1];
+
+            if (!long.TryParse(split[2], out long packageSize))
             {
                 packageSize = -1;
             }
 
-            if (!long.TryParse(split[2], out long assetsSize))
+            if (!long.TryParse(split[3], out long assetsSize))
             {
                 assetsSize = -1;
             }
 
-            if (!long.TryParse(split[3], out long saveDataSize))
+            if (!long.TryParse(split[4], out long saveDataSize))
             {
                 saveDataSize = -1;
             }
 
-            string packageName = split[0];
             string? assetsPath = assetsSize is -1
                 ? null
                 : $"/storage/emulated/0/Android/obb/{packageName}";
 
-            return new PackageEntry(packageName, packageSize * 1024, assetsPath, assetsSize * 1024, saveDataSize * 1024);
+            return new PackageEntry(packageName, packagePath, packageSize * 1024, assetsPath, assetsSize * 1024, saveDataSize * 1024);
         }));
 
         DisplayPackages(cachedPackageList);
+    }
+
+    private async Task PullPackages(ListView list)
+    {
+        EnableControls = false;
+
+        var device = adbConfig.GetCurrentDevice();
+        if (device is null)
+        {
+            SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
+            return;
+        }
+
+        var items = list.SelectedItems.Cast<PackageEntry>();
+        int selected = items.Count();
+
+        if (selected is 0)
+        {
+            SnackError("No packages selected!", "Select at least one package to pull.");
+            EnableControls = true;
+            return;
+        }
+
+        DirectoryConfirmationViewModel dialogOutput = new()
+        {
+            Title = "Directory Confirmation",
+            Content = $"This will pull the following {"package".PluralizeIfMany(selected)}:\n  ⚬  {string.Join("\n  ⚬  ", items.Select(item => item.PackageName))}\n\nContinue?",
+        };
+
+        DirectoryConfirmationDialog directoryDialog = new(dialogOutput, dialogService.GetDialogHost())
+        {
+            IsPrimaryButtonEnabled = true,
+            PrimaryButtonText = $"Pull {"App".PluralizeIfMany(selected)}",
+            PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Success
+        };
+
+        var result = await directoryDialog.ShowAsync();
+
+        if (result != Wpf.Ui.Controls.ContentDialogResult.Primary)
+        {
+            EnableControls = true;
+            return;
+        }
+
+        string outputDirectory = dialogOutput.OutputDirectory;
+        ConfigurationFactory.SaveConfig<KognitoConfig>();
+
+        foreach (PackageEntry package in items)
+        {
+            CurrentlyPulling = package.PackageName;
+            string outputPackagePath = Path.Combine(outputDirectory, package.PackageName);
+
+            if (Directory.Exists(outputPackagePath))
+            {
+                Directory.Delete(outputPackagePath, true);
+            }
+
+            Directory.CreateDirectory(outputPackagePath);
+
+            await AdbManager.QuickDeviceCommand($"pull \"{package.PackagePath}\" \"{Path.Combine(outputPackagePath, $"{package.PackageName}.apk")}\"");
+
+            if (package.AssetPath is null)
+            {
+                continue;
+            }
+
+            CurrentlyPulling = Path.GetFileName(package.AssetPath);
+            string outputAssetPath = Path.Combine(outputPackagePath, package.PackageName);
+            Directory.CreateDirectory(outputAssetPath);
+            await AdbManager.QuickDeviceCommand($"pull \"{AdbManager.ANDROID_OBB}\" \"{outputAssetPath}\"");
+        }
+
+        CurrentlyPulling = "None";
+        EnableControls = true;
     }
 
     private void FilterPackages(string filter)

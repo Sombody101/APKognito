@@ -1,4 +1,5 @@
-﻿using APKognito.Configurations;
+﻿using APKognito.AdbTools;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities;
@@ -34,7 +35,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     private double _maxHeight = 500;
 
     [ObservableProperty]
-    private string _commandBuffer;
+    private string _commandBuffer = string.Empty;
 
     [ObservableProperty]
     private int _cursorPosition = 0;
@@ -48,6 +49,11 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         adbManager = new();
 
         historyIndex = adbHistory.CommandHistory.Count;
+
+        WindowSizeChanged += (sender, e) =>
+        {
+            MaxHeight = WindowHeight - TitlebarHeight - 100;
+        };
 
         if (commands.Count is 0)
         {

@@ -26,13 +26,11 @@
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
-            <ColumnDefinition />
+            <ColumnDefinition MinWidth="440" />
             <ColumnDefinition Width="1.4*" />
         </Grid.ColumnDefinitions>
 
-        <ui:Card Grid.ColumnSpan="2" Margin="0,0,0,10">
-            <ctrls:AndroidDeviceInfo />
-        </ui:Card>
+        <ctrls:AndroidDeviceInfo Grid.ColumnSpan="2" Margin="0,0,0,10" />
 
         <ProgressBar
             Grid.Row="1"
@@ -43,46 +41,63 @@
         <ui:Card
             Grid.Row="2"
             Margin="0,0,5,0"
-            VerticalAlignment="Top"
+            VerticalAlignment="Stretch"
+            VerticalContentAlignment="Top"
             IsEnabled="{Binding EnableControls}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
+            <StackPanel>
 
-                <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
-                </Grid.RowDefinitions>
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
 
-                <ui:TextBlock>
-                    <Run />
-                </ui:TextBlock>
+                    <ui:TextBlock>
+                        <Run Text="Pulling:" />
+                        <Run Text="{Binding CurrentlyPulling}" />
+                    </ui:TextBlock>
 
-                <ui:Button
-                    Margin="0,0,0,15"
-                    Command="{Binding UpdatePackageListCommand}"
-                    Content="Refresh" />
+                    <ui:TextBlock Grid.Column="1" HorizontalAlignment="Right">
+                        <Run Text="Selected:" />
+                        <Run Text="{Binding SelectedItems}" />
+                    </ui:TextBlock>
+                </Grid>
 
-                <StackPanel
-                    Grid.Row="1"
-                    Margin="0,0,0,10"
-                    Orientation="Horizontal">
-                    <ui:Button
-                        Margin="0,0,10,0"
-                        Command="{Binding UninstallPackagesCommand}"
-                        CommandParameter="{Binding ElementName=PackagesList}"
-                        Content="Uninstall Selected"
-                        ToolTip="Remove all files associated with the selected applications." />
+                <Label Content="List Manipulation" />
+                <ui:Card Margin="0,0,0,15">
+                    <ui:Button Command="{Binding UpdatePackageListCommand}" Content="Refresh" />
+                </ui:Card>
 
-                    <ui:Button
-                        Margin="0,0,10,0"
-                        Command="{Binding SoftUninstallPackagesCommand}"
-                        CommandParameter="{Binding ElementName=PackagesList}"
-                        Content="Soft Uninstall Selected"
-                        ToolTip="Unintall the APK and asset files for each item selected, but keep all application data on the device (configurations, save data, etc)." />
-                </StackPanel>
-            </Grid>
+                <Label Content="Uninstall Packages" />
+                <ui:Card Margin="0,0,0,15" IsEnabled="{Binding EnableControls}">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal">
+                        <ui:Button
+                            Margin="0,0,10,0"
+                            Command="{Binding UninstallPackagesCommand}"
+                            CommandParameter="{Binding ElementName=PackagesList}"
+                            Content="Uninstall Selected"
+                            ToolTip="Remove all files associated with the selected applications." />
+
+                        <ui:Button
+                            Margin="0,0,10,0"
+                            Command="{Binding SoftUninstallPackagesCommand}"
+                            CommandParameter="{Binding ElementName=PackagesList}"
+                            Content="Soft Uninstall Selected"
+                            ToolTip="Unintall the APK and asset files for each item selected, but keep all application data on the device (configurations, save data, etc)." />
+                    </StackPanel>
+                </ui:Card>
+
+                <Label Content="Pull Packages" />
+                <ui:Card Margin="0,0,0,15" IsEnabled="{Binding EnableControls}">
+                    <StackPanel>
+                        <ui:Button
+                            Margin="0,0,10,0"
+                            Command="{Binding PullPackagesCommand}"
+                            CommandParameter="{Binding ElementName=PackagesList}"
+                            Content="Pull To PC" />
+                    </StackPanel>
+                </ui:Card>
+            </StackPanel>
         </ui:Card>
 
         <ui:Card
