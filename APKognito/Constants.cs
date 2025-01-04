@@ -19,4 +19,5 @@ internal static class Constants
     public const string ADB_INSTALL_URL = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip";
 
     public const string GITHUB_API_URL = "https://api.github.com/repos/Sombody101/APKognito/releases";
+    public const string GITHUB_API_URL_LATEST = "https://api.github.com/repos/Sombody101/APKognito/releases/latest";
 }

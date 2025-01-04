@@ -105,7 +105,17 @@ public static partial class WebGet
 
             jsonResult = await response.Content.ReadAsStringAsync(cToken);
 
-            JToken originalToken = JArray.Parse(jsonResult);
+
+            JToken originalToken;
+
+            try
+            {
+                originalToken = JArray.Parse(jsonResult);
+            }
+            catch
+            {
+                originalToken = JObject.Parse(jsonResult);
+            }
 
             for (int i = 0; i < indexes.Length; ++i)
             {

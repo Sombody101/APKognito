@@ -85,32 +85,41 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         // Fetch the download URL and release tag
-        string?[] jsonData = await WebGet.FetchAsync(Constants.GITHUB_API_URL, HomeViewModel.Instance, cToken, [
-            [LATEST, "tag_name"],
-            [LATEST, "assets", 0, "browser_download_url"],
+        string?[] jsonData = await WebGet.FetchAsync(Constants.GITHUB_API_URL_LATEST, HomeViewModel.Instance, cToken, [
+            ["tag_name"],
+            ["assets", 0, "browser_download_url"],
         ]);
+
+        if (jsonData.Length is 0)
+        {
+            FileLogger.LogError("Returned JSON release info is null. Aborting update check.");
+            goto LogUpdateAndExit;
+        }
+
+        string tagName = jsonData[0];
+        string downloadUrl = jsonData[1];
 
         // Only accept debug releases for debug builds, public releases for release builds
 #if DEBUG && EMULATE_RELEASE_ON_DEBUG
-        if (!jsonData[0]!.StartsWith('v'))
+        if (!tagName!.StartsWith('v'))
 #else
-        if (!jsonData[0]!.StartsWith(App.IsDebugRelease ? 'd' : 'v'))
+        if (!tagName!.StartsWith(App.IsDebugRelease ? 'd' : 'v'))
 #endif
         {
 #if RELEASE || EMULATE_RELEASE_ON_DEBUG
-            FileLogger.Log($"Most recent release isn't a public build: {jsonData[0]}");
+            FileLogger.Log($"Most recent release isn't a public build: {tagName}");
 #else
-            FileLogger.Log($"Most recent release isn't a debug build: {jsonData[0]}");
+            FileLogger.Log($"Most recent release isn't a debug build: {tagName}");
 #endif
 
             goto LogUpdateAndExit;
         }
 
         // Check that the release tag is valid (for the current build)
-        if (!Version.TryParse( /* Remove the prefix letter (v1.5.1.1) */ jsonData[0]?[1..], out Version? newVersion))
+        if (!Version.TryParse( /* Remove the prefix letter (v1.5.1.1) */ tagName?[1..], out Version? newVersion))
         {
             // The version isn't viable
-            FileLogger.LogError($"Aborting update, invalid release tag: {jsonData[0]}");
+            FileLogger.LogError($"Aborting update, invalid release tag: {tagName}");
             goto LogUpdateAndExit;
         }
 
@@ -125,19 +134,19 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
                 break;
         }
 
-        FileLogger.Log($"Downloading release {jsonData[0]}");
+        FileLogger.Log($"Downloading release {tagName}");
 
         _ = Directory.CreateDirectory(UpdatesFolder);
-        string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{jsonData[0]![1..]}.zip");
-        if (!await WebGet.DownloadAsync(jsonData[1]!, downloadZip, null, cToken))
+        string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{tagName![1..]}.zip");
+        if (!await WebGet.DownloadAsync(downloadUrl!, downloadZip, null, cToken))
         {
             FileLogger.LogFatal("Failed to download latest release.");
             goto LogUpdateAndExit;
         }
 
         // A cheap way to encode the update info in a way that the user won't dick around easily (they still can if they try hard enough, but a binary file should scare them away)
-        cache.UpdateSourceLocation = $"{downloadZip}\0{jsonData[0]}";
-        await ImplementUpdate(downloadZip, jsonData[0]!);
+        cache.UpdateSourceLocation = $"{downloadZip}\0{tagName}";
+        await ImplementUpdate(downloadZip, tagName!);
 
     LogUpdateAndExit:
         LogNextUpdate(config.CheckDelay);
@@ -163,19 +172,21 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             FileLogger.Log("Comparing fetched release with fetch from previous session.");
 
             string[] updateInfo = cache.UpdateSourceLocation.Split('\0');
+            string updatePath = updateInfo[0];
+            string updateVersion = updateInfo[1];
 
-            if (!File.Exists(updateInfo[0]))
+            if (!File.Exists(updatePath))
             {
                 FileLogger.LogError("Previously downloaded update files are gone, proceeding with new release fetch.");
                 return ValidationResult.ContinueToUpdate;
             }
 
             if (updateInfo.Length is 2
-                && Version.TryParse(updateInfo[1][1..], out Version? lastVersion)
+                && Version.TryParse(updateVersion[1..], out Version? lastVersion)
                 && lastVersion >= newVersion)
             {
                 FileLogger.Log($"Installing previous session update ({lastVersion} >= {newVersion})");
-                await ImplementUpdate(updateInfo[0], updateInfo[1]);
+                await ImplementUpdate(updatePath, updateVersion);
                 return ValidationResult.UpdateComplete;
             }
             else
