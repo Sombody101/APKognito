@@ -13,7 +13,7 @@ using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class UninstallerViewModel : LoggableObservableObject, IViewable
+public partial class PackageManagerViewModel : LoggableObservableObject, IViewable
 {
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
@@ -59,12 +59,12 @@ public partial class UninstallerViewModel : LoggableObservableObject, IViewable
 
     #endregion Properties
 
-    public UninstallerViewModel()
+    public PackageManagerViewModel()
     {
         // For designer
     }
 
-    public UninstallerViewModel(ISnackbarService snackService, IContentDialogService _dialogService)
+    public PackageManagerViewModel(ISnackbarService snackService, IContentDialogService _dialogService)
     {
         dialogService = _dialogService;
         SetSnackbarProvider(snackService);

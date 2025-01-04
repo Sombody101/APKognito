@@ -1,5 +1,5 @@
 ﻿<Page
-    x:Class="APKognito.Views.Pages.UninstallerPage"
+    x:Class="APKognito.Views.Pages.PackageManagerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctrls="clr-namespace:APKognito.Controls"
@@ -8,8 +8,8 @@
     xmlns:models="clr-namespace:APKognito.Models"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    Title="UninstallerPage"
-    d:DataContext="{d:DesignInstance pages:UninstallerViewModel,
+    Title="PackageManagerPage"
+    d:DataContext="{d:DesignInstance pages:PackageManagerViewModel,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="700"
     d:DesignWidth="1000"

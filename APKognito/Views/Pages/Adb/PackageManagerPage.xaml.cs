@@ -9,11 +9,11 @@ namespace APKognito.Views.Pages;
 /// <summary>
 /// Interaction logic for UninstallerPage.xaml
 /// </summary>
-public partial class UninstallerPage : INavigableView<UninstallerViewModel>, IViewable
+public partial class PackageManagerPage : INavigableView<PackageManagerViewModel>, IViewable
 {
-    public UninstallerViewModel ViewModel { get; }
+    public PackageManagerViewModel ViewModel { get; }
 
-    public UninstallerPage(UninstallerViewModel viewModel)
+    public PackageManagerPage(PackageManagerViewModel viewModel)
     {
         DataContext = ViewModel = viewModel;
 
