@@ -6,8 +6,6 @@
     xmlns:helpers="clr-namespace:APKognito.Helpers"
     xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:svm="clr-namespace:APKognito.ViewModels.Pages"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="SettingsPage"
     d:DataContext="{d:DesignInstance local:SettingsPage,
@@ -23,6 +21,8 @@
         <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <helpers:ThemeToIndexConverter x:Key="ThemeToIndexConverter" />
     </Page.Resources>
+
+    <!--  Theme Card  -->
 
     <StackPanel Margin="0,10">
 
@@ -58,7 +58,12 @@
             </ComboBox>
         </ui:CardControl>
 
-        <ui:CardExpander Margin="0,12,0,0" Icon="{ui:SymbolIcon ClockArrowDownload24}">
+        <!--  Auto Update Card  -->
+
+        <ui:CardExpander
+            Margin="0,12,0,0"
+            ContentPadding="0"
+            Icon="{ui:SymbolIcon ClockArrowDownload24}">
             <ui:CardExpander.Header>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -70,57 +75,160 @@
                     <ui:TextBlock
                         Grid.Row="1"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="Select how APKognito handles updates" />
+                        Text="Select how APKognito handles updates"
+                        TextWrapping="WrapWithOverflow" />
+                </Grid>
+            </ui:CardExpander.Header>
+            <StackPanel>
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock Text="Auto Update" />
+
+                    <ui:ToggleSwitch
+                        Grid.Column="1"
+                        HorizontalAlignment="Right"
+                        IsChecked="{Binding ViewModel.AutomaticUpdatesEnabled, Mode=TwoWay}"
+                        OffContent="Off"
+                        OnContent="On" />
+                </Grid>
+                <Separator />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock VerticalAlignment="Center" Text="Minutes Between Update Checks" />
+
+                    <ui:NumberBox
+                        Grid.Column="1"
+                        Width="130"
+                        HorizontalAlignment="Right"
+                        Maximum="9999"
+                        Minimum="1"
+                        PlaceholderText="Update Delay (minutes)"
+                        Value="{Binding ViewModel.UpdateDelay, Mode=TwoWay}" />
+                </Grid>
+                <Separator />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock VerticalAlignment="Center" Text="Check For Updates" />
+
+                    <ui:Button
+                        Grid.Column="1"
+                        HorizontalAlignment="Right"
+                        Content="Run Check" />
+                </Grid>
+                <Separator />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock VerticalAlignment="Center" Text="Save Auto Update Settings" />
+
+                    <ui:Button
+                        Grid.Column="2"
+                        HorizontalAlignment="Right"
+                        Command="{Binding ViewModel.SaveUpdatesSettingsCommand}"
+                        Content="Save Settings"
+                        ToolTip="Saves your update preferences to file." />
+                </Grid>
+            </StackPanel>
+        </ui:CardExpander>
+
+        <!--  Debugging Card  -->
+
+        <ui:CardExpander
+            Margin="0,12,0,0"
+            ContentPadding="0"
+            Icon="{ui:SymbolIcon Bug24}">
+            <ui:CardExpander.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ui:TextBlock Grid.Row="0" Text="Debugging" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Special features used for debugging purposes [Includes logpack]"
+                        TextWrapping="WrapWithOverflow" />
                 </Grid>
             </ui:CardExpander.Header>
 
             <StackPanel>
-                <ui:ToggleSwitch
-                    Margin="0,5,0,10"
-                    Content="Auto Update"
-                    IsChecked="{Binding ViewModel.AutomaticUpdatesEnabled, Mode=TwoWay}" />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
 
-                <Label Content="Time Between Update Checks" />
-                <ui:NumberBox
-                    Width="130"
-                    Margin="0,0,0,5"
-                    HorizontalAlignment="Left"
-                    Maximum="9999"
-                    Minimum="1"
-                    PlaceholderText="Update Delay (minutes)"
-                    Value="{Binding ViewModel.UpdateDelay, Mode=TwoWay}" />
+                    <ui:TextBlock VerticalAlignment="Center" Text="Create Logpack (Required for submitting GitHub issues)" />
+                    <ui:Button
+                        Grid.Column="1"
+                        HorizontalAlignment="Right"
+                        Command="{Binding ViewModel.CreateLogpackCommand}"
+                        Content="Create Logpack" />
+                </Grid>
+                <Separator />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
 
-                <ui:Button
-                    Grid.Row="1"
-                    Grid.Column="2"
-                    Margin="0,12,0,5"
-                    Command="{Binding ViewModel.SaveUpdatesSettingsCommand}"
-                    Content="Save Auto Update Settings"
-                    ToolTip="Saves your update preferences to file." />
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
+
+                        <ui:TextBlock Text="Open APKognito AppData Directory" />
+                        <ui:TextBlock
+                            Grid.Row="1"
+                            FontSize="12"
+                            Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{Binding ViewModel.AppDataPath}" />
+                    </Grid>
+
+                    <ui:Button
+                        Grid.Column="1"
+                        HorizontalAlignment="Right"
+                        Command="{Binding ViewModel.OpenAppDataCommand}"
+                        Content="Open AppData" />
+                </Grid>
+                <Separator />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock Text="Delete temporary files after rename" />
+
+                    <ui:ToggleSwitch
+                        Grid.Column="1"
+                        HorizontalAlignment="Right"
+                        IsChecked="{Binding ViewModel.ClearTempFilesOnRename}"
+                        OffContent="No"
+                        OnContent="Yes" />
+                </Grid>
             </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander Margin="0,12,0,0" Icon="{ui:SymbolIcon Bug24}">
-            <ui:CardExpander.Header>
-                <ui:TextBlock Grid.Row="0" Text="Debugging" />
-            </ui:CardExpander.Header>
-
-            <StackPanel>
-
-                <ui:Button
-                    Margin="0,10"
-                    Command="{Binding ViewModel.CreateLogpackCommand}"
-                    Content="Create Logpack" />
-
-                <ui:Button
-                    Margin="0,10"
-                    Command="{Binding ViewModel.OpenAppDataCommand}"
-                    Content="Open AppData" />
-
-                <CheckBox Content="Delete temporary files after rename" IsChecked="{Binding ViewModel.ClearTempFilesOnRename}" />
-
-            </StackPanel>
-        </ui:CardExpander>
+        <!--  About Card  -->
 
         <TextBlock
             Margin="0,24,0,0"
@@ -156,17 +264,28 @@
             <TextBlock Margin="16" Text="{Binding ViewModel.FullAppVersion, Mode=OneWay}" />
         </ui:CardExpander>
 
+        <!--  Misc Card  -->
+
         <TextBlock
             Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
             Text="Miscellaneous" />
 
-        <ui:Button
+        <ui:CardAction
             Margin="0,12,0,0"
             Command="{Binding ViewModel.TransferConfigsCommand}"
-            Content="Transfer Local Configurations"
-            ToolTip="Overwrites the configurations stored in %APPDATA%\configs with any loaded configuration files found in the same directory as APKognito." />
+            ToolTip="">
+            <StackPanel>
+                <ui:TextBlock Text="Transfer Local Configurations" />
+                <ui:TextBlock
+                    Appearance="Secondary"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    Text="Overwrites the configurations stored in '%APPDATA%\configs' with any loaded configuration files found in the same directory as APKognito."
+                    TextWrapping="WrapWithOverflow" />
+
+            </StackPanel>
+        </ui:CardAction>
 
         <Separator Margin="0,10" />
         <TextBlock Margin="0,0,0,30" HorizontalAlignment="Center">

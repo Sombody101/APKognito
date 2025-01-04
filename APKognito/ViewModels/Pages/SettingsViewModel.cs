@@ -30,6 +30,9 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     [ObservableProperty]
     private string _clearedSize = string.Empty;
 
+    [ObservableProperty]
+    private string _appDataPath = string.Empty;
+
     public bool ClearTempFilesOnRename
     {
         get => kognitoConfig.ClearTempFilesOnRename;
@@ -71,6 +74,8 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     {
         updateConfig = ConfigurationFactory.GetConfig<UpdateConfig>();
         kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
+
+        AppDataPath = App.AppData.FullName;
     }
 
     [RelayCommand]

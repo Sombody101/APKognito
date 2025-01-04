@@ -73,6 +73,7 @@
                     <StackPanel Grid.Row="1" Orientation="Horizontal">
                         <ui:Button
                             Margin="0,0,10,0"
+                            Appearance="Danger"
                             Command="{Binding UninstallPackagesCommand}"
                             CommandParameter="{Binding ElementName=PackagesList}"
                             Content="Uninstall Selected"
@@ -80,6 +81,7 @@
 
                         <ui:Button
                             Margin="0,0,10,0"
+                            Appearance="Caution"
                             Command="{Binding SoftUninstallPackagesCommand}"
                             CommandParameter="{Binding ElementName=PackagesList}"
                             Content="Soft Uninstall Selected"
