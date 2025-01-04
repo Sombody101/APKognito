@@ -50,7 +50,6 @@ public class ApkEditorContext
         _ = Directory.CreateDirectory(ApkTempDirectory);
     }
 
-
     /// <summary>
     /// Unpacks, replaces all package name occurrences with a new company name, repacks the package, then signs the package.
     /// </summary>
@@ -136,6 +135,9 @@ public class ApkEditorContext
             // All methods called in this try/catch will not handle their own exceptions.
             // If they do, it's to reformat the error message and re-throw it to be caught here.
 #if DEBUG
+            // Exceptions are added to the exceptions log file, so there's no reason to add a stack trace here.
+            // Will that stop people from copying the entire LogBox control and pasting it in their GitHub issue along with the logpack which already contains that information?
+            // Nope.
             return $"{(ex.InnerException ?? ex).GetType().Name}: {ex.Message}\n{ex.StackTrace}";
 #else
             return $"{(ex.InnerException ?? ex).GetType().Name}: {ex.Message}";
@@ -216,10 +218,11 @@ public class ApkEditorContext
     {
         ReplaceAllDirectoryNames(ApkTempDirectory, searchCompanyName, replacementName);
 
-        string[] files = Directory.GetFiles(Path.Combine(ApkTempDirectory, "smali", packagePrefix, replacementName), "*", SearchOption.AllDirectories)
+        IEnumerable<string> files = Directory.GetFiles(Path.Combine(ApkTempDirectory, "smali", packagePrefix, replacementName), "*", SearchOption.AllDirectories)
             .Where(file => file.EndsWith(".smali"))
             .Append($"{ApkTempDirectory}\\AndroidManifest.xml")
-            .Append($"{ApkTempDirectory}\\apktool.yml").ToArray();
+            .Append($"{ApkTempDirectory}\\apktool.yml");
+
         await Parallel.ForEachAsync(files, cToken,
             async (filePath, subcToken) =>
             await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, subcToken)
@@ -377,19 +380,27 @@ public class ApkEditorContext
 
     public static long CalculateUnpackedApkSize(string apkPath, bool copyingFile = true)
     {
-        long estimatedUnpackedSize = 0;
-
-        using (ZipArchive archive = ZipFile.OpenRead(apkPath))
+        try
         {
-            estimatedUnpackedSize = archive.Entries.Sum(entry => entry.Length);
-        }
+            long estimatedUnpackedSize = 0;
 
-        if (!copyingFile)
+            using (ZipArchive archive = ZipFile.OpenRead(apkPath))
+            {
+                estimatedUnpackedSize = archive.Entries.Sum(entry => entry.Length);
+            }
+
+            if (!copyingFile)
+            {
+                // The source APK is deleted after being renamed
+                estimatedUnpackedSize -= new FileInfo(apkPath).Length;
+            }
+
+            return estimatedUnpackedSize;
+        }
+        catch (Exception ex)
         {
-            // The source APK is deleted after being renamed
-            estimatedUnpackedSize -= new FileInfo(apkPath).Length;
+            FileLogger.LogException(ex);
+            return 0;
         }
-
-        return estimatedUnpackedSize;
     }
 }

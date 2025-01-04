@@ -6,6 +6,7 @@ using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
 using Microsoft.Win32;
+using System.CodeDom;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -214,7 +215,15 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     [RelayCommand]
     private async Task OnLoadApk()
     {
-        await LoadApk();
+        try
+        {
+            await LoadApk();
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            SnackError("Failed to load!", ex.Message);
+        }
     }
 
     [RelayCommand]
@@ -262,6 +271,22 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         ConfigurationFactory.SaveConfig(kognitoConfig);
         ConfigurationFactory.SaveConfig(kognitoCache);
         Log("Settings saved!");
+    }
+
+    [RelayCommand]
+    private void OnClearLogBox()
+    {
+        ClearLogs();
+
+#if DEBUG
+        const string logTestString = "Log Test";
+        WriteGenericLogLine(logTestString);
+        Log(logTestString);
+        LogSuccess(logTestString);
+        LogWarning(logTestString);
+        LogError(logTestString);
+        LogDebug(logTestString);
+#endif
     }
 
     #endregion Commands

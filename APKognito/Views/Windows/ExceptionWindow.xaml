@@ -12,7 +12,7 @@
     MinWidth="600"
     MinHeight="300"
     d:DataContext="{d:DesignInstance local:ExceptionWindow,
-                                     IsDesignTimeCreatable=False}"
+                                     IsDesignTimeCreatable=True}"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ExtendsContentIntoTitleBar="True"

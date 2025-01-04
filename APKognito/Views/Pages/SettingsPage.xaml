@@ -11,7 +11,7 @@
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="SettingsPage"
     d:DataContext="{d:DesignInstance local:SettingsPage,
-                                     IsDesignTimeCreatable=False}"
+                                     IsDesignTimeCreatable=True}"
     d:DesignHeight="1000"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
@@ -75,18 +75,25 @@
             </ui:CardExpander.Header>
 
             <StackPanel>
-                <CheckBox Content="Auto Update" IsChecked="{Binding ViewModel.AutomaticUpdatesEnabled, Mode=TwoWay}" />
+                <ui:ToggleSwitch
+                    Margin="0,5,0,10"
+                    Content="Auto Update"
+                    IsChecked="{Binding ViewModel.AutomaticUpdatesEnabled, Mode=TwoWay}" />
 
+                <Label Content="Time Between Update Checks" />
                 <ui:NumberBox
-                    Margin="0,5"
+                    Width="130"
+                    Margin="0,0,0,5"
+                    HorizontalAlignment="Left"
+                    Maximum="9999"
+                    Minimum="1"
                     PlaceholderText="Update Delay (minutes)"
                     Value="{Binding ViewModel.UpdateDelay, Mode=TwoWay}" />
 
                 <ui:Button
                     Grid.Row="1"
                     Grid.Column="2"
-                    Margin="0,12"
-                    HorizontalAlignment="Right"
+                    Margin="0,12,0,5"
                     Command="{Binding ViewModel.SaveUpdatesSettingsCommand}"
                     Content="Save Auto Update Settings"
                     ToolTip="Saves your update preferences to file." />
@@ -114,29 +121,6 @@
 
             </StackPanel>
         </ui:CardExpander>
-
-        <TextBlock
-            Margin="0,24,0,0"
-            FontSize="20"
-            FontWeight="Medium"
-            Text="Tips" />
-
-        <ui:Card Margin="0,12,0,0">
-            <TextBlock TextWrapping="WrapWithOverflow" ToolTip="Now you know how to use a tooltip!">
-                <Run Text="Any text containing" />
-                <ui:SymbolIcon Symbol="QuestionCircle24" />
-                <Run Text="means that it has a tooltip. Hover your cursor over it to get extra details for the context. Give it a try here!" />
-            </TextBlock>
-        </ui:Card>
-
-        <ui:Card>
-            <StackPanel>
-                <TextBlock Text="Have you seen a bar like this, but never knew what it does?" />
-                <ProgressBar Margin="0,5" />
-                <TextBlock Text="It's actually a Progress Bar! If there's one you've never seen active, then you have a fast enough computer that it didn't have time to render! Here's an active progress bar so you know what it looks like." TextWrapping="WrapWithOverflow" />
-                <ProgressBar Margin="0,5" IsIndeterminate="True" />
-            </StackPanel>
-        </ui:Card>
 
         <TextBlock
             Margin="0,24,0,0"
@@ -186,9 +170,7 @@
 
         <Separator Margin="0,10" />
         <TextBlock Margin="0,0,0,30" HorizontalAlignment="Center">
-            <Run>
-                Found a bug? Create an
-            </Run>
+            <Run Text="Found a bug? Create an" />
             <Hyperlink NavigateUri="https://github.com/Sombody101/APKognito/issues" RequestNavigate="Hyperlink_RequestNavigate">
                 issue on Github!
             </Hyperlink>

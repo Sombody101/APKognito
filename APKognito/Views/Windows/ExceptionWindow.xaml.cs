@@ -1,4 +1,5 @@
-﻿using APKognito.ViewModels.Windows;
+﻿using APKognito.Utilities;
+using APKognito.ViewModels.Windows;
 using Microsoft.Extensions.Hosting;
 using System.Runtime.InteropServices;
 using Wpf.Ui.Appearance;
@@ -25,6 +26,16 @@ public partial class ExceptionWindow : FluentWindow
         SystemThemeWatcher.Watch(this);
         ApplicationAccentColorManager.ApplySystemAccent();
     }
+
+#if DEBUG
+    public ExceptionWindow()
+        : this(new())
+    {
+        // For designer
+
+        ViewModel.SetException(new DebugOnlyException());
+    }
+#endif
 
     public static bool? CreateNewExceptionWindow(Exception exception, IHost host, [Optional] string exceptionSource)
     {

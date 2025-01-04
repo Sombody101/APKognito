@@ -45,7 +45,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     public AdbConsoleViewModel(ISnackbarService _snackbarService)
     {
         SetSnackbarProvider(_snackbarService);
-        LogPrefix = LogSuccessPrefix = LogWarningPrefix = LogErrorPrefix = string.Empty;
+        LogIconPrefixes = false;
         adbManager = new();
 
         historyIndex = adbHistory.CommandHistory.Count;

@@ -48,7 +48,7 @@ public partial class MainWindowViewModel : LoggableObservableObject, IViewable
                 // new("Quick Commands", typeof(AdbConsolePage)),
                 new("File Explorer", typeof(FileExplorerPage)),
                 new("File Uploader", typeof(FileUploaderPage)),
-                new("Package Uninstaller", typeof(UninstallerPage)),
+                new("Package Manager", typeof(PackageManagerPage)),
             },
         },
     ];

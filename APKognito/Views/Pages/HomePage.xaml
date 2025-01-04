@@ -320,6 +320,7 @@
 
                         <Button
                             x:Name="LoadAPK"
+                            Width="105"
                             VerticalAlignment="Stretch"
                             Command="{Binding LoadApkCommand}"
                             Content="Select APKs"
@@ -328,6 +329,7 @@
 
                         <Button
                             Grid.Column="1"
+                            Width="105"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Stretch"
                             Command="{Binding ShowOutputFolderCommand}"
@@ -340,7 +342,7 @@
                     <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
                         <Button
                             Height="75"
-                            Margin="0,10,0,5"
+                            Margin="0,0,0,5"
                             HorizontalAlignment="Stretch"
                             Command="{Binding StartApkRenameCommand}"
                             Content="Start Renaming"
@@ -351,7 +353,7 @@
 
                         <Button
                             Height="100"
-                            Margin="0,10,0,5"
+                            Margin="0,0,0,5"
                             HorizontalAlignment="Stretch"
                             Command="{Binding CancelApkRenameCommand}"
                             Content="Cancel"
@@ -367,15 +369,29 @@
             </Grid>
         </ui:Card>
 
-        <ui:RichTextBox
-            x:Name="APKLogs"
-            Grid.Row="3"
-            MinHeight="300"
-            MaxHeight="{x:Static SystemParameters.FullPrimaryScreenHeight}"
-            Margin="0,5"
-            VerticalAlignment="Stretch"
-            FontFamily="{StaticResource FiraRegular}"
-            FontSize="12"
-            IsReadOnly="True" />
+        <Grid Grid.Row="3">
+
+            <Grid.RowDefinitions>
+                <RowDefinition />
+                <RowDefinition />
+            </Grid.RowDefinitions>
+
+            <ui:RichTextBox
+                x:Name="APKLogs"
+                MinHeight="300"
+                MaxHeight="{x:Static SystemParameters.FullPrimaryScreenHeight}"
+                Margin="0,5"
+                VerticalAlignment="Stretch"
+                FontFamily="{StaticResource FiraRegular}"
+                FontSize="12"
+                IsReadOnly="True" />
+
+            <ui:Button
+                Grid.Row="1"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Top"
+                Command="{Binding ClearLogBoxCommand}"
+                Content="Clear Logs" />
+        </Grid>
     </Grid>
 </Page>
