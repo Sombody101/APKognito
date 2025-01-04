@@ -8,6 +8,7 @@ using APKognito.Utilities;
 using Microsoft.Win32;
 using System.CodeDom;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -498,7 +499,10 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             try
             {
                 // Remove temp directory
-                TempData.Delete(true);
+                Log("Cleaning temp directory....");
+                await Task.Factory.StartNew(
+                    path => Directory.Delete((string)path!, true), 
+                    TempData.FullName);
             }
             catch (Exception ex)
             {

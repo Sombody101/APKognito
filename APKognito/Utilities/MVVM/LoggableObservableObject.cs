@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows.Documents;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
@@ -84,15 +85,12 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
         WriteGenericLog($"{log}\n", Brushes.Red, logType: LogType.Error);
     }
 
-#if DEBUG
-
+    [Conditional("DEBUG")]
     public void LogDebug(string log)
     {
         FileLogger.LogDebug(log);
         WriteGenericLog($"{log}\n", Brushes.Cyan, logType: LogType.Debug);
     }
-
-#endif
 
     public void ClearLogs()
     {
@@ -162,7 +160,7 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
 
     private void AppendRunToLogbox(string text, [Optional] Brush? color, LogType? logType)
     {
-        richTextBox.Dispatcher.Invoke(() =>
+        richTextBox.Dispatcher.BeginInvoke(() =>
         {
             Run log = new(text);
 

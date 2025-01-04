@@ -300,12 +300,18 @@ public class ApkEditorContext
 
     private void RenameDirectory(string directory, string newName)
     {
+        if (Path.GetFileName(directory) == newName)
+        {
+            // The name already matches
+            return;
+        }
+
         string newFolderPath = Path.Combine(Path.GetDirectoryName(directory)!, newName);
 
         if (Directory.Exists(newFolderPath))
         {
-            viewModel.LogWarning($"Directory '{newName}' already exists, deleting and replacing. This may cause your APK to not load, " +
-                "if so, pick a new company name so it's not conflicting.");
+            viewModel.LogWarning($"Directory '{newName}' already exists, deleting and replacing. This may cause your APK to not load. " +
+                "If so, pick a new company name so it's not conflicting.");
         }
 
         Directory.Move(directory, newFolderPath);
@@ -313,10 +319,13 @@ public class ApkEditorContext
 
     private void ReplaceAllDirectoryNames(string baseDirectory, string searchName, string replacementName)
     {
-        Parallel.ForEach(
-            Directory.GetDirectories(baseDirectory, $"*{searchName}*", SearchOption.AllDirectories),
-            (directory) => RenameDirectory(directory, replacementName)
-        );
+        string[] dirs = [.. Directory.GetDirectories(baseDirectory, $"*{searchName}*", SearchOption.AllDirectories)
+            .OrderByDescending(s => s.Length)];
+
+        foreach (string directory in dirs)
+        {
+            RenameDirectory(directory, replacementName);
+        }
     }
 
     private static async Task CopyDirectory(string sourceDir, string destinationDir, bool recursive = false)
@@ -332,11 +341,10 @@ public class ApkEditorContext
 
         _ = Directory.CreateDirectory(destinationDir);
 
-        await Parallel.ForEachAsync(dir.GetFiles(), (file, token) =>
+        Parallel.ForEach(dir.GetFiles(), (file) =>
         {
             string targetFilePath = Path.Combine(destinationDir, file.Name);
             _ = file.CopyTo(targetFilePath, true);
-            return ValueTask.CompletedTask;
         });
 
         if (recursive)
@@ -355,7 +363,7 @@ public class ApkEditorContext
         xmlDoc.Load(manifestPath);
 
         return xmlDoc.DocumentElement?.Attributes["package"]?.Value
-            ?? throw new RenameFailedException("Failed to get package name.");
+            ?? throw new RenameFailedException("Failed to get package name from AndroidManifest (XML).");
     }
 
     private (string, string, string) SplitPackageName(string packageName)

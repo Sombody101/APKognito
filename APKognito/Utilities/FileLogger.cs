@@ -1,9 +1,8 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
-using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -64,18 +63,28 @@ public static class FileLogger
             ? "\n\n"
             : "\n";
 
-        string logEntry = $"[{UtcTime}{logLevel.ToString().ToUpper()}]\t[{GetCallerInfo()}] {text}{newline}";
+        string admin = MainWindowViewModel.LaunchedAsAdministrator
+            ? "[ADMIN]"
+            : string.Empty;
+
+        string logEntry = $"[{UtcTime}{logLevel.ToString().ToUpper()}] {admin}\t[{GetCallerInfo()}] {text}{newline}";
         LogGenericFinal(logEntry);
     }
 
     public static void LogGenericException(Exception ex, string partnerLog = "")
     {
-        string json = JsonConvert.SerializeObject(ex.InnerException ?? ex, Formatting.Indented);
+        string json = JsonConvert.SerializeObject(ex, Formatting.Indented);
 
         StringBuilder log = new();
 
-        log.Append('[').Append(UtcTime).Append("]: ")
-            .Append(partnerLog ?? "[No log]").Append(": ")
+        log.Append('[').Append(UtcTime).Append("]: EXCEPTION");
+
+        if (MainWindowViewModel.LaunchedAsAdministrator)
+        {
+            log.Append(" [ADMIN]");
+        }
+
+        log.Append(string.IsNullOrWhiteSpace(partnerLog) ? "[No log]" : string.Empty).Append(": ")
             .AppendLine(ex.GetType().Name)
             .AppendLine(json).AppendLine()
             .AppendLine("Formatted Trace:")
@@ -205,7 +214,7 @@ public static class FileLogger
                 }
                 else
                 {
-                    File.AppendAllText(logFilePath, $"Exception: {ex?.GetType().Name ?? "[NULL]"} appended to exception logs.");
+                    File.AppendAllText(logFilePath, $"Exception: {ex?.GetType().Name ?? "[NULL]"} appended to exception logs.\r\n");
                     File.AppendAllText(exceptionLogFilePath, entry);
                 }
             }
