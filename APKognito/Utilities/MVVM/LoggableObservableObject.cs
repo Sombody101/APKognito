@@ -29,12 +29,15 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
     private ISnackbarService snackbarService = null!;
     public ISnackbarService? SnackbarService => snackbarService;
 
-    private List<(string, Brush?)>? logBuffer = [];
-    public void WriteGenericLog(string text, [Optional] Brush color)
+    /* Configs */
+    protected bool LogIconPrefixes = true;
+
+    private List<(string, Brush?, LogType?)>? logBuffer = [];
+    public void WriteGenericLog(string text, [Optional] Brush color, LogType? logType = LogType.None)
     {
         if (richTextBox is null)
         {
-            logBuffer?.Add(new(text, color));
+            logBuffer?.Add(new(text, color, logType));
             return;
         }
 
@@ -42,14 +45,14 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
         {
             foreach (var logPair in logBuffer)
             {
-                AppendRunToLogbox(logPair.Item1, logPair.Item2);
+                AppendRunToLogbox(logPair.Item1, logPair.Item2, logType);
             }
 
             logBuffer.Clear();
             logBuffer = null;
         }
 
-        AppendRunToLogbox(text, color);
+        AppendRunToLogbox(text, color, logType);
     }
 
     public void WriteGenericLogLine(string text, [Optional] Brush color)
@@ -57,32 +60,28 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
         WriteGenericLog($"{text}\n", color);
     }
 
-    protected string LogPrefix { get; set; } = "[INFO]    ~ ";
     public void Log(string log)
     {
         FileLogger.Log(log);
-        WriteGenericLog($"{LogPrefix}{log}\n");
+        WriteGenericLog($"{log}\n", logType: LogType.Info);
     }
 
-    protected string LogSuccessPrefix { get; set; } = "[SUCCESS] @ ";
     public void LogSuccess(string log)
     {
         FileLogger.Log(log);
-        WriteGenericLog($"{LogSuccessPrefix}{log}\n", Brushes.Green);
+        WriteGenericLog($"{log}\n", Brushes.Green, logType: LogType.Success);
     }
 
-    protected string LogWarningPrefix { get; set; } = "[WARNING] # ";
     public void LogWarning(string log)
     {
         FileLogger.LogWarning(log);
-        WriteGenericLog($"{LogWarningPrefix}{log}\n", Brushes.Yellow);
+        WriteGenericLog($"{log}\n", Brushes.Yellow, logType: LogType.Warning);
     }
 
-    protected string LogErrorPrefix { get; set; } = "[ERROR]   ! ";
     public void LogError(string log)
     {
         FileLogger.LogError(log);
-        WriteGenericLog($"{LogErrorPrefix}{log}\n", Brushes.Red);
+        WriteGenericLog($"{log}\n", Brushes.Red, logType: LogType.Error);
     }
 
 #if DEBUG
@@ -90,7 +89,7 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
     public void LogDebug(string log)
     {
         FileLogger.LogDebug(log);
-        WriteGenericLog($"[DEBUG]   & {log}\n", Brushes.Cyan);
+        WriteGenericLog($"{log}\n", Brushes.Cyan, logType: LogType.Debug);
     }
 
 #endif
@@ -161,7 +160,7 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
         DisplaySnack(header, body, ControlAppearance.Danger);
     }
 
-    private void AppendRunToLogbox(string text, [Optional] Brush? color)
+    private void AppendRunToLogbox(string text, [Optional] Brush? color, LogType? logType)
     {
         richTextBox.Dispatcher.Invoke(() =>
         {
@@ -172,8 +171,98 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
                 log.Foreground = color;
             }
 
-            ((Paragraph)RichTextLastBlock).Inlines.Add(log);
+            Paragraph p = (Paragraph)RichTextLastBlock;
+
+            if (LogIconPrefixes && logType is not (null or LogType.None))
+            {
+                // Everything in this block is just to fix the inconsistent bum-fuckery sizing in the SymbolIcons
+
+                SymbolRegular symbol = SymbolRegular.Empty;
+                double height = 16;
+                Thickness margin = new(0, 0, 5, 0);
+
+                switch (logType)
+                {
+                    case LogType.Info:
+                        symbol = SymbolRegular.Info16;
+                        height = 14;
+                        margin.Left = 1;
+                        break;
+
+                    case LogType.Success:
+                        symbol = SymbolRegular.CheckmarkCircle16;
+                        break;
+
+                    case LogType.Warning:
+                        symbol = SymbolRegular.Warning16;
+                        break;
+
+                    case LogType.Error:
+                        symbol = SymbolRegular.ErrorCircle16;
+                        height = 15.5;
+                        break;
+
+                    case LogType.Debug:
+                        symbol = SymbolRegular.Bug16;
+                        break;
+                }
+
+                var icon = new SymbolIcon()
+                {
+                    Symbol = symbol,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    FontSize = height,
+                    Margin = margin
+                };
+
+                if (color is not null)
+                {
+                    icon.Foreground = color;
+                }
+
+                p.Inlines.Add(icon);
+            }
+
+            p.Inlines.Add(log);
             richTextBox.ScrollToEnd();
         });
     }
+
+    public enum LogType
+    {
+        None,
+        Info,
+        Success,
+        Warning,
+        Error,
+        Debug,
+    }
+
+    private static readonly SymbolIcon SymbolInfo = new()
+    {
+        Symbol = SymbolRegular.Info16,
+        FontSize = 14,
+        Margin = new(1, 0, 0, 0)
+    };
+
+    private static readonly SymbolIcon SymbolSuccess = new()
+    {
+        Symbol = SymbolRegular.CheckmarkCircle16,
+    };
+
+    private static readonly SymbolIcon SymbolWarning = new()
+    {
+        Symbol = SymbolRegular.Warning16,
+    };
+
+    private static readonly SymbolIcon SymbolError = new()
+    {
+        Symbol = SymbolRegular.ErrorCircle16,
+        FontSize = 15.5,
+    };
+
+    private static readonly SymbolIcon SymbolDebug = new()
+    {
+        Symbol = SymbolRegular.Bug16,
+    };
 }
