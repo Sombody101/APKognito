@@ -1,0 +1,107 @@
+# APKognito Project Layout
+
+- [AdbTools](./AdbTools/)
+  - [AdbManager](./AdbTools/AdbManager.cs)
+    - Provides commands for interacting with connected ADB devices.
+  - [CommandOutput](./AdbTools/CommandOutput.cs)
+    - A structure that holds two strings references, STDOUT and STDERR, the result from an ADB command.
+- [Assets](./Assets/)
+  - [AdbScripts](./Assets/AdbScripts/)
+    - Holds scripts that are uploaded to Android devices, called via `AdbManager.InvokeScript(string, string)`. Scripts are an embedded via a RESX file at [./AdbScripts.resx](./AdbScripts.resx).
+    - [GetPackageInfo.sh](./Assets/AdbScripts/GetPackageInfo.sh)
+      - A sh script for getting 3rd party package information.
+      - Return data format: `<package name>|<package path>|<package size>|<assets size>|<package save data size>`
+  - [Logos](./Assets/Logos/)
+    - Holds logos used throughout APKognito. All logos are made using a PowerPoint document at [./Assets/Logos/APKognitoLogo.pptx](./Assets/Logos/APKognitoLogo.pptx).
+- [Cli](./Cli/)
+  - Holds CLI argument parsing classes. Mostly used by [publish.sh](../publish.sh).
+  - [CliArgAttribute](./Cli/CliArgAttribute.cs)
+    - An attribute applied to class fields for easier argument parsing.
+  - [CliMain](./Cli/CliMain.cs)
+    - Called by [MainOverride.cs](./MainOverride.cs). If there are active CLI arguments, then control is held by this class until it either exits, or is given back, decided by the passed CLI arguments.
+  - [ParsedArgs](./Cli/ParsedArgs.cs)
+    - Implements the CLI argument fields and parser, using the `CliArgAttribute`.
+- [Configurations](./Configurations/)
+  - [ConfigModels](./Configurations/ConfigModels/)
+    - Holds configuration models, using a [ConfigFileAttribute](./Configurations/IKognitoConfig.cs) to specify how and where the fields are saved.
+    - [AdbConfig](./Configurations/ConfigModels/AdbConfig.cs)
+      - File name: `adb-config.json`
+      - Storage type: Json w/ ignore missing items
+      - Configurations for ADB based pages, as well as user defined CMDlets and device profiles (IDs, names, etc). This was originally implemented as a way to keep track of device info, but in it's current state, isn't being used.
+    - [AdbHistory](./Configurations/ConfigModels/AdbHistory.cs)
+      - File name: `adb-history.bin`
+      - Storage type: Memorypack w/ compression
+      - Stores command history (that can be navigated using the up/down arrow keys on the console page), and environment variables (implemented but not really used for anything).
+    - [CacheStorage](./Configurations/ConfigModels/CacheStorage.cs)
+      - File name: `misc.cache`
+      - Storage type: Memorypack
+      - Holds generic data that, if deleted, would no adverse effect on APKognito. Could lead to missing a ready-to-install update if timed right.
+    - [KognitoConfig](./Configurations/ConfigModels/KognitoConfig.cs)
+      - File name: `settings.json`
+      - Storage type: Json /w ignore missing items
+      - The original configuration file that was intended to store configurations for all of APKognito. Now, it's mainly used for the APKognito starting page. Holds configurations for the renaming process, UI options being stored in the dropdown card titled "APK Output Settings".
+    - [RenameSessionList](./Configurations/ConfigModels/RenameSessionList.cs)
+      - File name: `history.bin`
+      - Storage type: Memorypack
+      - Stores a list of `RenameSession` objects that hold information about rename jobs, including number of APKs per batch, and if they completed successfully.
+    - [UpdateConfig](./Configurations/ConfigModels/UpdateConfig.cs)
+      - File name: `update.json`
+      - Storage type: Json w/ ignore missing items
+      - Stores configurations for the auto update service, which can be edited/disabled via the settings page in the "Auto Updater" dropdown card.
+  - [ConfigType](./Configurations/ConfigType.cs)
+    - Holds two enums: `ConfigType`, for selecting Json or MemoryPacking a model, and `ConfigModifiers` (flags), for added features, such as compression and ignoring missing elements (Json only).
+  - [ConfigurationFactory](./Configurations/ConfigurationFactory.cs)
+    - Holds methods for loading/saving configuration models held in [ConfigModels](./Configurations/ConfigModels/). Once a config is loaded, it's cached so only one instance of a config is allowed to live at once, and remains for the lifespan of the APKognito instance. Certain events, including specific user interactions, can cause the configs to save. Otherwise, they save when APKognito is closing. Force killing APKognito disposes of any unsaved changes.
+  - [IKognitoConfig](./Configurations/IKognitoConfig.cs)
+    - An empty interface used with [ConfigModels](./Configurations/ConfigModels/) for easier model usage.
+  - [ConfigFileAttribute](./Configurations/IKognitoConfig.cs)
+    - An attribute applied to [ConfigModels](./Configurations/ConfigModels/) for specifying how and where a model is stored.
+  - [InvalidConfigModelException](./Configurations/InvalidConfigModelException.cs)
+    - An exception meant for me. It lets me know when I misconfigured a [ConfigModel](./Configurations/ConfigModels/).
+- [Controls](./Controls/)
+  - [AndroidDeviceInfo](./Controls/AndroidDeviceInfo.xaml.cs)
+    - A control that shows information about the currently connected and selected ADB device. Uses a static instance of [AndroidDeviceInfoViewModel](./Controls/ViewModel/AndroidDeviceInfoViewModel.cs) for temporary information storage and formatting.
+  - [DirectoryConfirmationDialog](./Controls/DirectoryConfirmationDialog.xaml.cs)
+    - A dialog window that comes with a textbox for selecting a directory. Currently only used in the package manager page.
+- [Exceptions](./Exceptions/)
+  - [AdbPushFailedException](./Exceptions/AdbPushFailedException.cs)
+    - Thrown when a file fails to be pushed to a headset. Mainly used in the file uploader page.
+  - [RenameFailedException](./Exceptions/RenameFailedException.cs)
+    - Thrown when an APK rename process fails.
+- [Helpers](./Helpers/)
+  - Converters used for views in xaml documents.
+- [Models](./Models/)
+  - Purpose made classes for organizing data allowing views to quickly present information.
+- [Services](./Services/)
+  - [AutoUpdaterService](./Services/AutoUpdaterService.cs)
+    - Performs an update check after a certain number of minutes, chosen by the user, with a default value of 60 minutes (one check every hour). An update check also happens when APKognito starts as long as auto updates have not been disabled by the user.
+- [Utilities](./Utilities/)
+  - [MVVM](./Utilities/MVVM/)
+    - This namespace essentially makes the ViewModel a semi-partial View, which goes against the MVVM design pattern, but I don't care.
+    - [LoggableObservableObject](./Utilities/MVVM/LoggableObservableObject.cs)
+      - A class that inherits [PageSizeTracker](./Utilities/MVVM/PageSizeTracker.cs), and adds features for direct RichTextBox logging.
+      - Since it's creation, more methods have been added, including easier snackbar usages.
+    - [PageSizeTracker](./Utilities/MVVM/PageSizeTracker.cs)
+      - A class that inherits [ObservableObject](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/observableobject) and provides properties, events, and methods for better element sizing/alignment with the window, and implements [IAntiMvvmRtb](./Utilities/IAntiMvvmRtb.cs).
+  - [ApkEditorContext](./Utilities/ApkEditorContext.cs)
+    - Holds the methods and instance information for renaming an APK. These methods were originally in the [HomeViewModel](./ViewModels/Pages/HomeViewModel.cs), but were moved to their own class for better management.
+  - [DebugOnlyException](./Utilities/DebugOnlyException.cs)
+    - An exception that is only available on debug builds (not available in `public` or `public-debug` builds). This is explicitly thrown in random places to see how APKognito recovers, if at all.
+  - [FileLogger](./Utilities/FileLogger.cs)
+    - Provides logging methods that target two files based on usage: `app.log` and `exlog.log`. `app.log` is used for logs, while `exlog.log` is specifically used for exceptions and their stack traces. All data forwarded to these files are "redacted" by replacing any instance of the current users profile name with the text `[:USER:]`.
+    - Produces logpacks, which are just ZIP archives with all log files, an empty file which given a name matching the APKognito version used, and a text file with all text currently inside the APK renaming page's log box. (yes, you pasting the content of that box in your GitHub issue is in fact redundant and only shows other people your name, making the whole "redaction" feature useless)
+  - [IAntiMvvmRtb](./Utilities/IAntiMvvmRtb.cs) (Anti MVVM RichTextBox)
+    - Enforces a method to be defined that allows Views to set a reference to their RichTextBox control in a ViewModel.
+  - [IViewable](./Utilities/IViewable.cs)
+    - An empty interface to specify which classes should be registered for dependency injection in [App](./App.xaml.cs).
+  - [VariablePathResolver](./Utilities/VariablePathResolver.cs)
+    - Only exposes one method which takes in a string path, attempts to find an environment variable using a precompiled REGEX pattern, replaces it with the variables value if available, then returns the string. Used for live-update path entry.
+  - [WebGet](./Utilities/WebGet.cs)
+    - A small class that makes downloading files from the internet easier.
+    - Has methods for parsing returned JSON data, usually from the GitHub API.
+- [Constants](./Constants.cs)
+  - A static class which only constant values. Currently, all values are strings for tool paths or GitHub API URLs.
+- [ExitCode](./ExitCode.cs)
+  - An enum, used by [MainOverride](./MainOverride.cs) and [CliMain](./Cli/CliMain.cs), for better exit code management.
+- [MainOverride](./MainOverride.cs)
+  - Overrides the `Main` entry point method generated by [MainWindow.xaml](./Views/Windows/MainWindow.xaml). This checks for CLI arguments *before* starting the WPF processor, and parses them. Control is given to the WPF processor only if there are no arguments, or the switch `--start` has been passed.
