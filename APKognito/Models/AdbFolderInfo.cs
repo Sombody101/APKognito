@@ -3,6 +3,8 @@ using System.Globalization;
 using System.IO;
 using Wpf.Ui.Controls;
 
+using TreeViewItem = System.Windows.Controls.TreeViewItem;
+
 namespace APKognito.Models;
 
 public class AdbFolderInfo : ObservableObject

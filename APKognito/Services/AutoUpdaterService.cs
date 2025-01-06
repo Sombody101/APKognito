@@ -55,7 +55,11 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         _timer = new Timer(
-            async _ => await CheckForUpdatesAsync(cancellationToken),
+            async _ =>
+            {
+                await CheckForUpdatesAsync(cancellationToken);
+                LogNextUpdate(config.CheckDelay);
+            },
             null,
             TimeSpan.Zero,
             TimeSpan.FromMinutes(config.CheckDelay)
@@ -81,7 +85,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         if (!config.CheckForUpdates)
         {
             FileLogger.Log("Check for updates disabled. Skipping.");
-            goto LogUpdateAndExit;
+            return;
         }
 
         // Fetch the download URL and release tag
@@ -93,7 +97,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         if (jsonData.Length is 0)
         {
             FileLogger.LogError("Returned JSON release info is null. Aborting update check.");
-            goto LogUpdateAndExit;
+            return;
         }
 
         string tagName = jsonData[0];
@@ -103,7 +107,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 #if DEBUG && EMULATE_RELEASE_ON_DEBUG
         if (!tagName!.StartsWith('v'))
 #else
-        if (!tagName!.StartsWith(App.IsDebugRelease ? 'd' : 'v'))
+        if (!tagName!.StartsWith(App.Version.VersionPrefix))
 #endif
         {
 #if RELEASE || EMULATE_RELEASE_ON_DEBUG
@@ -112,22 +116,22 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             FileLogger.Log($"Most recent release isn't a debug build: {tagName}");
 #endif
 
-            goto LogUpdateAndExit;
+            return;
         }
 
         // Check that the release tag is valid (for the current build)
-        if (!Version.TryParse( /* Remove the prefix letter (v1.5.1.1) */ tagName?[1..], out Version? newVersion))
+        if (!Version.TryParse( /* Remove the prefix letter (v1.5.1.1) */ tagName[App.Version.VersionPrefix.Length..], out _))
         {
             // The version isn't viable
             FileLogger.LogError($"Aborting update, invalid release tag: {tagName}");
-            goto LogUpdateAndExit;
+            return;
         }
 
         switch (await ValidatePackageVersion(currentVersion, jsonData))
         {
             case ValidationResult.UpdateComplete:
             case ValidationResult.CancelUpdate:
-                goto LogUpdateAndExit;
+                return;
 
             case ValidationResult.ContinueToUpdate:
                 // Do nothing
@@ -137,19 +141,16 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         FileLogger.Log($"Downloading release {tagName}");
 
         _ = Directory.CreateDirectory(UpdatesFolder);
-        string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{tagName![1..]}.zip");
+        string downloadZip = Path.Combine(UpdatesFolder, $"APKognito-{tagName}.zip");
         if (!await WebGet.DownloadAsync(downloadUrl!, downloadZip, null, cToken))
         {
             FileLogger.LogFatal("Failed to download latest release.");
-            goto LogUpdateAndExit;
+            return;
         }
 
         // A cheap way to encode the update info in a way that the user won't dick around easily (they still can if they try hard enough, but a binary file should scare them away)
         cache.UpdateSourceLocation = $"{downloadZip}\0{tagName}";
         await ImplementUpdate(downloadZip, tagName!);
-
-    LogUpdateAndExit:
-        LogNextUpdate(config.CheckDelay);
     }
 
     private async Task<ValidationResult> ValidatePackageVersion(Version newVersion, string?[] jsonData)

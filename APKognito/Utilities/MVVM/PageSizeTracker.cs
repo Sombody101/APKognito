@@ -93,7 +93,7 @@ public class PageSizeTracker : ObservableObject
 
     private void SetMaximizedSize()
     {
-        Screen screen = Screen.FromHandle(new WindowInteropHelper(_window).Handle);
+         Screen screen = Screen.FromHandle(new WindowInteropHelper(_window).Handle);
         _maximizedHeight = screen.Bounds.Height;
         _maximizedWidth = screen.Bounds.Width;
     }

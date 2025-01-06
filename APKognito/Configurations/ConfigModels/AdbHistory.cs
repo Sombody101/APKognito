@@ -6,8 +6,6 @@ namespace APKognito.Configurations.ConfigModels;
 [MemoryPackable]
 internal partial class AdbHistory : IKognitoConfig
 {
-    // Likely wont be used
-    //public List<string> OutputHistory { get; set; } = [];
     public List<string> CommandHistory { get; set; } = [];
     public Dictionary<string, string> Variables { get; set; } = GetDefaultVariables();
 

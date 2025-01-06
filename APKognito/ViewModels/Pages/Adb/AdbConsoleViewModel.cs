@@ -619,6 +619,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             return compare.ElementAt(index);
         }
 
+        [SuppressMessage("Minor Code Smell", "S1116:Empty statements should be removed", Justification = "Value is incremented in for loop updation")]
         private static int CompareStrings(string s, string t)
         {
             int n = s.Length;

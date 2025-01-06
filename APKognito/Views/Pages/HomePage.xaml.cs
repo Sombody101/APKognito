@@ -1,10 +1,11 @@
 ﻿using APKognito.Configurations;
+using APKognito.Controls;
 using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
 using System.IO;
-using System.Windows.Controls;
 using System.Windows.Data;
 using Wpf.Ui.Controls;
+using DataFormats = System.Windows.DataFormats;
 using DragEventArgs = System.Windows.DragEventArgs;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using TextBox = System.Windows.Controls.TextBox;
@@ -51,30 +52,61 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         APKLogs.ScrollToEnd();
     }
 
+    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        App.OpenHyperlink(sender, e);
+    }
+
+    private async void CheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.OnRenameCopyChecked();
+    }
+
     private void TextBox_KeyUp(object sender, KeyEventArgs e)
     {
-        TextBox tBox = (TextBox)sender;
+        TextBox tBox;
+
+        switch (sender)
+        {
+            case TextBox:
+                tBox = (TextBox)sender;
+                break;
+
+            case DirectorySelector:
+                tBox = ((DirectorySelector)sender).DirectoryTextBox;
+                break;
+
+            default:
+                return;
+        }
+
         DependencyProperty prop = TextBox.TextProperty;
 
         BindingExpression binding = BindingOperations.GetBindingExpression(tBox, prop);
         binding?.UpdateSource();
     }
 
-    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    private void Card_PreviewDragOver(object sender, DragEventArgs e)
     {
-        App.OpenHyperlink(sender, e);
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            DragDropPresenter.Visibility = Visibility.Visible;
+            e.Handled = true;
+        }
     }
 
-    private void Page_DragOver(object sender, DragEventArgs e)
+    private async void DragDropPresenter_Drop(object sender, DragEventArgs e)
     {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            await ViewModel.AddManualFiles(files);
+            DragDropPresenter.Visibility = Visibility.Collapsed;
+        }
     }
 
-    private void Page_Drop(object sender, DragEventArgs e)
+    private void DragDropPresenter_PreviewDragLeave(object sender, DragEventArgs e)
     {
-    }
-
-    private void CheckBox_Checked(object sender, RoutedEventArgs e)
-    {
-        ViewModel.OnRenameCopyChecked();
+        DragDropPresenter.Visibility = Visibility.Collapsed;
     }
 }

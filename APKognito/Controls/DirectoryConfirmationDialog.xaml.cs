@@ -44,7 +44,7 @@ public partial class DirectoryConfirmationDialog : ContentDialog
                     if (ViewModel.OutputDirectory.IndexOfAny(offending) == 0)
                     {
                         TextBlock.SetCurrentValue(VisibilityProperty, Visibility.Visible);
-                        _ = OutputDirectoryField.Focus();
+                        _ = DirectorySelectorC.DirectoryTextBox.Focus();
                         return;
                     }
                 }

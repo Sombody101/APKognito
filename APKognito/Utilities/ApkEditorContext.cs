@@ -218,14 +218,15 @@ public class ApkEditorContext
     {
         ReplaceAllDirectoryNames(ApkTempDirectory, searchCompanyName, replacementName);
 
-        IEnumerable<string> files = Directory.GetFiles(Path.Combine(ApkTempDirectory, "smali", packagePrefix, replacementName), "*", SearchOption.AllDirectories)
-            .Where(file => file.EndsWith(".smali"))
+        IEnumerable<string> files = Directory.EnumerateFiles(Path.Combine(ApkTempDirectory, "smali", packagePrefix, replacementName), "*.smali", SearchOption.AllDirectories)
             .Append($"{ApkTempDirectory}\\AndroidManifest.xml")
             .Append($"{ApkTempDirectory}\\apktool.yml");
 
         await Parallel.ForEachAsync(files, cToken,
             async (filePath, subcToken) =>
-            await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, subcToken)
+            {
+                await ReplaceTextInFileAsync(filePath, searchCompanyName, replacementName, subcToken);
+            }
         );
     }
 
@@ -298,23 +299,35 @@ public class ApkEditorContext
         };
     }
 
-    private void RenameDirectory(string directory, string newName)
+    private void RenameDirectory(string originalDirectory, string newName)
     {
-        if (Path.GetFileName(directory) == newName)
+        if (Path.GetFileName(originalDirectory) == newName)
         {
             // The name already matches
             return;
         }
 
-        string newFolderPath = Path.Combine(Path.GetDirectoryName(directory)!, newName);
+        string trimmedDirectory = originalDirectory[ApkTempDirectory.Length..];
+        FileLogger.Log($"Changing .{trimmedDirectory} -> {newName}");
+
+        string newFolderPath = Path.Combine(Path.GetDirectoryName(originalDirectory)!, newName);
 
         if (Directory.Exists(newFolderPath))
         {
+            if (!Directory.Exists(originalDirectory))
+            {
+                FileLogger.LogWarning($"The directory '.{trimmedDirectory}' has already been renamed to {newName}, skipping.");
+                return;
+            }
+         
             viewModel.LogWarning($"Directory '{newName}' already exists, deleting and replacing. This may cause your APK to not load. " +
                 "If so, pick a new company name so it's not conflicting.");
+
+            FileLogger.Log($"Removing: {newFolderPath[ApkTempDirectory.Length..]}");
+            Directory.Delete(newFolderPath, true);
         }
 
-        Directory.Move(directory, newFolderPath);
+        Directory.Move(originalDirectory, newFolderPath);
     }
 
     private void ReplaceAllDirectoryNames(string baseDirectory, string searchName, string replacementName)

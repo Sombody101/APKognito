@@ -8,11 +8,13 @@ using APKognito.Utilities;
 using Microsoft.Win32;
 using System.CodeDom;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Threading;
 using Wpf.Ui;
 
@@ -427,7 +429,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                     {
                         string[] assets = Directory.GetFiles(editorContext.AssetPath);
 
-                        string obbPath = $"/storage/emulated/0/Android/{FinalName}";
+                        string obbPath = $"/sdcard/Android/{FinalName}";
                         Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbPath}");
 
                         await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbPath}""", token: cancellationToken);
@@ -599,29 +601,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
         if ((bool)result)
         {
-            string[] selectedFilePaths = openFileDialog.FileNames;
-
-            if (selectedFilePaths.Length is 1)
-            {
-                string selectedFilePath = selectedFilePaths[0];
-                FilePath = selectedFilePath;
-                string apkName = ApkName = Path.GetFileName(selectedFilePath);
-                Log($"Selected {apkName} from: {selectedFilePath}");
-            }
-            else
-            {
-                FilePath = string.Join(PATH_SEPARATOR, selectedFilePaths);
-
-                StringBuilder sb = new($"Selected {selectedFilePaths.Length} APKs\n");
-
-                foreach (string str in selectedFilePaths)
-                {
-                    _ = sb.Append("\tAt: ").AppendLine(str);
-                }
-
-                Log(sb.ToString());
-            }
-
+            await AddManualFiles(openFileDialog.FileNames);
             await UpdateFootprintInfo();
         }
         else
@@ -630,6 +610,54 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         }
 
         UpdateCanStart();
+    }
+
+    public async Task AddManualFiles(string[] files, bool verifyTypes = false)
+    {
+        if (files.Length is 1)
+        {
+            string selectedFilePath = files[0];
+
+            if (!VerifyFileType(selectedFilePath))
+            {
+                return;
+            }
+
+            FilePath = selectedFilePath;
+            string apkName = ApkName = Path.GetFileName(selectedFilePath);
+            Log($"Selected {apkName} from: {selectedFilePath}");
+        }
+        else
+        {
+            FilePath = string.Join(PATH_SEPARATOR, files);
+
+            StringBuilder sb = new($"Selected {files.Length} APKs\n");
+
+            foreach (string file in files)
+            {
+                if (!VerifyFileType(file))
+                {
+                    return;
+                }
+
+                _ = sb.Append("\tAt: ").AppendLine(file);
+            }
+
+            Log(sb.ToString());
+        }
+
+        await UpdateFootprintInfo();
+
+        bool VerifyFileType(string file)
+        {
+            if (string.Equals(Path.GetExtension(file), ".apk", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            SnackError("Incorrect file types!", $"All files should be APKs! (with the '.apk' file extension)\nOffending file: {file}");
+            return false;
+        }
     }
 
     private bool VerifyJavaInstallation(out string? javaPath)
@@ -686,6 +714,17 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             FileLogger.LogError(logBuffer.ToString());
         }
 
+        // Check for JDK via registry
+        if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
+            || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath))
+        {
+            return true;
+        }
+
+        LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
+        LogError("If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
+        return false;
+
         bool GetKey(RegistryKey? javaJdkKey, out string? javaPath, string javaType = "JDK")
         {
             javaPath = null;
@@ -721,17 +760,6 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             javaPath = subJavaPath;
             return true;
         }
-
-        // Check for JDK via registry
-        if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
-            || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath))
-        {
-            return true;
-        }
-
-        LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
-        LogError("If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
-        return false;
     }
 
     private async ValueTask UpdateFootprintInfo()

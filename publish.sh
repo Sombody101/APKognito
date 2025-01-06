@@ -1,5 +1,11 @@
 #!/bin/bash
 
+[[ "$1" == "--help" ]] && {
+    echo "Usage"
+    echo "publish.sh <github token> <virus total token> [deb, pre (debug/pre-release)]"
+    exit
+}
+
 ###
 # Exit codes:
 #   1: Generic error
@@ -51,33 +57,37 @@ scb() {
     }
 }
 
+publish_profile="FolderProfile.pubxml"
+
 case "$3" in
 
 "pre")
-    echo "Building prerelease."
-    readonly prerelease=true
+    echo "Building pre-release."
+    publish_profile="PreReleaseProfile.pubxml"
+    readonly release_type="Prerelease"
+    readonly release_tag_prefix="d"
     ;;
 
 "deb")
-    echo "Building debug release."
-    buildflag="$buildflag -p:DefineConstants=DEBUG_RELEASE"
+    echo "Building public debug release."
+    publish_profile="PublicDebugProfile.pubxml"
+    readonly release_type="PublicDebug"
+    readonly release_tag_prefix="d"
+    ;;
+
+*)
+    readonly release_type="Beta"
+    readonly release_tag_prefix="v"
     ;;
 
 esac
 
-if [[ "$prerelease" ]]; then
-    readonly release_type="Prerelease"
-    readonly release_tag_prefix="d"
-else
-    readonly release_type="Beta"
-    readonly release_tag_prefix="v"
-fi
-
-readonly publish_profile="./APKognito/Properties/PublishProfiles/FolderProfile.pubxml"
 readonly git_remote_url="https://github.com/Sombody101/APKognito"
 
 readonly build_path="./APKognito/bin/Release/net8.0-windows/publish/win-x64"
-! dotnet publish -c Release -p:PublishProfile="$publish_profile" "$buildflag" && exit "$?"
+
+echo "Using publish profile: $publish_profile"
+! dotnet publish -c Release -p:PublishProfile="./APKognito/Properties/PublishProfiles/$publish_profile" "$buildflag" && exit "$?"
 
 appversion="$($build_path/APKognito.exe --version | tr -d '\000-\037\177')"
 readonly appversion
@@ -114,7 +124,7 @@ for message in "${split[@]}"; do
     commit_messages="${commit_messages} - [${splitMessage[0]}]($git_remote_url/tree/${splitMessage[0]}): ${splitMessage[*]:1}${NL}"
 done
 
-commit_messages="${commit_messages}${NL}[VirusTotal for v${appversion}](${permlink})${NL}${NL}###### This was created by an auto publish script @ $(date -u)"
+commit_messages="${commit_messages}${NL}[VirusTotal for ${release_tag}${appversion}](${permlink})${NL}${NL}###### This was created by an auto publish script @ $(date -u)"
 
 readonly commit_messages
 readonly release_title="[$release_type] Release $appversion"

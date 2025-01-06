@@ -26,10 +26,7 @@
 
     <StackPanel Margin="0,10">
 
-        <TextBlock
-            FontSize="20"
-            FontWeight="Medium"
-            Text="Personalization" />
+        <TextBlock FontWeight="Medium" Text="Personalization" />
 
         <ui:CardControl Margin="0,12,0,0" Icon="{ui:SymbolIcon Color24}">
             <ui:CardControl.Header>
@@ -232,30 +229,44 @@
 
         <TextBlock
             Margin="0,24,0,0"
-            FontSize="20"
             FontWeight="Medium"
             Text="About" />
 
-        <ui:CardExpander Margin="0,24,0,0" ContentPadding="0">
+        <ui:CardExpander Margin="0,12,0,0" ContentPadding="0">
             <ui:CardExpander.Header>
-                <Grid VerticalAlignment="Center">
+                <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="auto" />
                     </Grid.RowDefinitions>
+
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="auto" />
+                        <ColumnDefinition Width="auto" />
+                        <ColumnDefinition Width="auto" />
                     </Grid.ColumnDefinitions>
+
+                    <ui:ImageIcon
+                        Grid.RowSpan="2"
+                        Width="25"
+                        Height="25"
+                        Margin="0,0,15,0"
+                        Source="pack://application:,,,/Assets/apkognito.png" />
+                    <ui:TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Bottom"
+                        Text="APKognito" />
                     <ui:TextBlock
                         Grid.Row="1"
-                        Grid.Column="0"
-                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="© 2024 Sombody101" />
-                    <TextBlock
-                        Grid.Row="0"
-                        Grid.RowSpan="2"
                         Grid.Column="1"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        Text="© 2024 Sombody101" />
+
+                    <ui:TextBlock
+                        Grid.RowSpan="2"
+                        Grid.Column="3"
                         Margin="0,0,16,0"
+                        HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
                         Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
@@ -268,7 +279,6 @@
 
         <TextBlock
             Margin="0,24,0,0"
-            FontSize="20"
             FontWeight="Medium"
             Text="Miscellaneous" />
 

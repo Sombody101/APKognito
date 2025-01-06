@@ -30,7 +30,7 @@
 
     <Grid Margin="0,30">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width=".45*" MinWidth="350"/>
+            <ColumnDefinition Width=".45*" MinWidth="350" />
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
 
@@ -142,6 +142,10 @@
                                 Content="Files"
                                 IsChecked="{Binding FilterInFiles, Mode=TwoWay}"
                                 ToolTip="Includes all found files, including temporary files." />
+                            <CheckBox
+                                Content="Exclude 'OUTPUT'"
+                                IsChecked="{Binding FilterOutOutputDirectory}"
+                                ToolTip="Excludes results from your set 'APK Output Directory' (in case it has been set to a sensitive directory) [REQUIRES REFRESH]" />
                         </StackPanel>
 
                         <!--  Deletion buttons  -->

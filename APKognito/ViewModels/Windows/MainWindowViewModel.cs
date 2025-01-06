@@ -7,6 +7,8 @@ using System.Security.Principal;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 
+using MenuItem = System.Windows.Controls.MenuItem;
+
 namespace APKognito.ViewModels.Windows;
 
 public partial class MainWindowViewModel : LoggableObservableObject, IViewable
@@ -43,12 +45,11 @@ public partial class MainWindowViewModel : LoggableObservableObject, IViewable
             Icon = new SymbolIcon { Symbol = SymbolRegular.Code16 },
             TargetPageType = typeof(AdbConsolePage),
             MenuItemsSource = new NavigationViewItem[] {
-                new("ADB Configuration", typeof(AdbConfigurationPage)),
-                new("Console", typeof(AdbConsolePage)),
-                // new("Quick Commands", typeof(AdbConsolePage)),
-                new("File Explorer", typeof(FileExplorerPage)),
-                new("File Uploader", typeof(FileUploaderPage)),
-                new("Package Manager", typeof(PackageManagerPage)),
+                new("ADB Configuration",    typeof(AdbConfigurationPage)),
+                new("Console",              typeof(AdbConsolePage)),
+                new("File Explorer",        typeof(FileExplorerPage)),
+                new("File Uploader",        typeof(FileUploaderPage)),
+                new("Package Manager",      typeof(PackageManagerPage)),
             },
         },
     ];

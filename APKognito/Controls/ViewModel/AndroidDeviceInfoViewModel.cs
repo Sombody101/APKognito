@@ -75,7 +75,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
 
     #endregion Commands
 
-    public async Task RefreshDevicesList()
+    public async Task RefreshDevicesList(bool silent = false)
     {
         try
         {
@@ -83,10 +83,13 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
 
             if (foundDevices.Length is 0)
             {
-                LoggableObservableObject.CurrentLoggableObject?.SnackError(
-                    "No devices found",
-                    "Cannot get any ADB devices (Ensure they're plugged in and have developer mode enabled)."
-                );
+                if (!silent)
+                {
+                    LoggableObservableObject.CurrentLoggableObject?.SnackError(
+                        "No devices found",
+                        "Cannot get any ADB devices (Ensure they're plugged in and have developer mode enabled)."
+                    );
+                }
 
                 return;
             }
@@ -118,7 +121,11 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
         catch (Exception ex)
         {
             FileLogger.LogException(ex);
-            LoggableObservableObject.CurrentLoggableObject?.SnackError("Failed to get devices", ex.Message);
+
+            if (!silent)
+            {
+                LoggableObservableObject.CurrentLoggableObject?.SnackError("Failed to get devices", ex.Message);
+            }
         }
     }
 

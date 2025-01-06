@@ -138,7 +138,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         Assembly assembly = Assembly.GetExecutingAssembly();
         AssemblyName assemblyName = assembly.GetName();
 
-        string appVersion = assemblyName.Version?.ToString() ?? "[Unknown]";
+        string appVersion = App.Version.GetVersion(assembly);
 
         string appName = assemblyName.Name ?? "[Unknown]";
         string fullAppVersion = $"{appVersion} - {assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "[Unknown]"}";

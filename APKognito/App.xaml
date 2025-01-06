@@ -27,8 +27,7 @@
                 <Setter Property="FontFamily" Value="Segoe UI Symbol" />
             </Style>
 
-            <ui:ImageIcon x:Key="Dark-Wide" Source="pack://application:,,,/Assets/dark-wide.png" />
-            <ui:ImageIcon x:Key="Light-Wide" Source="pack://application:,,,/Assets/light-wide.png" />
+            <ui:ImageIcon x:Key="Apkognito-Alone" Source="pack://application:,,,/Assets/apkognito.png" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

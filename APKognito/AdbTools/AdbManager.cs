@@ -145,33 +145,37 @@ internal class AdbManager
 
                 switch (split[2])
                 {
-                    case "unauthorized": device.DeviceName = $"[ADB Not Enabled]"; break;
-                    case "offline": device.DeviceName = "[Device Offline]"; break;
+                    case "unauthorized":
+                        device.DeviceName = "[ADB Not Enabled]";
+                        break;
+
+                    case "offline":
+                        device.DeviceName = "[Device Offline]";
+                        break;
+
                     default:
+                        try
                         {
-                            try
-                            {
-                                CommandOutput output = await QuickCommand($@"-s {deviceId} shell getprop ro.product.model");
+                            CommandOutput output = await QuickCommand($@"-s {deviceId} shell getprop ro.product.model");
 
-                                if (output.DeviceNotAuthorized)
-                                {
-                                    goto case "unauthorized";
-                                }
-
-                                device.DeviceName = output.StdOut.Trim();
-                                device.DeviceAuthorized = true;
-                            }
-                            catch (Exception ex)
+                            if (output.DeviceNotAuthorized)
                             {
-                                FileLogger.LogException(ex);
                                 goto case "unauthorized";
                             }
+
+                            device.DeviceName = output.StdOut.Trim();
+                            device.DeviceAuthorized = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            FileLogger.LogException(ex);
+                            goto case "unauthorized";
                         }
                         break;
                 }
 
                 return device;
-            }).ToArray();
+            });
 
         return await Task.WhenAll(enumeration);
     }
@@ -245,7 +249,7 @@ internal class AdbManager
         }
 
         string scriptVersion = (await QuickDeviceCommand($"shell sh {APKOGNITO_DIRECTORY}/version", noThrow: true)).StdOut;
-        if (scriptVersion == App.GetVersion() || forceUpload)
+        if (scriptVersion == App.Version.GetVersion() || forceUpload)
         {
             FileLogger.Log("Skipping script update, version file matches current version.");
 
@@ -286,7 +290,7 @@ internal class AdbManager
             FileLogger.LogException(ex);
         }
 
-        _ = await QuickDeviceCommand($"shell echo '#!/bin/sh\n\necho \"{App.GetVersion()}\"'");
+        _ = await QuickDeviceCommand($"shell echo '#!/bin/sh\n\necho \"{App.Version.GetVersion()}\"'");
 
         return (pushedCount, scriptCount, ScriptPushResult.Success);
     }

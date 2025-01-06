@@ -2,6 +2,7 @@
     x:Class="APKognito.Views.Pages.HomePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:APKognito.Helpers"
     xmlns:local="clr-namespace:APKognito.Views.Pages"
@@ -18,8 +19,6 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     AllowDrop="True"
-    DragOver="Page_DragOver"
-    Drop="Page_Drop"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
 
@@ -27,6 +26,7 @@
         <helpers:GBConverter x:Key="GBConverter" />
         <helpers:VisibilityInverter x:Key="VisibilityInverter" />
         <helpers:BoolToVisibility x:Key="BoolToVisibility" />
+        <helpers:BoolInterterConverter x:Key="BoolInverter" />
     </Page.Resources>
 
     <Grid Margin="0,30">
@@ -81,12 +81,20 @@
                     VerticalAlignment="Center"
                     FontWeight="Bold"
                     Text="Output Directory" />
+
                 <Grid Grid.Column="2" Margin="0,0,0,2.5">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="75" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
+                    <ctrls:DirectorySelector
+                        Grid.ColumnSpan="2"
+                        Margin="0,5"
+                        DirectoryPath="{Binding OutputDirectory}"
+                        KeyUp="TextBox_KeyUp" />
+
+                    <!--
                     <ui:TextBox
                         Grid.Column="1"
                         Margin="1"
@@ -102,6 +110,7 @@
                         HorizontalAlignment="Right"
                         Command="{Binding SelectOutputFolderCommand}"
                         Content="Browse" />
+                    -->
                 </Grid>
 
                 <ui:TextBlock
@@ -164,7 +173,11 @@
             </Grid>
         </ui:CardExpander>
 
-        <ui:Card Grid.Row="2" Margin="0,5,0,0">
+        <ui:Card
+            Grid.Row="2"
+            Margin="0,5,0,0"
+            AllowDrop="{Binding RunningJobs, Converter={StaticResource BoolInverter}}"
+            PreviewDragOver="Card_PreviewDragOver">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition />
@@ -176,6 +189,29 @@
                     <ColumnDefinition Width="225" />
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
+
+                <Grid
+                    x:Name="DragDropPresenter"
+                    Grid.ColumnSpan="10"
+                    Panel.ZIndex="100"
+                    Visibility="Visible">
+                    <ui:Card
+                        Margin="-15,-17,-15,-21"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        AllowDrop="{Binding RunningJobs, Converter={StaticResource BoolInverter}}"
+                        Background="Gray"
+                        Drop="DragDropPresenter_Drop"
+                        Opacity=".5"
+                        PreviewDragLeave="DragDropPresenter_PreviewDragLeave" />
+
+                    <ui:SymbolIcon
+                        Drop="DragDropPresenter_Drop"
+                        Filled="True"
+                        FontSize="48"
+                        PreviewDragLeave="DragDropPresenter_PreviewDragLeave"
+                        Symbol="Dock24" />
+                </Grid>
 
                 <!--  Selected File Information (AKA: Fuster Cluck)  -->
 

@@ -13,8 +13,8 @@
     MinHeight="300"
     d:DataContext="{d:DesignInstance local:MainWindow,
                                      IsDesignTimeCreatable=True}"
-    d:DesignHeight="450"
-    d:DesignWidth="800"
+    d:DesignHeight="700"
+    d:DesignWidth="1200"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ExtendsContentIntoTitleBar="True"
@@ -29,10 +29,7 @@
     </Window.Style>
 
     <Window.InputBindings>
-        <KeyBinding
-            Key="S"
-            Command="{Binding ViewModel.SaveAllConfigsCommand}"
-            Modifiers="Ctrl" />
+        <KeyBinding Command="{Binding ViewModel.SaveAllConfigsCommand}" Gesture="CTRL+S" />
         <KeyBinding Command="{Binding ViewModel.ForceGarbageCollectionCommand}" Gesture="CTRL+SHIFT+G" />
     </Window.InputBindings>
 

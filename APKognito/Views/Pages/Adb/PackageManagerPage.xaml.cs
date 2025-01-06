@@ -22,11 +22,11 @@ public partial class PackageManagerPage : INavigableView<PackageManagerViewModel
         Loaded += async (sender, e) =>
         {
             ViewModel.SetAndInitializePageSize(this);
-            await viewModel.UpdatePackageListCommand.ExecuteAsync(null);
+            await viewModel.UpdatePackageListCommand.ExecuteAsync(true);
         };
     }
 
-    private void TextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         TextBox tBox = (TextBox)sender;
         DependencyProperty prop = TextBox.TextProperty;

@@ -78,9 +78,9 @@ public partial class PackageManagerViewModel : LoggableObservableObject, IViewab
     #region Commands
 
     [RelayCommand]
-    private async Task OnUpdatePackageList()
+    private async Task OnUpdatePackageList(bool silent = false)
     {
-        await UpdatePackageList();
+        await UpdatePackageList(silent);
     }
 
     [RelayCommand]
@@ -202,7 +202,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject, IViewab
                 if (!softUninstall)
                 {
                     // Save data
-                    await AdbManager.QuickDeviceCommand($"shell rm -r \"/storage/emulated/0/Android/data/{entryName}\"", noThrow: true);
+                    await AdbManager.QuickDeviceCommand($"shell rm -r \"/sdcard/Android/data/{entryName}\"", noThrow: true);
                 }
             }
 
@@ -217,7 +217,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject, IViewab
         EnableControls = true;
     }
 
-    private async Task UpdatePackageList()
+    private async Task UpdatePackageList(bool silent = false)
     {
         /*
          * Current format:
@@ -227,14 +227,23 @@ public partial class PackageManagerViewModel : LoggableObservableObject, IViewab
         var device = adbConfig.GetCurrentDevice();
         if (device is null)
         {
+            if (silent)
+            {
+                return;
+            }
+
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
-            return;
         }
 
         CommandOutput result = await AdbManager.InvokeScript($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true);
 
         if (result.Errored)
         {
+            if (silent)
+            {
+                return;
+            }
+
             if (result.StdErr.Trim().EndsWith("No such file or directory"))
             {
                 SnackError("No ADB scripts!", "ADB scripts have not been installed on this device. Install them by pressing 'Upload ADB Scripts' at the top.");
@@ -277,7 +286,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject, IViewab
 
             string? assetsPath = assetsSize is -1
                 ? null
-                : $"/storage/emulated/0/Android/obb/{packageName}";
+                : $"/sdcard/Android/obb/{packageName}";
 
             return new PackageEntry(packageName, packagePath, packageSize * 1024, assetsPath, assetsSize * 1024, saveDataSize * 1024);
         }));

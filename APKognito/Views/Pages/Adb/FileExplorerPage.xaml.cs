@@ -3,6 +3,8 @@ using APKognito.Configurations.ConfigModels;
 using APKognito.ViewModels.Pages;
 using Wpf.Ui.Controls;
 
+using TreeViewItem = Wpf.Ui.Controls.TreeViewItem;
+
 namespace APKognito.Views.Pages;
 
 /// <summary>

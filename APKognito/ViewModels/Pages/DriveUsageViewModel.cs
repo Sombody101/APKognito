@@ -4,6 +4,7 @@ using APKognito.Models.Settings;
 using APKognito.Utilities;
 using Humanizer;
 using System.Collections.ObjectModel;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Text;
 using System.Windows.Threading;
@@ -60,6 +61,9 @@ public partial class DriveUsageViewModel : PageSizeTracker, IViewable
 
     [ObservableProperty]
     private bool _filterInFiles;
+
+    [ObservableProperty]
+    private bool _filterOutOutputDirectory = true;
 
     [ObservableProperty]
     private ObservableCollection<FootprintInfo> _foundFolders = [];
@@ -212,6 +216,7 @@ public partial class DriveUsageViewModel : PageSizeTracker, IViewable
 
             if (cachedFootprints.Count is 0)
             {
+                CanDelete = FileListVisibility = false;
                 return;
             }
 
@@ -223,20 +228,7 @@ public partial class DriveUsageViewModel : PageSizeTracker, IViewable
                 TotalFilteredSpace += item.FolderSizeBytes;
             }
 
-            CanDelete = FileListVisibility = cachedFootprints.Count is not 0;
-
-            // if (cachedFootprints.Count is 0)
-            // {
-            //     NoFilesPanelVisibility = Visibility.Visible;
-            //     FileListVisibility = Visibility.Collapsed;
-            //     CanDelete = false;
-            // }
-            // else
-            // {
-            //     NoFilesPanelVisibility = Visibility.Collapsed;
-            //     FileListVisibility = Visibility.Visible;
-            //     CanDelete = true;
-            // }
+            CanDelete = FileListVisibility = FoundFolders.Count is not 0;
         });
     }
 
@@ -246,7 +238,7 @@ public partial class DriveUsageViewModel : PageSizeTracker, IViewable
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
 
         string apkOutputPath = config.ApkOutputDirectory ?? string.Empty;
-        if (Directory.Exists(apkOutputPath))
+        if (!FilterOutOutputDirectory && Directory.Exists(apkOutputPath))
         {
             apkOutputPath = Path.GetFullPath(apkOutputPath);
             folders.AddRange(Directory.GetDirectories(apkOutputPath));

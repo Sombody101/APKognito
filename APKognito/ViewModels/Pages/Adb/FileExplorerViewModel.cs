@@ -56,17 +56,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
     [RelayCommand]
     private async Task OnTryRefreshDirectory(AdbFolderInfo info)
     {
-        TreeViewItem? itemToRefresh = null;
-        if (info.ParentTreeViewItem is not null)
-        {
-            var thing = info.ParentTreeViewItem.Items;
-        }
-        else
-        {
-
-        }
-
-        await GetFolders(itemToRefresh);
+        await GetFolders(null);
     }
 
     #endregion Commands

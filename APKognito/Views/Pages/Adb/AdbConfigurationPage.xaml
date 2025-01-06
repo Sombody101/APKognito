@@ -6,8 +6,6 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:APKognito.ViewModels.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:models="clr-namespace:APKognito.Models"
-    xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="AdbConfigurationPage"
     d:DataContext="{d:DesignInstance local:AdbConfigurationViewModel,
@@ -25,7 +23,15 @@
 
         <!--  Not a whole lot here...  -->
 
-        <Label Content="Platform Tools Path" />
-        <ui:TextBox Margin="0,0,0,10" Text="{Binding PlatformToolsPath}" />
+        <ui:CardExpander ContentPadding="0">
+            <ui:CardExpander.Header>
+                <Label Content="Platform Tools Path" />
+            </ui:CardExpander.Header>
+
+            <ctrls:DirectorySelector
+                Grid.Column="1"
+                Margin="16"
+                DirectoryPath="{Binding PlatformToolsPath}" />
+        </ui:CardExpander>
     </StackPanel>
 </Page>

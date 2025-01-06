@@ -13,7 +13,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
-using System.Windows.Threading;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
 
@@ -31,18 +30,6 @@ public partial class App
     private static HttpClient? _sharedHttpClient;
 
     public static DirectoryInfo AppData { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
-
-    public static string GetVersion()
-    {
-        return $"{(IsDebugRelease ? 'd' : 'v')}{Assembly.GetExecutingAssembly().GetName().Version}";
-    }
-
-    public static bool IsDebugRelease =>
-#if DEBUG || DEBUG_RELEASE
-            true;
-#else
-            false;
-#endif
 
     /// <summary>
     /// An <see cref="HttpClient"/> instance that is shared throughout the application.
@@ -130,7 +117,7 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
-        FileLogger.Log($"App start. v{Assembly.GetExecutingAssembly().GetName().Version}, {(IsDebugRelease ? "Debug" : "Release")}");
+        FileLogger.Log($"App start. {App.Version.VersionPrefix}{Assembly.GetExecutingAssembly().GetName().Version}, {App.Version.VersionIdentifier}");
 
 #if !NO_EXCEPTION_HANDLING || RELEASE
         TaskScheduler.UnobservedTaskException += (sender, e) =>
@@ -219,5 +206,38 @@ public partial class App
         {
             FileLogger.LogException(ex);
         }
+    }
+
+    public readonly struct Version
+    {
+        public static string GetVersion(Assembly? assembly = null)
+        {
+            return $"{VersionPrefix}{(assembly ?? Assembly.GetExecutingAssembly()).GetName().Version}";
+        }
+
+        public const string VersionPrefix =
+#if DEBUG
+            "d";
+#elif DEBUG_RELEASE
+            "pd";
+#else
+            "v";
+#endif
+
+        public const string VersionIdentifier =
+#if DEBUG
+            "Debug";
+#elif DEBUG_RELEASE
+            "PublicDebug";
+#else
+            "Release";
+#endif
+
+        public static bool IsDebugRelease =>
+#if DEBUG || DEBUG_RELEASE
+                true;
+#else
+                false;
+#endif
     }
 }

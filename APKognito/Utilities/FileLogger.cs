@@ -128,13 +128,11 @@ public static class FileLogger
 
     public static void LogException(Exception exception)
     {
-        //LogGeneric(JsonConvert.SerializeObject(exception.InnerException ?? exception), LogLevel.TRACE);
         LogGenericException(exception);
     }
 
     public static void LogException(string log, Exception exception)
     {
-        //LogGeneric($"{log}: {JsonConvert.SerializeObject(exception.InnerException ?? exception)}", LogLevel.TRACE);
         LogGenericException(exception, log);
     }
 
@@ -183,7 +181,7 @@ public static class FileLogger
             File.WriteAllText(logBoxPath, string.Join("\r\n", lines));
         }
 
-        File.Create(Path.Combine(packPath, App.GetVersion())).Close();
+        File.Create(Path.Combine(packPath, App.Version.GetVersion())).Close();
 
         string outputPack = Path.Combine(App.AppData.FullName, "logpack.zip");
 

@@ -14,6 +14,8 @@ namespace APKognito.Controls;
 /// </summary>
 public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewModel>
 {
+    private static readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+
     private static AndroidDeviceInfoViewModel viewModel = null!;
     private static void CreateViewModel()
     {
@@ -73,7 +75,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
         InitializeComponent();
 
-        Loaded += async (sender, e) => await viewModel.RefreshDevicesList();
+        Loaded += async (sender, e) => await viewModel.RefreshDevicesList(true);
 
         StartDeviceTimer(this);
     }
@@ -139,7 +141,6 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
     private static async Task<AndroidDevice?> UpdateDeviceInfo()
     {
-        AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
         AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
 
         if (device is null)
