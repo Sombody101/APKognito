@@ -194,7 +194,7 @@
                     x:Name="DragDropPresenter"
                     Grid.ColumnSpan="10"
                     Panel.ZIndex="100"
-                    Visibility="Visible">
+                    Visibility="Collapsed">
                     <ui:Card
                         Margin="-15,-17,-15,-21"
                         HorizontalAlignment="Stretch"
