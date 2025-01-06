@@ -122,7 +122,7 @@ public partial class App
 #if !NO_EXCEPTION_HANDLING || RELEASE
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
-            Dispatcher.CurrentDispatcher.Invoke(() =>
+            Dispatcher.Invoke(() =>
             {
                 _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
             });
@@ -130,7 +130,7 @@ public partial class App
 
         Dispatcher.UnhandledException += (sender, e) =>
         {
-            Dispatcher.CurrentDispatcher.Invoke(() =>
+            Dispatcher.Invoke(() =>
             {
                 _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
             });

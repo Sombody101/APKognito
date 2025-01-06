@@ -36,7 +36,7 @@
   <a href="https://sonarcloud.io/summary/new_code?id=Sombody101_APKognito"><img src="https://sonarcloud.io/api/project_badges/measure?project=Sombody101_APKognito&amp;metric=alert_status" alt="Quality Gate Status"></a>
 </p>
 
-![APKognito example](./gitassets/APKognito%20Example.png)
+![APKognito example](./gitassets/image.png)
 
 # Requirements
 
