@@ -93,7 +93,7 @@ public class ApkEditorContext
             string unsignedApk = await PackApk(newPackageName, cancellationToken);
 
             // Sign
-            viewModel.Log("Singing APK...");
+            viewModel.Log("Signing APK...");
             await SignApkTool(unsignedApk, finalOutputDirectory, cancellationToken);
 
             // Copy to output and cleanup
