@@ -23,10 +23,27 @@ public partial class DirectorySelector
             )
         );
 
+    public static readonly DependencyProperty SelectingDirectoryProperty =
+    DependencyProperty.Register(
+        name: "SelectingDirectory",
+        propertyType: typeof(bool),
+        ownerType: typeof(DirectorySelector),
+        typeMetadata: new FrameworkPropertyMetadata(
+            defaultValue: true,
+            flags: FrameworkPropertyMetadataOptions.BindsTwoWayByDefault
+        )
+    );
+
     public string DirectoryPath
     {
         get => (string)GetValue(DirectoryPathProperty);
         set => SetValue(DirectoryPathProperty, value);
+    }
+
+    public bool SelectingDirectory
+    {
+        get => (bool)GetValue(SelectingDirectoryProperty);
+        set => SetValue(SelectingDirectoryProperty, value);
     }
 
     public DirectorySelector()
@@ -48,19 +65,35 @@ public partial class DirectorySelector
             oldOutput = null;
         }
 
-        OpenFolderDialog openFolderDialog = new()
+        if (SelectingDirectory)
+        {
+            OpenFolderDialog openFolderDialog = new()
+            {
+                Multiselect = false,
+                DefaultDirectory = oldOutput ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+            };
+
+            if (openFolderDialog.ShowDialog() is false)
+            {
+                return;
+            }
+
+            DirectoryPath = openFolderDialog.FolderName;
+            return;
+        }
+     
+        OpenFileDialog openFileDialog = new()
         {
             Multiselect = false,
             DefaultDirectory = oldOutput ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
         };
 
-        if (openFolderDialog.ShowDialog() is false
-            && openFolderDialog.FolderNames.Length is 0)
+        if (openFileDialog.ShowDialog() is false)
         {
             return;
         }
 
-        DirectoryPath = openFolderDialog.FolderName;
+        DirectoryPath = openFileDialog.FileName;
     }
 
     private static void DirectoryPath_Changed(object? sender, DependencyPropertyChangedEventArgs e)

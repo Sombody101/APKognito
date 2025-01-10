@@ -3,6 +3,7 @@ using APKognito.Configurations.ConfigModels;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
 using Newtonsoft.Json;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -124,6 +125,11 @@ public static class FileLogger
     public static void LogDebug(string log)
     {
         LogGeneric(log, LogLevel.DEBUG);
+    }
+
+    public static void LogDebug(Exception exception)
+    {
+        LogGenericException(exception);
     }
 
     public static void LogException(Exception exception)

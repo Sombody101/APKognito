@@ -92,6 +92,13 @@ public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
         WriteGenericLog($"{log}\n", Brushes.Cyan, logType: LogType.Debug);
     }
 
+    [Conditional("DEBUG")]
+    public void LogDebug(Exception ex)
+    {
+        FileLogger.LogDebug(ex);
+        WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", Brushes.Cyan, logType: LogType.Debug);
+    }
+
     public void ClearLogs()
     {
         richTextBox.Dispatcher.Invoke(() =>

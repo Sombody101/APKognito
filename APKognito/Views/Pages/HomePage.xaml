@@ -59,108 +59,115 @@
                 </Grid>
             </ui:CardExpander.Header>
 
-            <Grid>
-
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="170" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
-                    <RowDefinition />
-                    <RowDefinition />
-                    <RowDefinition />
-                    <RowDefinition />
-                </Grid.RowDefinitions>
-
-                <ui:TextBlock
-                    Height="36"
-                    Margin="15,10,0,0"
-                    VerticalAlignment="Center"
-                    FontWeight="Bold"
-                    Text="Output Directory" />
-
-                <Grid Grid.Column="2" Margin="0,0,0,2.5">
+            <StackPanel>
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="75" />
+                        <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
+                    <ui:TextBlock
+                        Height="36"
+                        Margin="15,10,0,0"
+                        FontWeight="Bold"
+                        Text="Java Executable" />
+
                     <ctrls:DirectorySelector
-                        Grid.ColumnSpan="2"
+                        Grid.Column="1"
+                        Margin="0,5"
+                        DirectoryPath="{Binding JavaExecutablePath}"
+                        KeyUp="TextBox_KeyUp"
+                        SelectingDirectory="False" />
+                </Grid>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock
+                        Height="36"
+                        Margin="15,10,0,0"
+                        FontWeight="Bold"
+                        Text="Output Directory" />
+
+                    <ctrls:DirectorySelector
+                        Grid.Column="1"
                         Margin="0,5"
                         DirectoryPath="{Binding OutputDirectory}"
                         KeyUp="TextBox_KeyUp" />
-
-                    <!--
-                    <ui:TextBox
-                        Grid.Column="1"
-                        Margin="1"
-                        IsEnabled="{Binding CanEdit}"
-                        KeyUp="TextBox_KeyUp"
-                        PlaceholderText="[None set]"
-                        Text="{Binding OutputDirectory, Mode=TwoWay}" />
-
-                    <ui:Button
-                        Width="68"
-                        Height="32"
-                        Margin="1,0,5,0"
-                        HorizontalAlignment="Right"
-                        Command="{Binding SelectOutputFolderCommand}"
-                        Content="Browse" />
-                    -->
                 </Grid>
 
-                <ui:TextBlock
-                    Grid.Row="2"
-                    Height="36"
-                    Margin="15,10,0,0"
-                    FontWeight="Bold"
-                    Text="Output APK Name" />
-                <ui:TextBox
-                    Grid.Row="2"
-                    Grid.Column="2"
-                    Margin="0,5"
-                    IsEnabled="{Binding CanEdit}"
-                    KeyUp="TextBox_KeyUp"
-                    PlaceholderText="APKognito"
-                    Text="{Binding ApkReplacementName, Mode=TwoWay}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                <ui:TextBlock
-                    Grid.Row="3"
-                    Height="36"
-                    Margin="15,10,0,0"
-                    FontWeight="Bold"
-                    ToolTip="Copy APK and OBB files when renaming rather than moving them (Takes double the storage space as moving them, but removes the risk of data loss if an error occurs while renaming)">
-                    <Run Text="Copy App Files" />
-                    <ui:SymbolIcon Symbol="QuestionCircle24" />
-                </ui:TextBlock>
-                <ui:ToggleSwitch
-                    Grid.Row="3"
-                    Grid.Column="2"
-                    Checked="CheckBox_Checked"
-                    IsChecked="{Binding CopyWhenRenaming}"
-                    IsEnabled="{Binding CanEdit}"
-                    Unchecked="CheckBox_Checked" />
+                    <ui:TextBlock
+                        Grid.Row="2"
+                        Height="36"
+                        Margin="15,10,0,0"
+                        FontWeight="Bold"
+                        Text="Output APK Name" />
+                    <ui:TextBox
+                        Grid.Row="2"
+                        Grid.Column="2"
+                        Margin="0,5"
+                        IsEnabled="{Binding CanEdit}"
+                        KeyUp="TextBox_KeyUp"
+                        PlaceholderText="APKognito"
+                        Text="{Binding ApkReplacementName, Mode=TwoWay}" />
+                </Grid>
 
-                <ui:TextBlock
-                    Grid.Row="4"
-                    Height="36"
-                    Margin="15,10,0,0"
-                    FontWeight="Bold"
-                    ToolTip="Each APK and its assets will be pushed to a device once renamed. You can select which device to upload to in the 'ADB Configuration' page.">
-                    <Run Text="Push After Rename" />
-                    <ui:SymbolIcon Symbol="QuestionCircle24" />
-                </ui:TextBlock>
-                <ui:ToggleSwitch
-                    Grid.Row="4"
-                    Grid.Column="2"
-                    Checked="CheckBox_Checked"
-                    IsChecked="{Binding PushAfterRename}"
-                    IsEnabled="{Binding CanEdit}"
-                    Unchecked="CheckBox_Checked" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock
+                        Grid.Row="3"
+                        Height="36"
+                        Margin="15,10,0,0"
+                        FontWeight="Bold"
+                        ToolTip="Copy APK and OBB files when renaming rather than moving them (Takes double the storage space as moving them, but removes the risk of data loss if an error occurs while renaming)">
+                        <Run Text="Copy App Files" />
+                        <ui:SymbolIcon Symbol="QuestionCircle24" />
+                    </ui:TextBlock>
+                    <ui:ToggleSwitch
+                        Grid.Row="3"
+                        Grid.Column="2"
+                        Checked="CheckBox_Checked"
+                        IsChecked="{Binding CopyWhenRenaming}"
+                        IsEnabled="{Binding CanEdit}"
+                        Unchecked="CheckBox_Checked" />
+                </Grid>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock
+                        Grid.Row="4"
+                        Height="36"
+                        Margin="15,10,0,0"
+                        FontWeight="Bold"
+                        ToolTip="Each APK and its assets will be pushed to a device once renamed. You can select which device to upload to in the 'ADB Configuration' page.">
+                        <Run Text="Push After Rename" />
+                        <ui:SymbolIcon Symbol="QuestionCircle24" />
+                    </ui:TextBlock>
+                    <ui:ToggleSwitch
+                        Grid.Row="4"
+                        Grid.Column="2"
+                        Checked="CheckBox_Checked"
+                        IsChecked="{Binding PushAfterRename}"
+                        IsEnabled="{Binding CanEdit}"
+                        Unchecked="CheckBox_Checked" />
+                </Grid>
 
                 <ui:Button
                     Grid.Row="10"
@@ -170,7 +177,7 @@
                     Content="Save APK Settings"
                     ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
 
-            </Grid>
+            </StackPanel>
         </ui:CardExpander>
 
         <ui:Card

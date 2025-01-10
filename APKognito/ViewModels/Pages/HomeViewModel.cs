@@ -6,15 +6,11 @@ using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
 using Microsoft.Win32;
-using System.CodeDom;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
-using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Documents;
-using System.Windows.Forms;
 using System.Windows.Threading;
 using Wpf.Ui;
 
@@ -83,6 +79,9 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     [ObservableProperty]
     private long _footprintSizeBytes = 0;
+
+    [ObservableProperty]
+    private string _javaExecutablePath = string.Empty;
 
     /// <summary>
     /// Creates a copy of the source files rather than moving them.
@@ -157,6 +156,18 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     public HomeViewModel(ISnackbarService _snackbarService)
     {
         Instance = this;
+
+        try
+        {
+            if (JavaVersionLocator.GetJavaPath(out string? path))
+            {
+                JavaExecutablePath = path!;
+            }
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException("Failed to pre-fetch Java installation", ex);
+        }
 
         SetSnackbarProvider(_snackbarService);
         SetCurrentLogger();
@@ -330,26 +341,13 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             goto ChecksFailed;
         }
 
-        if (!ValidCompanyName(ApkReplacementName))
-        {
-            string fixedName = ApkNameFixerRegex().Replace(ApkReplacementName, string.Empty);
-            LogError($"The name '{ApkReplacementName}' cannot be used with as the company name of an APK. You can use '{fixedName}' which has all offending characters removed.");
-            goto ChecksFailed;
-        }
-
-        if (PushAfterRename && !await VerifyAdbDevice())
+        string? javaPath = await RenameConditionsMet();
+        if (javaPath is null)
         {
             goto ChecksFailed;
         }
 
-        Log("Verifying that Java 8+ and APK tools are installed...");
-
-        if (!VerifyJavaInstallation(out string? javaPath) || !await VerifyToolInstallation())
-        {
-            goto ChecksFailed;
-        }
-
-        Log("Completed all checks, ");
+        Log("Completed all checks.");
 
         if (!Directory.Exists(OutputDirectory))
         {
@@ -357,9 +355,11 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
             {
                 _ = Directory.CreateDirectory(OutputDirectory);
             }
-            catch
+            catch (Exception ex)
             {
-                LogError($"Failed to create directory '{OutputDirectory}'. Check for formatting issues and try again.");
+                LogError($"Failed to create directory '{OutputDirectory}' ({ex.GetType().Name}). Check for formatting or spelling issues and try again.");
+                LogDebug(ex);
+                FileLogger.LogException(ex);
                 goto ChecksFailed;
             }
         }
@@ -503,7 +503,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                 // Remove temp directory
                 Log("Cleaning temp directory....");
                 await Task.Factory.StartNew(
-                    path => Directory.Delete((string)path!, true), 
+                    path => Directory.Delete((string)path!, true),
                     TempData.FullName);
             }
             catch (Exception ex)
@@ -529,6 +529,30 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     ChecksFailed:
         RunningJobs = false;
         CanEdit = true;
+    }
+
+    private async Task<string?> RenameConditionsMet()
+    {
+        if (!ValidCompanyName(ApkReplacementName))
+        {
+            string fixedName = ApkNameFixerRegex().Replace(ApkReplacementName, string.Empty);
+            LogError($"The name '{ApkReplacementName}' cannot be used with as the company name of an APK. You can use '{fixedName}' which has all offending characters removed.");
+            return null;
+        }
+
+        if (PushAfterRename && !await VerifyAdbDevice())
+        {
+            return null;
+        }
+
+        Log("Verifying that Java 8+ and APK tools are installed...");
+
+        if (JavaVersionLocator.GetJavaPath(out string? javaPath) || !await VerifyToolInstallation())
+        {
+            return javaPath;
+        }
+
+        return null;
     }
 
     [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "It's stupid.")]
@@ -657,108 +681,6 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
             SnackError("Incorrect file types!", $"All files should be APKs! (with the '.apk' file extension)\nOffending file: {file}");
             return false;
-        }
-    }
-
-    private bool VerifyJavaInstallation(out string? javaPath)
-    {
-        static bool VerifyVersion(string versionStr)
-        {
-            // Java versions 8-22
-            if (Version.TryParse(versionStr, out Version? jdkVersion) && jdkVersion.Major == 1 && jdkVersion.Minor >= 8)
-            {
-                return true;
-            }
-
-            // Formatting for Java versions 23+ (or the JAVA_HOME path)
-            return int.TryParse(versionStr.Split('.')[0], out int major) && major >= 9;
-        }
-
-        // Check with the environment variable first
-        string? javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
-
-        if (!string.IsNullOrWhiteSpace(javaHome)
-           && VerifyVersion( /* Remove 'jdk-' from the folder */ Path.GetFileName(javaHome)[4..])
-           && Directory.Exists(javaHome))
-        {
-            javaPath = Path.Combine(javaHome, "bin\\java.exe");
-
-            // Try the registry if this path isn't correct
-            if (File.Exists(javaPath))
-            {
-                return true;
-            }
-
-            StringBuilder logBuffer = new();
-            bool binExists = Directory.Exists($"{javaHome}\\bin");
-
-            logBuffer.Append("JAVA_HOME is set to '")
-                .Append(javaHome).Append("', but does not have java.exe. bin\\: does ");
-
-            if (!binExists)
-            {
-                logBuffer.Append("not ");
-            }
-
-            logBuffer.Append("exist.");
-
-            if (binExists)
-            {
-                logBuffer.AppendLine(" Files found in bin\\:");
-                foreach (var file in Directory.GetFiles(javaHome))
-                {
-                    logBuffer.Append('\t').AppendLine(Path.GetFileName(file));
-                }
-            }
-
-            FileLogger.LogError(logBuffer.ToString());
-        }
-
-        // Check for JDK via registry
-        if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
-            || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath))
-        {
-            return true;
-        }
-
-        LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
-        LogError("If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
-        return false;
-
-        bool GetKey(RegistryKey? javaJdkKey, out string? javaPath, string javaType = "JDK")
-        {
-            javaPath = null;
-
-            if (javaJdkKey is null)
-            {
-                return false;
-            }
-
-            if (javaJdkKey.GetValue("CurrentVersion") is not string rawJdkVersion)
-            {
-                LogWarning($"A {javaType} installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
-                return false;
-            }
-
-            if (!VerifyVersion(rawJdkVersion))
-            {
-                LogWarning($"{javaType} installation found with the version {rawJdkVersion}, but it's not Java 8+");
-                return false;
-            }
-
-            string keyPath = (string)javaJdkKey.OpenSubKey(rawJdkVersion)!.GetValue("JavaHome")!;
-            string subJavaPath = Path.Combine(keyPath, "bin\\java.exe");
-
-            // This is a VERY rare case
-            if (!File.Exists(subJavaPath))
-            {
-                LogError($"Java version {rawJdkVersion} found, but the Java directory it points to does not exist: {subJavaPath}");
-                return false;
-            }
-
-            Log($"Using Java version {rawJdkVersion} at {subJavaPath}");
-            javaPath = subJavaPath;
-            return true;
         }
     }
 

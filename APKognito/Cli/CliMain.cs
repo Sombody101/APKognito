@@ -41,7 +41,7 @@ internal static class CliMain
             return;
         }
 
-        Exit((int)ExitCode.NoError);
+        Exit(ExitCode.NoError);
     }
 
     public static void AttachConsole()

@@ -64,24 +64,13 @@ public partial class App
         {
             _ = services.AddHostedService<ApplicationHostService>();
 
-            _ = services.AddSingleton<ISnackbarService, SnackbarService>();
-
-            // Page resolver service
-            _ = services.AddSingleton<IPageService, PageService>();
-
-            // Theme manipulation
-            _ = services.AddSingleton<IThemeService, ThemeService>();
-
-            // TaskBar manipulation
-            _ = services.AddSingleton<ITaskBarService, TaskBarService>();
-
-            // Service containing navigation, same as INavigationWindow... but without window
-            _ = services.AddSingleton<INavigationService, NavigationService>();
-
-            _ = services.AddSingleton<IContentDialogService, ContentDialogService>();
-
-            // Main window with navigation
-            _ = services.AddSingleton<INavigationWindow, MainWindow>()
+            _ = services.AddSingleton<ISnackbarService, SnackbarService>()
+                .AddSingleton<IPageService, PageService>()
+                .AddSingleton<IThemeService, ThemeService>()
+                .AddSingleton<ITaskBarService, TaskBarService>()
+                .AddSingleton<INavigationService, NavigationService>()
+                .AddSingleton<IContentDialogService, ContentDialogService>()
+                .AddSingleton<INavigationWindow, MainWindow>()
                 .AddSingleton<MainWindowViewModel>();
 
             // Exception window model
@@ -233,7 +222,7 @@ public partial class App
             "Release";
 #endif
 
-        public static bool IsDebugRelease =>
+        public const bool IsDebugRelease =
 #if DEBUG || DEBUG_RELEASE
                 true;
 #else
