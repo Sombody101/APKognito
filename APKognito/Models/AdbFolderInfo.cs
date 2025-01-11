@@ -18,7 +18,7 @@ public class AdbFolderInfo
 
     public static AdbFolderInfo RootFolder => new($"{FormatSeparator}directory{FormatSeparator}0{FormatSeparator}/{FormatSeparator}root");
 
-    public AdbFolderInfo? ParentDirectory { get; }
+    public string? ParentDirectory { get; }
 
     /// <summary>
     /// Specifically for the view to help locate the corresponding TreeViewItem.
@@ -64,7 +64,7 @@ public class AdbFolderInfo
     {
     }
 
-    public AdbFolderInfo(string statInfo, AdbFolderInfo? parentItem = null)
+    public AdbFolderInfo(string statInfo, string? parentItem = null)
     {
         /*
          * 'stat' format: %.10y %F %s %N %U

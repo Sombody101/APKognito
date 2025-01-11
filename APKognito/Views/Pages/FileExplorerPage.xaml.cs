@@ -25,6 +25,11 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
 
     private async void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton != MouseButton.Left)
+        {
+            return;
+        }
+
         AdbFolderInfo info;
 
         if (sender is not ListViewItem item)
@@ -41,8 +46,22 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
         await ViewModel.NavigateToDirectoryCommand.ExecuteAsync(info);
     }
 
-    private void ListViewItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    private async void This_PreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
+        switch (e.ChangedButton)
+        {
+            case MouseButton.XButton1:
+                await ViewModel.NavigateBackwardsCommand.ExecuteAsync(null);
+                break;
 
+            case MouseButton.XButton2:
+                await ViewModel.NavigateForwardsCommand.ExecuteAsync(null);
+                break;
+
+            default:
+                return;
+        }
+
+        e.Handled = true;
     }
 }

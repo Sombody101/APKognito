@@ -19,6 +19,7 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    PreviewMouseUp="This_PreviewMouseUp"
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
@@ -42,11 +43,8 @@
             </Grid.ColumnDefinitions>
 
             <Menu Grid.Column="0">
-                <ui:MenuItem
-                    Command="{Binding NavigateBackwardsCommand}"
-                    Icon="{ui:SymbolIcon Symbol=ArrowLeft48}"
-                    Visibility="Collapsed" />
-                <ui:MenuItem Icon="{ui:SymbolIcon Symbol=ArrowRight48}" Visibility="Collapsed" />
+                <ui:MenuItem Command="{Binding NavigateBackwardsCommand}" Icon="{ui:SymbolIcon Symbol=ArrowLeft48}" />
+                <ui:MenuItem Command="{Binding NavigateForwardsCommand}" Icon="{ui:SymbolIcon Symbol=ArrowRight48}" />
                 <ui:MenuItem Command="{Binding NavigateOutOfDirectoryCommand}" Icon="{ui:SymbolIcon Symbol=ArrowUp48}" />
             </Menu>
 

@@ -15,7 +15,8 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
     private int directoryHistoryIndex = -1;
-    private readonly List<AdbFolderInfo> directoryHistory = [];
+    private readonly List<string> directoryHistory = [];
+    private string CurrentDirectory => directoryHistory[directoryHistoryIndex];
 
     #region Properties
 
@@ -61,10 +62,10 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
 
             if (directoryHistoryIndex < directoryHistory.Count)
             {
-                directoryHistory.RemoveRange(directoryHistoryIndex, directoryHistory.Count - directoryHistoryIndex);
+                PruneHistory();
             }
 
-            directoryHistory.Add(info);
+            directoryHistory.Add(info.FullPath);
         }
     }
 
@@ -77,26 +78,32 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
         }
 
         directoryHistoryIndex--;
-        await UpdateFolders(directoryHistory[directoryHistoryIndex]);
+        await UpdateFolders(CurrentDirectory);
+    }
+
+    [RelayCommand]
+    private async Task OnNavigateForwards()
+    {
+        if (directoryHistoryIndex + 1 >= directoryHistory.Count)
+        {
+            return;
+        }
+
+        directoryHistoryIndex++;
+        await UpdateFolders(CurrentDirectory);
     }
 
     [RelayCommand]
     private async Task OnNavigateOutOfDirectory()
     {
-        if (directoryHistoryIndex - 1 < 0)
+        string parentDirectoryPath = Path.GetDirectoryName(ItemPath)
+            // Because god forbid someone want to do Unix path parsing while targeting Windows without
+            // a pointless NuGet package or a custom class
+            ?.Replace('\\', '/') ?? "/";
+
+        if (!await UpdateFolders(parentDirectoryPath))
         {
-            return;
-        }
-
-        directoryHistoryIndex--;
-        AdbFolderInfo? parentHistoryDirectory = directoryHistory[directoryHistoryIndex];
-        directoryHistory.RemoveAt(directoryHistoryIndex);
-
-        string parentDirectoryPath = Path.GetDirectoryName(ItemPath)?.Replace('\\', '/') ?? "/";
-
-        if (!await UpdateFolders(null, parentDirectoryPath))
-        {
-            directoryHistory.Add(parentHistoryDirectory);
+            directoryHistory.Add(directoryHistory[^1]);
             directoryHistoryIndex++;
         }
     }
@@ -109,14 +116,16 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
 
     #endregion Commands
 
-    /// <summary>
-    /// Returns <see langword="true"/> when the folder list has been updated and rendered, thus switching directories. Otherwise <see langword="false"/>.
-    /// </summary>
-    /// <param name="openingDirectory"></param>
-    /// <param name="overridePath"></param>
-    /// <param name="silent"></param>
-    /// <returns></returns>
-    private async Task<bool> UpdateFolders(AdbFolderInfo? openingDirectory, string? overridePath = null, bool silent = false)
+    private async Task<bool> UpdateFolders(AdbFolderInfo? openingDirectory, bool silent = false)
+    {
+        // Start at the root device directory, change it to the parent directory
+        // if openingDirectory isn't null
+        string basePath = openingDirectory?.FullPath ?? string.Empty;
+
+        return await UpdateFolders(basePath, silent);
+    }
+
+    private async Task<bool> UpdateFolders(string path, bool silent = false)
     {
         if (string.IsNullOrWhiteSpace(adbConfig.CurrentDeviceId))
         {
@@ -133,20 +142,19 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
 
         try
         {
-            // Start at the root device directory, change it to the parent directory
-            // if openingDirectory isn't null
-            string basePath = openingDirectory?.FullPath
-                ?? overridePath
-                ?? string.Empty;
+            if (path.Length > 1)
+            {
+                path = path.TrimEnd('/');
+            }
 
             string[] response = (await AdbManager.QuickDeviceCommand(
                 // Redirect STDERR to null so filter out 'Permission denied' errors
-                $"shell stat -c '{AdbFolderInfo.FormatString}' {basePath}/* 2>/dev/null")).StdOut
+                $"shell stat -c '{AdbFolderInfo.FormatString}' {path}/* 2>/dev/null")).StdOut
                 .Split("\r\n");
 
             var filtered = response
                 .Where(str => !string.IsNullOrWhiteSpace(str))
-                .Select(str => new AdbFolderInfo(str, openingDirectory));
+                .Select(str => new AdbFolderInfo(str, path));
 
             AdbFolderInfo[] newItems = [.. filtered];
 
@@ -154,7 +162,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
             {
                 AdbItems.Clear();
 
-                ItemPath = basePath;
+                ItemPath = path;
 
                 if (newItems.Length is 0)
                 {
@@ -176,9 +184,9 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
         {
             FileLogger.LogException(ex);
 
-            string forItem = openingDirectory is null
+            string forItem = path is null
                 ? " for root directory"
-                : $" for {openingDirectory.FileName}";
+                : $" for {path}";
 
             if (!silent)
             {
@@ -187,5 +195,10 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
         }
 
         return false;
+    }
+
+    private void PruneHistory()
+    {
+        directoryHistory.RemoveRange(directoryHistoryIndex, directoryHistory.Count - directoryHistoryIndex);
     }
 }
