@@ -4,9 +4,9 @@ using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Threading;
 using Wpf.Ui;
-using TreeViewItem = Wpf.Ui.Controls.TreeViewItem;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -14,133 +14,178 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
 {
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
+    private int directoryHistoryIndex = -1;
+    private readonly List<AdbFolderInfo> directoryHistory = [];
+
     #region Properties
 
     [ObservableProperty]
     private double _viewHeight = 500;
 
     [ObservableProperty]
-    private ObservableCollection<AdbFolderInfo> _adbFolders = [];
+    private ObservableCollection<AdbFolderInfo> _adbItems = [];
 
     [ObservableProperty]
     private string _itemPath = "/";
+
+    [ObservableProperty]
+    private bool _directoryEmpty = true;
 
     #endregion Properties
 
     public FileExplorerViewModel()
     {
+        // For designer
+
 #if DEBUG
-        _adbFolders.Add(AdbFolderInfo.DebugFiller);
+        _adbItems.Add(AdbFolderInfo.DebugFiller);
+        _adbItems.Add(AdbFolderInfo.DebugFiller);
+        _adbItems.Add(AdbFolderInfo.DebugFiller);
+        _adbItems.Add(AdbFolderInfo.DebugFiller);
 #endif
     }
 
     public FileExplorerViewModel(ISnackbarService _snackbarService)
     {
         SetSnackbarProvider(_snackbarService);
-
-        WindowSizeChanged += (sender, e) =>
-        {
-            ViewHeight = WindowHeight - TitlebarHeight - 160;
-        };
     }
 
     #region Commands
 
     [RelayCommand]
-    private async Task OnTryConnection()
+    private async Task OnNavigateToDirectory(AdbFolderInfo info)
     {
-        await GetFolders(null);
+        if (await UpdateFolders(info))
+        {
+            directoryHistoryIndex++;
 
+            if (directoryHistoryIndex < directoryHistory.Count)
+            {
+                directoryHistory.RemoveRange(directoryHistoryIndex, directoryHistory.Count - directoryHistoryIndex);
+            }
+
+            directoryHistory.Add(info);
+        }
     }
 
     [RelayCommand]
-    private async Task OnTryRefreshDirectory(AdbFolderInfo info)
+    private async Task OnNavigateBackwards()
     {
-        await GetFolders(null);
+        if (directoryHistoryIndex - 1 < 0)
+        {
+            return;
+        }
+
+        directoryHistoryIndex--;
+        await UpdateFolders(directoryHistory[directoryHistoryIndex]);
+    }
+
+    [RelayCommand]
+    private async Task OnNavigateOutOfDirectory()
+    {
+        if (directoryHistoryIndex - 1 < 0)
+        {
+            return;
+        }
+
+        directoryHistoryIndex--;
+        AdbFolderInfo? parentHistoryDirectory = directoryHistory[directoryHistoryIndex];
+        directoryHistory.RemoveAt(directoryHistoryIndex);
+
+        string parentDirectoryPath = Path.GetDirectoryName(ItemPath)?.Replace('\\', '/') ?? "/";
+
+        if (!await UpdateFolders(null, parentDirectoryPath))
+        {
+            directoryHistory.Add(parentHistoryDirectory);
+            directoryHistoryIndex++;
+        }
+    }
+
+    [RelayCommand]
+    private async Task OnTryRefreshDirectory()
+    {
+        await UpdateFolders(directoryHistory[^1]);
     }
 
     #endregion Commands
 
-    public async Task GetFolders(TreeViewItem? expandingItem)
+    /// <summary>
+    /// Returns <see langword="true"/> when the folder list has been updated and rendered, thus switching directories. Otherwise <see langword="false"/>.
+    /// </summary>
+    /// <param name="openingDirectory"></param>
+    /// <param name="overridePath"></param>
+    /// <param name="silent"></param>
+    /// <returns></returns>
+    private async Task<bool> UpdateFolders(AdbFolderInfo? openingDirectory, string? overridePath = null, bool silent = false)
     {
         if (string.IsNullOrWhiteSpace(adbConfig.CurrentDeviceId))
         {
-            SnackError(
-                "No device selected",
-                "Cannot get directory or file information without a selected device"
-            );
+            if (!silent)
+            {
+                SnackError(
+                    "No device selected!",
+                    "Cannot get directory or file information without a selected device."
+                );
+            }
 
-            return;
+            return false;
         }
 
         try
         {
-            string basePath = string.Empty;
-
-            if (expandingItem?.DataContext is AdbFolderInfo folderInfo)
-            {
-                basePath = folderInfo.FullPath;
-            }
-
-            bool isRoot = expandingItem is null;
-
-            if (!isRoot
-                && expandingItem!.ItemsSource is IEnumerable<AdbFolderInfo> presentFolderInfo
-                && presentFolderInfo.First() != AdbFolderInfo.EmptyDirectory
-                && presentFolderInfo.First() != AdbFolderInfo.EmptyLoading)
-            {
-                return;
-            }
+            // Start at the root device directory, change it to the parent directory
+            // if openingDirectory isn't null
+            string basePath = openingDirectory?.FullPath
+                ?? overridePath
+                ?? string.Empty;
 
             string[] response = (await AdbManager.QuickDeviceCommand(
-                $"shell stat -c {AdbFolderInfo.FormatString} {basePath}/* 2>/dev/null")).StdOut
+                // Redirect STDERR to null so filter out 'Permission denied' errors
+                $"shell stat -c '{AdbFolderInfo.FormatString}' {basePath}/* 2>/dev/null")).StdOut
                 .Split("\r\n");
 
-            if (response.Length is 1)
-            {
-                // If the response length doesn't include directories, then it can't be the root of the 
-                // device. If that's the case, then your device is bricked.
-                expandingItem!.ItemsSource = new List<AdbFolderInfo>() { AdbFolderInfo.EmptyDirectory };
-                return;
-            }
-
-            // Get items here before giving the UI thread control
             var filtered = response
                 .Where(str => !string.IsNullOrWhiteSpace(str))
-                .Select(str => new AdbFolderInfo(str, expandingItem));
+                .Select(str => new AdbFolderInfo(str, openingDirectory));
+
             AdbFolderInfo[] newItems = [.. filtered];
 
             await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
             {
-                if (isRoot)
-                {
-                    AdbFolders.Clear();
+                AdbItems.Clear();
 
-                    foreach (AdbFolderInfo? item in newItems)
-                    {
-                        AdbFolders.Add(item);
-                    }
-                }
-                else
+                ItemPath = basePath;
+
+                if (newItems.Length is 0)
                 {
-                    expandingItem!.ItemsSource = newItems;
+                    DirectoryEmpty = true;
+                    return;
+                }
+
+                DirectoryEmpty = false;
+
+                foreach (var item in newItems)
+                {
+                    AdbItems.Add(item);
                 }
             });
+
+            return true;
         }
         catch (Exception ex)
         {
             FileLogger.LogException(ex);
 
-            string forItem = expandingItem is null
+            string forItem = openingDirectory is null
                 ? " for root directory"
-                : $" for {(expandingItem.ItemsSource as IEnumerable<AdbFolderInfo>)?.First()?.FileName ?? string.Empty}";
+                : $" for {openingDirectory.FileName}";
 
-            SnackError($"Failed to get directory descendants{forItem}", ex.Message);
+            if (!silent)
+            {
+                SnackError($"Failed to get directory descendants{forItem}", ex.Message);
+            }
         }
-    }
 
-    public void SelectFolder(TreeViewItem item)
-    {
-        ItemPath = ((AdbFolderInfo)item.DataContext).FullPath;
+        return false;
     }
 }

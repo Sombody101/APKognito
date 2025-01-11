@@ -1,25 +1,24 @@
-﻿using System.Collections.ObjectModel;
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
 using Wpf.Ui.Controls;
 
-using TreeViewItem = System.Windows.Controls.TreeViewItem;
-
 namespace APKognito.Models;
 
-public class AdbFolderInfo : ObservableObject
+public class AdbFolderInfo
 {
-    public const string FormatSeparator = "///";
+    public const string FormatSeparator = "||";
     public const string FormatString = $"%.10y{FormatSeparator}%F{FormatSeparator}%s{FormatSeparator}%N{FormatSeparator}%U";
 
-    public static readonly AdbFolderInfo EmptyLoading = new($"{FormatSeparator}{FormatSeparator}{FormatSeparator}/Loading...{FormatSeparator}");
-    public static readonly AdbFolderInfo EmptyDirectory = new($"{FormatSeparator}E{FormatSeparator}{FormatSeparator}/Empty Directory{FormatSeparator}");
+    public static AdbFolderInfo EmptyLoading => new($"{FormatSeparator}{FormatSeparator}{FormatSeparator}/Loading...{FormatSeparator}");
+    public static AdbFolderInfo EmptyDirectory => new($"{FormatSeparator}E{FormatSeparator}{FormatSeparator}/Empty Directory{FormatSeparator}");
 
 #if DEBUG
-    public static readonly AdbFolderInfo DebugFiller = new($"{FormatSeparator}{FormatSeparator}{FormatSeparator}/Random File{FormatSeparator}");
+    public static AdbFolderInfo DebugFiller => new($"2022-12-20{FormatSeparator}regular file{FormatSeparator}69420{FormatSeparator}/Random File{FormatSeparator}root");
 #endif
 
-    public TreeViewItem? ParentTreeViewItem { get; }
+    public static AdbFolderInfo RootFolder => new($"{FormatSeparator}directory{FormatSeparator}0{FormatSeparator}/{FormatSeparator}root");
+
+    public AdbFolderInfo? ParentDirectory { get; }
 
     /// <summary>
     /// Specifically for the view to help locate the corresponding TreeViewItem.
@@ -29,7 +28,7 @@ public class AdbFolderInfo : ObservableObject
     public string RawCreationDate { get; }
 
     public string CreationDate => string.IsNullOrWhiteSpace(RawCreationDate)
-                ? string.Empty
+                ? RawCreationDate
                 : DateTime.ParseExact(RawCreationDate, "yyyy-M-d", CultureInfo.CurrentCulture).ToString();
 
     public string FileOwner { get; }
@@ -40,6 +39,9 @@ public class AdbFolderInfo : ObservableObject
 
     public AdbFolderType ItemType { get; }
 
+    public long FileSizeInBytes { get; }
+
+    // Size info is not rendered for directories, so the item type is needed for the converter
     public KeyValuePair<long, AdbFolderType> ConverterPair => new(FileSizeInBytes, ItemType);
 
     public string FormattedItemType => ItemType switch
@@ -51,29 +53,18 @@ public class AdbFolderInfo : ObservableObject
         _ => string.Empty
     };
 
-    public long FileSizeInBytes { get; }
-
-    public ObservableCollection<AdbFolderInfo>? Children { get; set; }
-
     public SymbolIcon ItemIcon => new()
     {
-        Symbol = ItemType switch
-        {
-            AdbFolderType.File => SymbolRegular.Document48,
-            AdbFolderType.Directory => SymbolRegular.Folder48,
-            AdbFolderType.SymbolicLink => SymbolRegular.FolderLink48,
-            AdbFolderType.EmptyDirectory => SymbolRegular.DocumentProhibited24,
-            AdbFolderType.LoadingChildren => SymbolRegular.DocumentSearch32,
-            AdbFolderType.None => SymbolRegular.Empty,
-            _ => SymbolRegular.Question48
-        }
+        Symbol = GetSymbol()
     };
+
+    public SymbolRegular Symbol => GetSymbol();
 
     public AdbFolderInfo()
     {
     }
 
-    public AdbFolderInfo(string statInfo, TreeViewItem? parentItem = null)
+    public AdbFolderInfo(string statInfo, AdbFolderInfo? parentItem = null)
     {
         /*
          * 'stat' format: %.10y %F %s %N %U
@@ -97,26 +88,34 @@ public class AdbFolderInfo : ObservableObject
         if (ItemType is AdbFolderType.SymbolicLink)
         {
             string[] split = parts[3].Split(" -> ");
-            FileName = Path.GetFileName(FixSegment(split[0]));
-            FullPath = FixSegment(split[1]); // 'path' -> path
+            FileName = GetFileName(FixSegment(split[0]));
+            FullPath = FixSegment(split[0]); // 'path' -> path
         }
         else
         {
             // Only given a file
             FullPath = FixSegment(parts[3]);
-            FileName = Path.GetFileName(FullPath);
+            FileName = GetFileName(FullPath);
         }
 
         FileOwner = parts[4];
 
-        if (ItemType is AdbFolderType.Directory or AdbFolderType.SymbolicLink)
-        {
-            // Adds a dropdown button on the tree view
-            Children = [EmptyLoading];
-        }
-
-        ParentTreeViewItem = parentItem;
+        ParentDirectory = parentItem;
         TreeViewItemTag = Random.Shared.Next().ToString("x");
+    }
+
+    private SymbolRegular GetSymbol()
+    {
+        return ItemType switch
+        {
+            AdbFolderType.File => SymbolRegular.Document48,
+            AdbFolderType.Directory => SymbolRegular.Folder48,
+            AdbFolderType.SymbolicLink => SymbolRegular.FolderLink48,
+            AdbFolderType.EmptyDirectory => SymbolRegular.DocumentProhibited24,
+            AdbFolderType.LoadingChildren => SymbolRegular.DocumentSearch32,
+            AdbFolderType.None => SymbolRegular.Empty,
+            _ => SymbolRegular.Question48
+        };
     }
 
     private static AdbFolderType ResolveType(string type)
@@ -135,13 +134,36 @@ public class AdbFolderInfo : ObservableObject
     private static string FixSegment(string segment)
     {
         if (segment.Length > 3
-            && segment[0] is '`'
-            && segment[^1] is '\'')
+           && segment[0] is '`'
+           && segment[^1] is '\'')
         {
-            return segment[1..^1];
+            segment = segment[1..^1];
+        }
+
+        if (segment.StartsWith("//"))
+        {
+            segment = segment[1..];
         }
 
         return segment;
+    }
+
+    private static string GetFileName(string path)
+    {
+        string fpath = path.TrimEnd('/');
+        int sliceStart = fpath.LastIndexOf('/');
+
+        if (sliceStart == -1)
+        {
+            return path;
+        }
+
+        return fpath[(sliceStart + 1)..];
+    }
+
+    public override string ToString()
+    {
+        return FullPath;
     }
 }
 

@@ -1,6 +1,8 @@
 ﻿using APKognito.Utilities;
 using Microsoft.Win32;
 using System.IO;
+using System.Windows.Data;
+using TextBox = Wpf.Ui.Controls.TextBox;
 
 namespace APKognito.Controls;
 
@@ -49,11 +51,33 @@ public partial class DirectorySelector
     public DirectorySelector()
     {
         InitializeComponent();
+
     }
 
     private void DirectoryTextBox_KeyUp(object? sender, WPF::Input.KeyEventArgs e)
     {
-        KeyUp?.Invoke(sender, e);
+        // KeyUp?.Invoke(sender, e);
+
+        TextBox tBox;
+
+        switch (sender)
+        {
+            case TextBox:
+                tBox = (TextBox)sender;
+                break;
+
+            case DirectorySelector:
+                tBox = ((DirectorySelector)sender).DirectoryTextBox;
+                break;
+
+            default:
+                return;
+        }
+
+        DependencyProperty prop = TextBox.TextProperty;
+
+        BindingExpression binding = BindingOperations.GetBindingExpression(tBox, prop);
+        binding?.UpdateSource();
     }
 
     private void BrowseDirectory_Click(object sender, RoutedEventArgs e)
@@ -81,7 +105,7 @@ public partial class DirectorySelector
             DirectoryPath = openFolderDialog.FolderName;
             return;
         }
-     
+
         OpenFileDialog openFileDialog = new()
         {
             Multiselect = false,
@@ -102,9 +126,9 @@ public partial class DirectorySelector
         {
             return;
         }
-
+        
         string value = (string)e.NewValue;
-
+        
         selector.DirectoryPath = VariablePathResolver.Resolve(value);
     }
 }

@@ -1,16 +1,14 @@
-﻿using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
+﻿using APKognito.Models;
 using APKognito.ViewModels.Pages;
 using Wpf.Ui.Controls;
-
-using TreeViewItem = Wpf.Ui.Controls.TreeViewItem;
+using ListViewItem = Wpf.Ui.Controls.ListViewItem;
 
 namespace APKognito.Views.Pages;
 
 /// <summary>
 /// Interaction logic for FileExplorerPage.xaml
 /// </summary>
-public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, IViewable, System.Windows.Markup.IStyleConnector
+public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, IViewable
 {
     public FileExplorerViewModel ViewModel { get; }
 
@@ -19,34 +17,32 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
         InitializeComponent();
         DataContext = ViewModel = viewModel;
 
-        Loaded += (sender, e) =>
+        Loaded += async (sender, e) =>
         {
-            viewModel.SetAndInitializePageSize(this);
-
-            if (ConfigurationFactory.TryGetConfig<AdbConfig>(out var adbConfig) && adbConfig!.CurrentDeviceId is not null)
-            {
-                // A default device exists, so start adding items early
-                _ = ViewModel.GetFolders(null);
-            }
+            await viewModel.NavigateToDirectoryCommand.ExecuteAsync(AdbFolderInfo.RootFolder);
         };
     }
 
-    bool propagationDebouce = false;
-    private void TreeViewItem_Expanded(object sender, RoutedEventArgs e)
+    private async void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (propagationDebouce)
+        AdbFolderInfo info;
+
+        if (sender is not ListViewItem item)
         {
             return;
         }
 
-        propagationDebouce = true;
+        info = (AdbFolderInfo)item.Content;
+        if (info.ItemType is not (AdbFolderType.Directory or AdbFolderType.SymbolicLink))
+        {
+            return;
+        }
 
-        _ = ViewModel.GetFolders(sender as TreeViewItem);
-        propagationDebouce = false;
+        await ViewModel.NavigateToDirectoryCommand.ExecuteAsync(info);
     }
 
-    private void TreeViewItem_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void ListViewItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        Dispatcher.Invoke(() => ViewModel.SelectFolder((TreeViewItem)sender));
+
     }
 }

@@ -20,6 +20,7 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     AllowDrop="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
     <Page.Resources>
@@ -76,7 +77,6 @@
                         Grid.Column="1"
                         Margin="0,5"
                         DirectoryPath="{Binding JavaExecutablePath}"
-                        KeyUp="TextBox_KeyUp"
                         SelectingDirectory="False" />
                 </Grid>
 
@@ -95,8 +95,7 @@
                     <ctrls:DirectorySelector
                         Grid.Column="1"
                         Margin="0,5"
-                        DirectoryPath="{Binding OutputDirectory}"
-                        KeyUp="TextBox_KeyUp" />
+                        DirectoryPath="{Binding OutputDirectory}" />
                 </Grid>
 
                 <Grid>
@@ -117,7 +116,7 @@
                         Margin="0,5"
                         IsEnabled="{Binding CanEdit}"
                         KeyUp="TextBox_KeyUp"
-                        PlaceholderText="APKognito"
+                        PlaceholderText="Replacement name. (e.g.: new-company)"
                         Text="{Binding ApkReplacementName, Mode=TwoWay}" />
                 </Grid>
 
@@ -415,8 +414,8 @@
         <Grid Grid.Row="3">
 
             <Grid.RowDefinitions>
-                <RowDefinition />
-                <RowDefinition />
+                <RowDefinition Height="*" MinHeight="50" />
+                <RowDefinition Height="auto" />
             </Grid.RowDefinitions>
 
             <ui:RichTextBox

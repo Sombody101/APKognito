@@ -64,20 +64,9 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
 
     private void TextBox_KeyUp(object sender, KeyEventArgs e)
     {
-        TextBox tBox;
-
-        switch (sender)
+        if (sender is not TextBox tBox)
         {
-            case TextBox:
-                tBox = (TextBox)sender;
-                break;
-
-            case DirectorySelector:
-                tBox = ((DirectorySelector)sender).DirectoryTextBox;
-                break;
-
-            default:
-                return;
+            return;
         }
 
         DependencyProperty prop = TextBox.TextProperty;

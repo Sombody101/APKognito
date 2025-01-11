@@ -197,6 +197,7 @@
                     ItemsSource="{Binding FoundFolders}"
                     SelectionChanged="FolderList_SelectionChanged"
                     SelectionMode="Extended"
+                    VirtualizingPanel.ScrollUnit="Pixel"
                     Visibility="{Binding FileListVisibility, Converter={StaticResource BoolToVisibility}}">
 
                     <ListView.ItemTemplate>
