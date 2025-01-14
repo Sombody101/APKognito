@@ -66,6 +66,7 @@ internal static class Tools
 #endif
     }
 
+#if DEBUG
     [StructLayout(LayoutKind.Explicit)]
     internal struct DWFlags
     {
@@ -85,4 +86,5 @@ internal static class Tools
         [FieldOffset(4)]
         internal uint m_BaseSize;
     }
+#endif
 }
