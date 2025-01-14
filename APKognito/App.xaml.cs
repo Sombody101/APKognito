@@ -222,11 +222,27 @@ public partial class App
             "Release";
 #endif
 
+        public const VersionTypeValue VersionType =
+#if DEBUG
+            VersionTypeValue.Debug;
+#elif DEBUG_RELEASE
+            VersionTypeValue.PublicDebug;
+#else
+            VersionTypeValue.Release;
+#endif
+
         public const bool IsDebugRelease =
 #if DEBUG || DEBUG_RELEASE
                 true;
 #else
                 false;
 #endif
+
+        public enum VersionTypeValue
+        {
+            Release,
+            PublicDebug,
+            Debug,
+        }
     }
 }

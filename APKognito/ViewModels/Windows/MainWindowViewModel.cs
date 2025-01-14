@@ -16,7 +16,7 @@ public partial class MainWindowViewModel : LoggableObservableObject, IViewable
     #region Properties
 
     [ObservableProperty]
-    private string _applicationTitle = $"APKognito{(LaunchedAsAdministrator ? " [ADMIN]" : string.Empty)}";
+    private string _applicationTitle = $"APKognito{(LaunchedAsAdministrator ? " [ADMIN]" : string.Empty)} {GetBuildTypeString()}";
 
     [ObservableProperty]
     private ObservableCollection<object> _menuItems =
@@ -116,7 +116,7 @@ public partial class MainWindowViewModel : LoggableObservableObject, IViewable
 
         _cleanupDebounce = true;
 
-        var memoryUsage = GetMemSize();
+        long memoryUsage = GetMemSize();
 
         try
         {
@@ -131,7 +131,7 @@ public partial class MainWindowViewModel : LoggableObservableObject, IViewable
             return;
         }
 
-        var memoryAfterClean = GetMemSize();
+        long memoryAfterClean = GetMemSize();
 
         SnackSuccess("GC Success!", $"Cleaned {(memoryUsage - memoryAfterClean) / 1024f / 1024f:n2} MB");
 
@@ -143,6 +143,16 @@ public partial class MainWindowViewModel : LoggableObservableObject, IViewable
     public static readonly bool LaunchedAsAdministrator =
         new WindowsPrincipal(WindowsIdentity.GetCurrent())
             .IsInRole(WindowsBuiltInRole.Administrator);
+
+    [SuppressMessage("Major Bug", "S2583:Conditionally executed code should be reachable", Justification = "It's reachable when built for it.")]
+    private static string GetBuildTypeString()
+    {
+        App.Version.VersionTypeValue type = App.Version.VersionType;
+
+        return type is App.Version.VersionTypeValue.Release 
+            ? string.Empty 
+            : $"[{type.ToString().ToUpper()}]";
+    }
 
     private static long GetMemSize()
     {
