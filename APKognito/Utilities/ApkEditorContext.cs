@@ -319,7 +319,7 @@ public class ApkEditorContext
                 FileLogger.LogWarning($"The directory '.{trimmedDirectory}' has already been renamed to {newName}, skipping.");
                 return;
             }
-         
+
             viewModel.LogWarning($"Directory '{newName}' already exists, deleting and replacing. This may cause your APK to not load. " +
                 "If so, pick a new company name so it's not conflicting.");
 

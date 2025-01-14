@@ -134,7 +134,6 @@ public static partial class WebGet
                     {
                         logger?.LogError($"Failed to find '{index}' in JSON response.");
                         FileLogger.LogDebug($"Json token: {lastToken.ToString().Truncate(1500) ?? "[NULL]"}");
-                        output[i] = null;
                         break;
                     }
 
