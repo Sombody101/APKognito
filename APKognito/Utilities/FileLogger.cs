@@ -2,8 +2,6 @@
 using APKognito.Configurations.ConfigModels;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
-using Newtonsoft.Json;
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -35,6 +33,9 @@ public static class FileLogger
     private static readonly string logFilePath = Path.Combine(App.AppData!.FullName, "applog.log");
     private static readonly string exceptionLogFilePath = Path.Combine(App.AppData!.FullName, "exlog.log");
 
+    // Jimmy rigged AF
+    private static readonly bool SymbolsAttached;
+
     private static string UtcTime => DateTime.UtcNow.ToString("hh:mm:ss.fff tt: ");
 
     static FileLogger()
@@ -50,6 +51,15 @@ public static class FileLogger
         catch
         {
             // Probably doesn't exist yet
+        }
+
+        try
+        {
+            throw new Exception();
+        }
+        catch (Exception ex)
+        {
+            SymbolsAttached = ex.StackTrace.Contains("line");
         }
     }
 
@@ -74,8 +84,6 @@ public static class FileLogger
 
     public static void LogGenericException(Exception ex, string partnerLog = "")
     {
-        string json = JsonConvert.SerializeObject(ex, Formatting.Indented);
-
         StringBuilder log = new();
 
         log.Append('[').Append(UtcTime).Append("]: EXCEPTION");
@@ -86,10 +94,7 @@ public static class FileLogger
         }
 
         log.Append(string.IsNullOrWhiteSpace(partnerLog) ? "[No log]" : string.Empty).Append(": ")
-            .AppendLine(ex.GetType().Name)
-            .AppendLine(json).AppendLine()
-            .AppendLine("Formatted Trace:")
-            .AppendLine(ex.StackTrace).AppendLine()
+            .AppendLine(GetFormattedException(ex)).AppendLine()
             .AppendLine("-- END LOG --")
             .AppendLine();
 
@@ -268,5 +273,15 @@ public static class FileLogger
         }
 
         return $"[Failed to get caller info: ";
+    }
+
+    private static string GetFormattedException(Exception ex)
+    {
+        StringBuilder exception = new();
+
+        exception.Append(ex.GetType().Name).Append(": ").AppendLine(ex.Message)
+            .AppendLine(ex.StackTrace ?? "[NO STACK]");
+
+        return exception.ToString();
     }
 }

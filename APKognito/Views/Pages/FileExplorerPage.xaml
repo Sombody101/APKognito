@@ -76,6 +76,13 @@
             <ListView.ItemContainerStyle>
                 <Style BasedOn="{StaticResource {x:Type ui:ListViewItem}}" TargetType="{x:Type ui:ListViewItem}">
                     <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClick" />
+                    <Setter Property="ContextMenu">
+                        <Setter.Value>
+                            <ContextMenu DataContext="{RelativeSource AncestorType=local:FileExplorerPage}">
+                                <MenuItem Header="{Binding IsLoaded}" />
+                            </ContextMenu>
+                        </Setter.Value>
+                    </Setter>
                 </Style>
             </ListView.ItemContainerStyle>
 
