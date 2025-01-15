@@ -24,7 +24,6 @@ public static partial class VariablePathResolver
         return path;
     }
 
-
     [GeneratedRegex("(?<var_name>\\%[a-zA-Z_-]+\\%)")]
     private static partial Regex GetPathVariable();
 }

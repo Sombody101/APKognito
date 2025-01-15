@@ -13,7 +13,6 @@ using System.Text.RegularExpressions;
 using System.Windows.Documents;
 using System.Windows.Threading;
 using Wpf.Ui;
-
 using FontFamily = System.Windows.Media.FontFamily;
 
 namespace APKognito.ViewModels.Pages;
@@ -151,6 +150,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
     public HomeViewModel()
     {
+        // For designer
     }
 
     public HomeViewModel(ISnackbarService _snackbarService)
@@ -335,38 +335,11 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
         string[]? files = GetFilePaths();
 
-        if (files is null || files.Length is 0)
-        {
-            LogError("No APK files selected!");
-            goto ChecksFailed;
-        }
-
-        string? javaPath = await RenameConditionsMet();
+        string? javaPath = await PrepareForRenaming(files);
         if (javaPath is null)
         {
             goto ChecksFailed;
         }
-
-        Log("Completed all checks.");
-
-        if (!Directory.Exists(OutputDirectory))
-        {
-            try
-            {
-                _ = Directory.CreateDirectory(OutputDirectory);
-            }
-            catch (Exception ex)
-            {
-                LogError($"Failed to create directory '{OutputDirectory}' ({ex.GetType().Name}). Check for formatting or spelling issues and try again.");
-                LogDebug(ex);
-                FileLogger.LogException(ex);
-                goto ChecksFailed;
-            }
-        }
-
-        // Create a temp directory for the APK(s)
-        TempData = Directory.CreateTempSubdirectory("APKognito-");
-        Log($"Using temp directory: {TempData.FullName}");
 
         Stopwatch elapsedTime = new();
         DispatcherTimer taskTimer = new()
@@ -380,7 +353,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         taskTimer.Start();
 
         string[] pendingSession = new string[files.Length];
-        string[] failedJobs = new string[files.Length];
+        List<string> failedJobs = new(files.Length);
         int completeJobs = 0;
 
         StartButtonVisible = false;
@@ -398,53 +371,19 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
             JobbedApk = Path.GetFileName(sourceApkPath);
 
-            ApkEditorContext editorContext = new(this, javaPath!, sourceApkPath);
-
             string? errorReason = null;
             bool apkFailed = false;
 
             try
             {
+                ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
                 errorReason = await editorContext.RenameApk(cancellationToken);
                 apkFailed = errorReason is not null;
 
                 if (!apkFailed && PushAfterRename)
                 {
-                    var currentDevice = adbConfig.GetCurrentDevice();
-
-                    if (currentDevice is null)
-                    {
-                        const string error = "Failed to get ADB device profile.";
-                        LogError(error);
-                        throw new AdbPushFailedException(JobbedApk, error);
-                    }
-
-                    FileInfo apkInfo = new(editorContext.OutputApkPath);
-                    Log($"Installing {FinalName} to {currentDevice.DeviceId} ({apkInfo.Length / 1024 / 1024} MB)");
-
-                    await AdbManager.WakeDevice();
-                    await AdbManager.QuickDeviceCommand(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
-
-                    if (editorContext.AssetPath is not null)
-                    {
-                        string[] assets = Directory.GetFiles(editorContext.AssetPath);
-
-                        string obbPath = $"/sdcard/Android/{FinalName}";
-                        Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbPath}");
-
-                        await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbPath}""", token: cancellationToken);
-
-                        int assetIndex = 0;
-                        foreach (string file in assets)
-                        {
-                            var assetInfo = new FileInfo(file);
-                            Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
-
-                            await AdbManager.QuickDeviceCommand(@$"push ""{file}"" ""{obbPath}""", token: cancellationToken);
-                        }
-                    }
+                    await PushRenamedApk(editorContext, cancellationToken);
                 }
-
             }
             catch (OperationCanceledException)
             {
@@ -458,16 +397,17 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                 FileLogger.LogException(errorReason, ex);
             }
 
+            string? finalName = FinalName;
+
             if (!apkFailed)
             {
                 ++completeJobs;
             }
             else
             {
-                failedJobs[jobIndex] = $"\t{Path.GetFileName(sourceApkPath)}: {errorReason}";
+                failedJobs.Add($"\t{Path.GetFileName(sourceApkPath)}: {errorReason}");
             }
 
-            string? finalName = FinalName;
             if (finalName == "Unpacking...")
             {
                 finalName = null;
@@ -498,19 +438,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
         if (kognitoConfig.ClearTempFilesOnRename)
         {
-            try
-            {
-                // Remove temp directory
-                Log("Cleaning temp directory....");
-                await Task.Factory.StartNew(
-                    path => Directory.Delete((string)path!, true),
-                    TempData.FullName);
-            }
-            catch (Exception ex)
-            {
-                // A file in the temp directory is still being used
-                LogWarning($"Failed to cleanup temp files: {ex.Message}");
-            }
+            await CleanTempFiles();
         }
 
         // Finalize session and write it to the history file
@@ -529,6 +457,81 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
     ChecksFailed:
         RunningJobs = false;
         CanEdit = true;
+    }
+
+    private async Task<string?> PrepareForRenaming(string[] files)
+    {
+        if (files is null || files.Length is 0)
+        {
+            LogError("No APK files selected!");
+            return null;
+        }
+
+        string? javaPath = await RenameConditionsMet();
+        if (javaPath is null)
+        {
+            return null;
+        }
+
+        Log("Completed all checks.");
+
+        if (!Directory.Exists(OutputDirectory))
+        {
+            try
+            {
+                _ = Directory.CreateDirectory(OutputDirectory);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Failed to create directory '{OutputDirectory}' ({ex.GetType().Name}). Check for formatting or spelling issues and try again.");
+                LogDebug(ex);
+                FileLogger.LogException(ex);
+                return null;
+            }
+        }
+
+        // Create a temp directory for the APK(s)
+        TempData = Directory.CreateTempSubdirectory("APKognito-");
+        Log($"Using temp directory: {TempData.FullName}");
+
+        return javaPath;
+    }
+
+    private async Task PushRenamedApk(ApkEditorContext context, CancellationToken cancellationToken)
+    {
+        var currentDevice = adbConfig.GetCurrentDevice();
+
+        if (currentDevice is null)
+        {
+            const string error = "Failed to get ADB device profile.";
+            LogError(error);
+            throw new AdbPushFailedException(JobbedApk, error);
+        }
+
+        FileInfo apkInfo = new(context.OutputApkPath);
+        Log($"Installing {FinalName} to {currentDevice.DeviceId} ({apkInfo.Length / 1024 / 1024} MB)");
+
+        await AdbManager.WakeDevice();
+        await AdbManager.QuickDeviceCommand(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
+
+        if (context.AssetPath is not null && !cancellationToken.IsCancellationRequested)
+        {
+            string[] assets = Directory.GetFiles(context.AssetPath);
+
+            string obbPath = $"/sdcard/Android/{FinalName}";
+            Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbPath}");
+
+            await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbPath}""", token: cancellationToken);
+
+            int assetIndex = 0;
+            foreach (string file in assets)
+            {
+                var assetInfo = new FileInfo(file);
+                Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
+
+                await AdbManager.QuickDeviceCommand(@$"push ""{file}"" ""{obbPath}""", token: cancellationToken);
+            }
+        }
     }
 
     private async Task<string?> RenameConditionsMet()
@@ -746,6 +749,30 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         }
 
         return false;
+    }
+
+    private async Task CleanTempFiles()
+    {
+        try
+        {
+            using CancellationTokenSource cts = new();
+            cts.CancelAfter(15_000);
+
+            // Remove temp directory
+            Log("Cleaning temp directory....");
+            await Task.Factory.StartNew(
+                path => Directory.Delete((string)path!, true),
+                TempData.FullName, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            LogWarning("Failed to clear temp files within 15 seconds! Manual cleanup may be required.");
+        }
+        catch (Exception ex)
+        {
+            // A file in the temp directory is still being used
+            LogWarning($"Failed to cleanup temp files: {ex.Message}");
+        }
     }
 
     private static readonly List<Run> _runLogBuffer = [];
