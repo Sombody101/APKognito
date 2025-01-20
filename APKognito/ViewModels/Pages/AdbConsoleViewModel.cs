@@ -466,7 +466,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
                 return;
             }
 
-            string appDataPath = App.AppData.FullName;
+            string appDataPath = App.AppDataDirectory.FullName;
             WriteGenericLogLine($"Installing platform tools to: {appDataPath}\\platform-tools");
 
             string zipFile = $"{appDataPath}\\adb.zip";

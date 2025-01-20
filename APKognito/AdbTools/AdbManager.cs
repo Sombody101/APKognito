@@ -249,7 +249,7 @@ internal class AdbManager
         }
 
         string scriptVersion = (await QuickDeviceCommand($"shell sh {APKOGNITO_DIRECTORY}/version", noThrow: true)).StdOut;
-        if (scriptVersion == App.Version.GetVersion() || forceUpload)
+        if (scriptVersion == App.Version.GetFullVersion() || forceUpload)
         {
             FileLogger.Log("Skipping script update, version file matches current version.");
 
@@ -290,7 +290,7 @@ internal class AdbManager
             FileLogger.LogException(ex);
         }
 
-        _ = await QuickDeviceCommand($"shell echo '#!/bin/sh\n\necho \"{App.Version.GetVersion()}\"'");
+        _ = await QuickDeviceCommand($"shell echo '#!/bin/sh\n\necho \"{App.Version.GetFullVersion()}\"'");
 
         return (pushedCount, scriptCount, ScriptPushResult.Success);
     }

@@ -29,7 +29,7 @@ public class ConfigFileAttribute : Attribute
 
     public string GetCompletePath()
     {
-        string configs = Path.Combine(App.AppData!.FullName, "config");
+        string configs = Path.Combine(App.AppDataDirectory!.FullName, "config");
         _ = Directory.CreateDirectory(configs);
         return Path.Combine(configs, FileName);
     }

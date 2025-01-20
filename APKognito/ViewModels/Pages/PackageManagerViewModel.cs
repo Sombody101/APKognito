@@ -217,7 +217,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject, IViewab
         EnableControls = true;
     }
 
-    private async Task UpdatePackageList(bool silent = false)
+    public async Task UpdatePackageList(bool silent = false)
     {
         /*
          * Current format:

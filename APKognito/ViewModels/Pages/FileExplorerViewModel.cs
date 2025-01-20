@@ -114,6 +114,12 @@ public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
         await UpdateFolders(directoryHistory[^1]);
     }
 
+    [RelayCommand]
+    private async Task OnShowProperties(ListView list)
+    {
+
+    }
+
     #endregion Commands
 
     private async Task<bool> UpdateFolders(AdbFolderInfo? openingDirectory, bool silent = false)

@@ -42,8 +42,7 @@
             Grid.Row="2"
             Margin="0,0,5,0"
             VerticalAlignment="Stretch"
-            VerticalContentAlignment="Top"
-            IsEnabled="{Binding EnableControls}">
+            VerticalContentAlignment="Top">
             <StackPanel>
 
                 <Grid Margin="0,0,0,15">

@@ -19,7 +19,6 @@ using Wpf.Ui.Appearance;
 namespace APKognito;
 
 #pragma warning disable S2325 // Methods and properties that don't access instance data should be static
-#pragma warning disable S6605 // Collection-specific "Exists" method should be used instead of the "Any" extension
 
 /// <summary>
 /// Interaction logic for App.xaml
@@ -29,7 +28,7 @@ public partial class App
     private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
     private static HttpClient? _sharedHttpClient;
 
-    public static DirectoryInfo AppData { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
+    public static DirectoryInfo AppDataDirectory { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
 
     /// <summary>
     /// An <see cref="HttpClient"/> instance that is shared throughout the application.
@@ -106,7 +105,7 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
-        FileLogger.Log($"App start. {App.Version.VersionPrefix}{Assembly.GetExecutingAssembly().GetName().Version}, {App.Version.VersionIdentifier}");
+        FileLogger.Log($"App start. {Version.GetFullVersion()}, {Version.VersionIdentifier}");
 
 #if !NO_EXCEPTION_HANDLING || RELEASE
         TaskScheduler.UnobservedTaskException += (sender, e) =>
@@ -199,9 +198,14 @@ public partial class App
 
     public readonly struct Version
     {
-        public static string GetVersion(Assembly? assembly = null)
+        public static string GetFullVersion(Assembly? assembly = null)
         {
             return $"{VersionPrefix}{(assembly ?? Assembly.GetExecutingAssembly()).GetName().Version}";
+        }
+
+        public static string GetVersion(Assembly? assembly)
+        {
+            return (assembly ?? Assembly.GetExecutingAssembly()).GetName().Version!.ToString();
         }
 
         public const string VersionPrefix =

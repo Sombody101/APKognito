@@ -14,6 +14,9 @@ namespace APKognito.Controls;
 /// </summary>
 public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewModel>
 {
+    private const int UPDATE_DELAY_MS = 10_000;
+    private const int GB_DIVIDER = 1024 * 1024;
+
     private static readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
     private static AndroidDeviceInfoViewModel viewModel = null!;
@@ -97,12 +100,13 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Used for event")]
-    private void ComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         ForceTick();
     }
 
     private static Timer? _deviceUpdateTimer;
+    private static CancellationTokenSource? cts;
     private static void StartDeviceTimer(AndroidDeviceInfo instance)
     {
         if (_deviceUpdateTimer is not null)
@@ -113,17 +117,33 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
         _deviceUpdateTimer = new Timer(async (sender) =>
         {
+            if (cts is not null)
+            {
+                return;
+            }
+
+            cts = new();
+            cts.CancelAfter(UPDATE_DELAY_MS - 1000);
+
             try
             {
-                AndroidDevice? device = await UpdateDeviceInfo();
-
+                AndroidDevice? device = await UpdateDeviceInfo(cts.Token);
                 _ = await instance.Dispatcher.InvokeAsync(() => instance.AndroidDevice = device ?? AndroidDevice.Empty);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore
             }
             catch (Exception ex)
             {
                 FileLogger.LogException(ex);
             }
-        }, null, 0, 10_000);
+            finally
+            {
+                cts.Dispose();
+                cts = null;
+            }
+        }, null, 0, UPDATE_DELAY_MS);
 
         ForceTick();
     }
@@ -136,10 +156,10 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         }
 
         _ = _deviceUpdateTimer.Change(0, 1);
-        _ = _deviceUpdateTimer.Change(0, 10_000);
+        _ = _deviceUpdateTimer.Change(0, UPDATE_DELAY_MS);
     }
 
-    private static async Task<AndroidDevice?> UpdateDeviceInfo()
+    private static async Task<AndroidDevice?> UpdateDeviceInfo(CancellationToken token = default)
     {
         AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
 
@@ -149,7 +169,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         }
 
         // Get battery charge
-        CommandOutput result = await AdbManager.QuickDeviceCommand("shell dumpsys battery | grep 'level' | cut -d ':' -f 2", noThrow: true);
+        CommandOutput result = await AdbManager.QuickDeviceCommand("shell dumpsys battery | grep 'level' | cut -d ':' -f 2", token: token, noThrow: true);
 
         if (result.Errored)
         {
@@ -162,12 +182,11 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             batteryPercentage = -1;
         }
 
-        string output = (await AdbManager.QuickDeviceCommand("shell df")).StdOut;
+        string output = (await AdbManager.QuickDeviceCommand("shell df | grep -E '^(/dev/block|rootfs|tmp)'")).StdOut;
         (float total, float used, float free) = ParseDeviceStorage(output);
 
         return new()
         {
-            // DeviceName = (await AdbManager.QuickDeviceCommand("shell getprop ro.product.model")).StdOut,
             BatteryLevel = batteryPercentage,
             TotalSpace = total,
             UsedSpace = used,
@@ -179,28 +198,33 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
     {
         try
         {
-            string? line = Array.Find(output.Split('\n'), x => x.StartsWith("/data/media") || x.StartsWith("/dev/fuse"));
+            long totalSizeGB = 0,
+                usedSizeGB = 0,
+                freeSizeGB = 0;
 
-            if (string.IsNullOrEmpty(line))
+            foreach (string line in output.Split('\n'))
             {
-                return (0, 0, 0);
+                if (string.IsNullOrEmpty(line))
+                {
+                    continue;
+                }
+
+                string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                if (parts.Length < 4)
+                {
+                    continue;
+                }
+
+                totalSizeGB += long.Parse(parts[1]);
+                usedSizeGB += long.Parse(parts[2]);
+                freeSizeGB += long.Parse(parts[3]);
             }
-
-            string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-            if (parts.Length < 4)
-            {
-                return (0, 0, 0);
-            }
-
-            long totalSizeGB = long.Parse(parts[1]);
-            long usedSizeGB = long.Parse(parts[2]);
-            long freeSizeGB = long.Parse(parts[3]);
 
             return (
-                totalSizeGB / 1024 / 1024,
-                usedSizeGB / 1024 / 1024,
-                freeSizeGB / 1024 / 1024
+                totalSizeGB / GB_DIVIDER,
+                usedSizeGB / GB_DIVIDER,
+                freeSizeGB / GB_DIVIDER
             );
         }
         catch (Exception ex)

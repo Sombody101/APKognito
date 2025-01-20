@@ -18,7 +18,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 {
     private const int LATEST = 0;
 
-    public static readonly string UpdatesFolder = Path.Combine(App.AppData!.FullName, "updates");
+    public static readonly string UpdatesFolder = Path.Combine(App.AppDataDirectory!.FullName, "updates");
 
     private readonly UpdateConfig config;
     private readonly CacheStorage cache;

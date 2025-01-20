@@ -14,7 +14,7 @@ public class KognitoConfig : IKognitoConfig
     /// The directory to push the new files to.
     /// </summary>
     [JsonProperty("apk_output")]
-    public string ApkOutputDirectory { get; set; } = Path.Combine(App.AppData!.FullName, "output");
+    public string ApkOutputDirectory { get; set; } = Path.Combine(App.AppDataDirectory!.FullName, "output");
 
     [JsonProperty("apk_pull_output")]
     public string ApkPullDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);

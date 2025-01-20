@@ -75,7 +75,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         updateConfig = ConfigurationFactory.GetConfig<UpdateConfig>();
         kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
 
-        AppDataPath = App.AppData.FullName;
+        AppDataPath = App.AppDataDirectory.FullName;
     }
 
     [RelayCommand]
@@ -93,7 +93,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
     [RelayCommand]
     private static void OnOpenAppData()
     {
-        App.OpenDirectory(App.AppData!.FullName);
+        App.OpenDirectory(App.AppDataDirectory!.FullName);
     }
 
     [RelayCommand]
@@ -138,7 +138,7 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         Assembly assembly = Assembly.GetExecutingAssembly();
         AssemblyName assemblyName = assembly.GetName();
 
-        string appVersion = App.Version.GetVersion(assembly);
+        string appVersion = App.Version.GetFullVersion(assembly);
 
         string appName = assemblyName.Name ?? "[Unknown]";
         string fullAppVersion = $"{appVersion} - {assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "[Unknown]"}";

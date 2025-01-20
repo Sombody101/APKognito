@@ -22,7 +22,7 @@ public partial class PackageManagerPage : INavigableView<PackageManagerViewModel
         Loaded += async (sender, e) =>
         {
             ViewModel.SetAndInitializePageSize(this);
-            await viewModel.UpdatePackageListCommand.ExecuteAsync(true);
+            await viewModel.UpdatePackageList(true);
         };
     }
 

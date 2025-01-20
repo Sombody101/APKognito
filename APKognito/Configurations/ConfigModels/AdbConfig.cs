@@ -56,7 +56,7 @@ public sealed class AdbDeviceInfo
     public bool DeviceAuthorized { get; set; } = false;
 
     [JsonIgnore]
-    public bool ConnectedByLan => StructuralComparisons.StructuralEqualityComparer.Equals(IpAddress, new byte[0, 0, 0, 0]);
+    public bool ConnectedByLan => StructuralComparisons.StructuralEqualityComparer.Equals(IpAddress, DefaultIp);
 
     public AdbDeviceInfo(string id)
     {

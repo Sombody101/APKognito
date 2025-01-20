@@ -176,7 +176,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         kognitoCache = ConfigurationFactory.GetConfig<CacheStorage>();
         adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
-        string appDataTools = Path.Combine(App.AppData!.FullName, "tools");
+        string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
 
         _ = Directory.CreateDirectory(appDataTools);
         ApktoolJar = Path.Combine(appDataTools, "apktool.jar");
@@ -514,7 +514,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         await AdbManager.WakeDevice();
         await AdbManager.QuickDeviceCommand(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
 
-        if (context.AssetPath is not null && !cancellationToken.IsCancellationRequested)
+        if (!string.IsNullOrWhiteSpace(context.AssetPath) && Directory.Exists(context.AssetPath) && !cancellationToken.IsCancellationRequested)
         {
             string[] assets = Directory.GetFiles(context.AssetPath);
 
@@ -550,7 +550,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
 
         Log("Verifying that Java 8+ and APK tools are installed...");
 
-        if (JavaVersionLocator.GetJavaPath(out string? javaPath) || !await VerifyToolInstallation())
+        if (JavaVersionLocator.GetJavaPath(out string? javaPath) && await VerifyToolInstallation())
         {
             return javaPath;
         }

@@ -30,8 +30,8 @@ public static class FileLogger
     public const string ReplacementUsername = "[:USER:]";
 
     private static readonly object lockObject = new();
-    private static readonly string logFilePath = Path.Combine(App.AppData!.FullName, "applog.log");
-    private static readonly string exceptionLogFilePath = Path.Combine(App.AppData!.FullName, "exlog.log");
+    private static readonly string logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
+    private static readonly string exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
 
     // Jimmy rigged AF
     private static readonly bool SymbolsAttached;
@@ -155,7 +155,7 @@ public static class FileLogger
             ConfigurationFactory.GetConfigInfo<RenameSessionList>().GetCompletePath()
         ];
 
-        string packPath = Path.Combine(App.AppData!.FullName, "logpack");
+        string packPath = Path.Combine(App.AppDataDirectory!.FullName, "logpack");
         _ = Directory.CreateDirectory(packPath);
 
         StringBuilder errorFiles = new();
@@ -192,9 +192,9 @@ public static class FileLogger
             File.WriteAllText(logBoxPath, string.Join("\r\n", lines));
         }
 
-        File.Create(Path.Combine(packPath, App.Version.GetVersion())).Close();
+        File.Create(Path.Combine(packPath, App.Version.GetFullVersion())).Close();
 
-        string outputPack = Path.Combine(App.AppData.FullName, "logpack.zip");
+        string outputPack = Path.Combine(App.AppDataDirectory.FullName, "logpack.zip");
 
         // Delete old logpack
         if (File.Exists(outputPack))
