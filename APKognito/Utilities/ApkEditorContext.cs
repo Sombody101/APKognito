@@ -1,4 +1,8 @@
-﻿using APKognito.Configurations;
+﻿#if DEBUG
+#define SINGLE_THREAD_INSTANCE_REPLACING
+#endif
+
+using APKognito.Configurations;
 using APKognito.Exceptions;
 using APKognito.Models.Settings;
 using APKognito.ViewModels.Pages;
@@ -11,6 +15,8 @@ namespace APKognito.Utilities;
 
 public class ApkEditorContext
 {
+    private const int MAX_SMALI_LOAD_SIZE = 1024 * 20; // 20KB
+
     private readonly HomeViewModel viewModel;
     private readonly KognitoConfig config;
     private readonly ApkNameData nameData;
@@ -35,13 +41,15 @@ public class ApkEditorContext
         JavaPath = javaPath;
         viewModel = homeViewModel;
 
+        string sourceApkName = Path.GetFileName(sourceApkPath);
         nameData = new()
         {
             FullSourceApkPath = sourceApkPath,
-            FullSourceApkFileName = Path.GetFileName(sourceApkPath),
+            FullSourceApkFileName = sourceApkName,
             NewCompanyName = homeViewModel.ApkReplacementName,
+            ApkSmaliTempDirectory = Path.Combine(viewModel.TempData.FullName, "$smali"),
+            ApkAssemblyDirectory = Path.Combine(viewModel.TempData.FullName, $"{sourceApkName[..^4]}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}")
         };
-        nameData.ApkAssemblyDirectory = Path.Combine(viewModel.TempData.FullName, $"{nameData.FullSourceApkFileName[..^4]}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
 
         // Temporary directories
 
@@ -73,6 +81,7 @@ public class ApkEditorContext
 
             // Format new package name and get original company name
             (
+                string packagePrefix,
                 nameData.OriginalCompanyName,
                 nameData.NewPackageName
             ) = SplitPackageName(nameData);
@@ -83,7 +92,7 @@ public class ApkEditorContext
 
             // Replace all instances in the APK and any OBBs
             viewModel.Log($"Changing '{nameData.OriginalPackageName}'  |>  '{nameData.NewPackageName}'");
-            await ReplaceAllNameInstancesAsync(nameData, cancellationToken);
+            await ReplaceAllNameInstancesAsync(packagePrefix, cancellationToken);
             await ReplaceObbFiles(nameData.OriginalPackageName, nameData.NewCompanyName, nameData.RenamedApkOutputDirectory);
 
             // Repack
@@ -215,20 +224,32 @@ public class ApkEditorContext
         File.Move($"{newSignedName}.apk.idsig", $"{fullTrueName}.apk.idsig", true);
     }
 
-    private static async Task ReplaceAllNameInstancesAsync(ApkNameData nameData, CancellationToken cToken)
+    private async Task ReplaceAllNameInstancesAsync(string packagePrefix, CancellationToken cToken)
     {
         ReplaceAllDirectoryNames(nameData.ApkAssemblyDirectory, nameData);
 
-        IEnumerable<string> files = Directory.EnumerateFiles(nameData.ApkAssemblyDirectory, "*.smali", SearchOption.AllDirectories)
+        IEnumerable<string> files = Directory.EnumerateFiles(
+            Path.Combine(nameData.ApkAssemblyDirectory, "smali", packagePrefix, nameData.NewCompanyName),
+            "*.smali", SearchOption.AllDirectories)
             .Append($"{nameData.ApkAssemblyDirectory}\\AndroidManifest.xml")
             .Append($"{nameData.ApkAssemblyDirectory}\\apktool.yml");
 
+        Directory.CreateDirectory(nameData.ApkSmaliTempDirectory);
+
+#if SINGLE_THREAD_INSTANCE_REPLACING
+        string[] filesArr = files.ToArray();
+        foreach (string filePath in filesArr)
+        {
+            await ReplaceTextInFileAsync(filePath, nameData, cToken);
+        }
+#else
         await Parallel.ForEachAsync(files, cToken,
             async (filePath, subcToken) =>
             {
                 await ReplaceTextInFileAsync(filePath, nameData, subcToken);
             }
         );
+#endif
     }
 
     private async Task ReplaceObbFiles(string sourcePackageName, string newApkCompany, string outputDirectory)
@@ -277,12 +298,39 @@ public class ApkEditorContext
 
     private static async Task ReplaceTextInFileAsync(string filePath, ApkNameData nameData, CancellationToken cToken)
     {
-        // These files usually aren't that big, so just load all of it into memory and replace it.
-        await File.WriteAllTextAsync(
-            filePath,
-            (await File.ReadAllTextAsync(filePath, cToken)).Replace(nameData.OriginalCompanyName, nameData.NewCompanyName),
-            cToken
-        );
+        FileInfo fileInfo = new(filePath);
+
+        if (fileInfo.Length < MAX_SMALI_LOAD_SIZE)
+        {
+            await File.WriteAllTextAsync(
+                filePath,
+                (await File.ReadAllTextAsync(filePath, cToken)).Replace(nameData.OriginalCompanyName, nameData.NewCompanyName),
+                cToken
+            );
+
+            return;
+        }
+
+        string tempSmaliFile = Path.Combine(nameData.ApkSmaliTempDirectory, $"${fileInfo.Name}");
+        using StreamReader reader = new(fileInfo.FullName);
+        using StreamWriter writer = new(tempSmaliFile);
+
+        string? line;
+        while ((line = await reader.ReadLineAsync(cToken)) is not null)
+        {
+            if (!(string.IsNullOrWhiteSpace(line) || line.StartsWith('#')))
+            {
+                line = line.Replace(nameData.OriginalCompanyName, nameData.NewCompanyName);
+            }
+
+            await writer.WriteLineAsync(line);
+        }
+
+        reader.Close();
+        writer.Close();
+
+        File.Delete(fileInfo.FullName);
+        File.Move(tempSmaliFile, fileInfo.FullName);
     }
 
     private Process CreateJavaProcess(string arguments)
@@ -372,7 +420,7 @@ public class ApkEditorContext
             ?? throw new RenameFailedException("Failed to get package name from AndroidManifest (XML).");
     }
 
-    private static (string, string) SplitPackageName(ApkNameData nameData)
+    private static (string, string, string) SplitPackageName(ApkNameData nameData)
     {
         string[] split = nameData.OriginalPackageName.Split('.');
 
@@ -389,7 +437,7 @@ public class ApkEditorContext
         };
 
         // Prefix, old company name, new package name
-        return (oldCompanyName, nameData.OriginalPackageName.Replace(oldCompanyName, nameData.NewCompanyName));
+        return (split[0], oldCompanyName, nameData.OriginalPackageName.Replace(oldCompanyName, nameData.NewCompanyName));
     }
 
     public static long CalculateUnpackedApkSize(string apkPath, bool copyingFile = true)
@@ -427,12 +475,13 @@ public class ApkEditorContext
         public string OriginalCompanyName { get; set; } = string.Empty;
 
         public string NewPackageName { get; set; } = string.Empty;
-        public string NewCompanyName { get; set; } = string.Empty;
+        public string NewCompanyName { get; init; } = string.Empty;
 
-        public string FullSourceApkPath { get; set; } = string.Empty;
-        public string FullSourceApkFileName { get; set; } = string.Empty;
+        public string FullSourceApkPath { get; init; } = string.Empty;
+        public string FullSourceApkFileName { get; init; } = string.Empty;
 
         public string RenamedApkOutputDirectory { get; set; } = string.Empty;
-        public string ApkAssemblyDirectory { get; set; } = string.Empty;
+        public string ApkAssemblyDirectory { get; init; } = string.Empty;
+        public string ApkSmaliTempDirectory { get; init; } = string.Empty;
     }
 }
