@@ -518,10 +518,10 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
         {
             string[] assets = Directory.GetFiles(context.AssetPath);
 
-            string obbPath = $"/sdcard/Android/{FinalName}";
-            Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbPath}");
+            string obbDirectory = $"{AdbManager.ANDROID_OBB}/{FinalName}";
+            Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbDirectory}");
 
-            await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbPath}""", token: cancellationToken);
+            await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbDirectory}""", token: cancellationToken);
 
             int assetIndex = 0;
             foreach (string file in assets)
@@ -529,7 +529,7 @@ public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiM
                 var assetInfo = new FileInfo(file);
                 Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
 
-                await AdbManager.QuickDeviceCommand(@$"push ""{file}"" ""{obbPath}""", token: cancellationToken);
+                await AdbManager.QuickDeviceCommand(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
             }
         }
     }
