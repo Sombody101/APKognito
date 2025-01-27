@@ -5,12 +5,12 @@ using Wpf.Ui;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
 
-namespace APKognito.Utilities;
+namespace APKognito.Utilities.MVVM;
 
 /// <summary>
 /// Gives a horrible interface for logging to a <see cref="RichTextBox"/> while still adhering to <see cref="ObservableObject"/> rules.
 /// </summary>
-public class LoggableObservableObject : PageSizeTracker, IAntiMvvmRtb
+public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 {
     /// <summary>
     /// The current <see cref="LoggableObservableObject"/>.

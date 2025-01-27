@@ -2,16 +2,15 @@
 using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
-using Humanizer;
+using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Text;
 using System.Windows.Threading;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class DriveUsageViewModel : PageSizeTracker, IViewable
+public partial class DriveUsageViewModel : ViewModel, IViewable
 {
     private readonly KognitoConfig config;
 
@@ -76,11 +75,6 @@ public partial class DriveUsageViewModel : PageSizeTracker, IViewable
 
         FilterInRenamedApks = false;
         FilterInFiles = FilterInDirectories = true;
-
-        WindowSizeChanged += (sender, e) =>
-        {
-            ListHeight = WindowHeight - TitlebarHeight - 105;
-        };
 
 #if DEBUG
         PopulateList();

@@ -2,15 +2,19 @@
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using System.IO;
 using System.Reflection;
+using Wpf.Ui;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using Wpf.Ui.Extensions;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class SettingsViewModel : ObservableObject, INavigationAware, IViewable
+public partial class SettingsViewModel : ViewModel, IViewable
 {
+    private readonly IContentDialogService contentDialogService;
     private readonly UpdateConfig updateConfig;
     private readonly KognitoConfig kognitoConfig;
 
@@ -72,11 +76,19 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
 
     public SettingsViewModel()
     {
+        // For designer
+    }
+
+    public SettingsViewModel(IContentDialogService _contentDialogService)
+    {
+        contentDialogService = _contentDialogService;
         updateConfig = ConfigurationFactory.GetConfig<UpdateConfig>();
         kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
 
         AppDataPath = App.AppDataDirectory.FullName;
     }
+
+    #region Commands
 
     [RelayCommand]
     private static void OnCreateLogpack()
@@ -119,16 +131,33 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware, IVi
         }.ShowDialogAsync();
     }
 
-    public void OnNavigatedTo()
+    [RelayCommand]
+    private async Task OnUninstallAppCommand(object content)
+    {
+        ContentDialogResult result = await contentDialogService.ShowSimpleDialogAsync(
+            new SimpleContentDialogCreateOptions()
+            {
+                Title = "Uninstall APKognito?",
+                Content = content,
+                PrimaryButtonText = "Uninstall",
+                CloseButtonText = "Cancel",
+            }
+        );
+
+        if (result is not ContentDialogResult.Primary)
+        {
+            return;
+        }
+    }
+
+    #endregion Commands
+
+    new public void OnNavigatedTo()
     {
         if (!_isInitialized)
         {
             InitializeViewModel();
         }
-    }
-
-    public void OnNavigatedFrom()
-    {
     }
 
     private void InitializeViewModel()

@@ -18,7 +18,6 @@ public partial class DriveUsagePage : INavigableView<DriveUsageViewModel>, IView
 
         Loaded += (sender, e) => Dispatcher.Invoke(async () =>
         {
-            viewModel.SetAndInitializePageSize(this);
             await viewModel.StartSearch();
         });
     }

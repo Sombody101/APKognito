@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -11,7 +12,7 @@ using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace APKognito.ViewModels.Windows;
 
-public partial class MainWindowViewModel : LoggableObservableObject, IViewable
+public partial class MainWindowViewModel : LoggableObservableObject
 {
     #region Properties
 

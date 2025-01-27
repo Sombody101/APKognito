@@ -5,6 +5,7 @@ using APKognito.Exceptions;
 using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
@@ -19,7 +20,7 @@ namespace APKognito.ViewModels.Pages;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-public partial class HomeViewModel : LoggableObservableObject, IViewable, IAntiMvvmRtb
+public partial class HomeViewModel : LoggableObservableObject
 {
     private const string DEFAULT_PROP_MESSAGE = "No APK loaded";
     private const string DEFAULT_JOB_MESSAGE = "No jobs started";

@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
 using System.Diagnostics;

@@ -19,19 +19,16 @@
 
     <Grid Margin="0,10">
         <Grid.RowDefinitions>
-            <RowDefinition />
+            <RowDefinition Height="*" />
             <RowDefinition Height="auto" />
         </Grid.RowDefinitions>
 
-        <!--
-            Setting the height to a binding causes
-            a runtime error but still works...
-        -->
         <ui:RichTextBox
             x:Name="CommandOutputBox"
             Grid.Row="0"
             Grid.Column="1"
-            Height="{Binding MaxHeight}"
+            Margin="0,0,0,10"
+            VerticalAlignment="Stretch"
             FontFamily="{StaticResource FiraRegular}"
             IsReadOnly="True" />
 
@@ -44,7 +41,6 @@
                 Text="{Binding CommandBuffer, UpdateSourceTrigger=PropertyChanged}">
                 <ui:TextBox.InputBindings>
                     <KeyBinding Key="Return" Command="{Binding ExecuteCommand}" />
-                    <!--  I'll eventually add command history  -->
                     <KeyBinding Key="Up" Command="{Binding HistoryUpCommand}" />
                     <KeyBinding Key="Down" Command="{Binding HistoryDownCommand}" />
                 </ui:TextBox.InputBindings>

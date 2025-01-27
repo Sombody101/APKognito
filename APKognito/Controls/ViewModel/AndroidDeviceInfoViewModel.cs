@@ -3,7 +3,7 @@ using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities;
-using APKognito.ViewModels.Pages;
+using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
 

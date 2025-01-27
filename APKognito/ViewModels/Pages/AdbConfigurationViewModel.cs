@@ -2,12 +2,13 @@
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using System.Runtime.InteropServices;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class AdbConfigurationViewModel : LoggableObservableObject, IViewable
+public partial class AdbConfigurationViewModel : LoggableObservableObject
 {
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 

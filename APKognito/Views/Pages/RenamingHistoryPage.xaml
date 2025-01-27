@@ -4,12 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:APKognito.Helpers"
-    xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:APKognito.Models"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
-    xmlns:sys="clr-namespace:System;assembly=netstandard"
-    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="DashboardPage"
     d:DataContext="{d:DesignInstance pages:RenamingHistoryViewModel,
@@ -19,87 +16,90 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
     <Page.Resources>
         <helpers:RenameSessionConverter x:Key="RenameSessionConverter" />
     </Page.Resources>
 
-    <Grid Margin="0,30">
-        <ui:Card VerticalAlignment="Top">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+    <ui:Card
+        Margin="0,30"
+        VerticalAlignment="Stretch"
+        VerticalContentAlignment="Top">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-                <ui:Button
-                    Margin="6,0"
-                    HorizontalAlignment="Stretch"
-                    Command="{Binding RefreshRenameSessionsCommand}"
-                    Content="Refresh" />
+            <ui:Button
+                Margin="6,0"
+                HorizontalAlignment="Stretch"
+                Command="{Binding RefreshRenameSessionsCommand}"
+                Content="Refresh" />
 
-                <ui:Card
-                    Grid.Row="1"
-                    Margin="6,10,6,0"
-                    Visibility="{Binding NoHistoryPanelVisibility}">
-                    <ui:TextBlock HorizontalAlignment="Center" FontSize="18">
-                        No rename history!
-                    </ui:TextBlock>
-                </ui:Card>
+            <ui:Card
+                Grid.Row="1"
+                Margin="6,10,6,0"
+                Visibility="{Binding NoHistoryPanelVisibility}">
+                <ui:TextBlock HorizontalAlignment="Center" FontSize="18">
+                    No rename history!
+                </ui:TextBlock>
+            </ui:Card>
 
-                <ui:ListView
-                    x:Name="SessionList"
-                    Grid.Row="1"
-                    Margin="0,10,0,0"
-                    VerticalAlignment="Stretch"
-                    ItemsSource="{Binding RenameSessions}"
-                    SelectionMode="Extended"
-                    Visibility="{Binding HistoryPanelVisibility}">
+            <ui:ListView
+                x:Name="SessionList"
+                Grid.Row="1"
+                Margin="0,10,0,0"
+                VerticalAlignment="Stretch"
+                ItemsSource="{Binding RenameSessions}"
+                SelectionMode="Extended"
+                VirtualizingPanel.ScrollUnit="Pixel"
+                Visibility="{Binding HistoryPanelVisibility}">
 
-                    <ListView.ItemTemplate>
-                        <DataTemplate DataType="{x:Type models:RenameSession}">
-                            <ui:Card>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
+                <ListView.ItemTemplate>
+                    <DataTemplate DataType="{x:Type models:RenameSession}">
+                        <ui:Card>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
 
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition />
-                                        <RowDefinition Height="*" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
 
-                                    <TextBlock
-                                        Grid.ColumnSpan="2"
-                                        Margin="0,0,0,5"
-                                        FontSize="16"
-                                        FontWeight="Bold"
-                                        Text="{Binding FormattedDate}" />
+                                <TextBlock
+                                    Grid.ColumnSpan="2"
+                                    Margin="0,0,0,5"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Text="{Binding FormattedDate}" />
 
-                                    <TextBlock Grid.Row="1" FontWeight="Bold">
-                                        APKs:
-                                    </TextBlock>
+                                <TextBlock Grid.Row="1" FontWeight="Bold">
+                                    APKs:
+                                </TextBlock>
 
-                                    <TextBlock
-                                        Grid.Row="1"
-                                        Grid.Column="1"
-                                        Text="{Binding ApkTransforms, Converter={StaticResource RenameSessionConverter}}" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Text="{Binding ApkTransforms, Converter={StaticResource RenameSessionConverter}}" />
 
-                                    <StackPanel Grid.Row="2" />
+                                <StackPanel Grid.Row="2" />
 
-                                    <StackPanel
-                                        Grid.Row="2"
-                                        Grid.Column="1"
-                                        VerticalAlignment="Center" />
-                                </Grid>
-                            </ui:Card>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ui:ListView>
-            </Grid>
-        </ui:Card>
-    </Grid>
+                                <StackPanel
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+                        </ui:Card>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ui:ListView>
+        </Grid>
+    </ui:Card>
 </Page>

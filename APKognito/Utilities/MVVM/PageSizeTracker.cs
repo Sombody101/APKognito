@@ -1,7 +1,8 @@
 ﻿using System.Windows.Interop;
 
-namespace APKognito.Utilities;
+namespace APKognito.Utilities.MVVM;
 
+[Obsolete]
 public class PageSizeTracker : ObservableObject
 {
     public const int TitlebarHeight = 50;

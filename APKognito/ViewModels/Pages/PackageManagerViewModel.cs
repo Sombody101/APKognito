@@ -6,6 +6,7 @@ using APKognito.Controls.ViewModel;
 using APKognito.Models;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Threading;
@@ -13,7 +14,7 @@ using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class PackageManagerViewModel : LoggableObservableObject, IViewable
+public partial class PackageManagerViewModel : LoggableObservableObject
 {
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
@@ -68,19 +69,14 @@ public partial class PackageManagerViewModel : LoggableObservableObject, IViewab
     {
         dialogService = _dialogService;
         SetSnackbarProvider(snackService);
-
-        WindowSizeChanged += (sender, e) =>
-        {
-            ListHeight = WindowHeight - TitlebarHeight - 160;
-        };
     }
 
     #region Commands
 
     [RelayCommand]
-    private async Task OnUpdatePackageList(bool silent = false)
+    private async Task OnUpdatePackageList()
     {
-        await UpdatePackageList(silent);
+        await UpdatePackageList();
     }
 
     [RelayCommand]

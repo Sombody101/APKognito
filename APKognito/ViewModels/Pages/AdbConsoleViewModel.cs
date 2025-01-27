@@ -1,17 +1,14 @@
 ﻿using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
-using APKognito.Models;
 using APKognito.Utilities;
-using System.Collections.ObjectModel;
+using APKognito.Utilities.MVVM;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Controls;
-using System.Windows.Threading;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
@@ -49,11 +46,6 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         adbManager = new();
 
         historyIndex = adbHistory.CommandHistory.Count;
-
-        WindowSizeChanged += (sender, e) =>
-        {
-            MaxHeight = WindowHeight - TitlebarHeight - 100;
-        };
 
         if (commands.Count is 0)
         {

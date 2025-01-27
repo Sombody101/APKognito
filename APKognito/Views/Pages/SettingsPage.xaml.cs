@@ -20,7 +20,7 @@ public partial class SettingsPage : INavigableView<SettingsViewModel>, IViewable
         // For designer
         ViewModel = new();
     }
-
+    
     private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
     {
         App.OpenHyperlink(sender, e);

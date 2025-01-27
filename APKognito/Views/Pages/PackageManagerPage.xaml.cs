@@ -21,7 +21,6 @@ public partial class PackageManagerPage : INavigableView<PackageManagerViewModel
 
         Loaded += async (sender, e) =>
         {
-            ViewModel.SetAndInitializePageSize(this);
             await viewModel.UpdatePackageList(true);
         };
     }

@@ -18,8 +18,15 @@
     mc:Ignorable="d">
 
     <Page.Resources>
-        <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
-        <helpers:ThemeToIndexConverter x:Key="ThemeToIndexConverter" />
+        <ResourceDictionary>
+            <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+            <helpers:ThemeToIndexConverter x:Key="ThemeToIndexConverter" />
+
+            <StackPanel x:Key="UninstallContent">
+                <TextBlock Text="Lorem ipsum dolor sit amet, adipisicing elit." TextWrapping="Wrap" />
+                <CheckBox Content="Upload your content to the cloud." />
+            </StackPanel>
+        </ResourceDictionary>
     </Page.Resources>
 
     <!--  Theme Card  -->
@@ -275,6 +282,29 @@
             <TextBlock Margin="16" Text="{Binding ViewModel.FullAppVersion, Mode=OneWay}" />
         </ui:CardExpander>
 
+        <ui:CardControl Margin="0,12,0,0" Icon="{ui:SymbolIcon Symbol=UninstallApp24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ui:TextBlock Grid.Row="0" Text="Uninstall APKognito" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Uninstalls APKognito and optionally configurations."
+                        TextWrapping="WrapWithOverflow" />
+                </Grid>
+            </ui:CardControl.Header>
+
+            <Button
+                Command="{Binding ViewModel.UninstallAppCommandCommand}"
+                CommandParameter="{StaticResource UninstallContent}"
+                Content="Uninstall" />
+        </ui:CardControl>
+
         <!--  Misc Card  -->
 
         <TextBlock
@@ -293,7 +323,6 @@
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Text="Overwrites the configurations stored in '%APPDATA%\configs' with any loaded configuration files found in the same directory as APKognito."
                     TextWrapping="WrapWithOverflow" />
-
             </StackPanel>
         </ui:CardAction>
 

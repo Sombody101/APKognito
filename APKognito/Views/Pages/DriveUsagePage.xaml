@@ -178,7 +178,7 @@
         <ui:Card
             Grid.Column="2"
             Margin="5,0,0,0"
-            VerticalAlignment="Top"
+            VerticalAlignment="Stretch"
             VerticalContentAlignment="Top">
 
             <Grid>
@@ -191,7 +191,6 @@
 
                 <ui:ListView
                     x:Name="FolderList"
-                    Height="{Binding ListHeight}"
                     Margin="0,0,0,10"
                     VerticalAlignment="Stretch"
                     ItemsSource="{Binding FoundFolders}"

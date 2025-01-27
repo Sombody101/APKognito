@@ -19,8 +19,6 @@ public partial class AdbConsolePage : INavigableView<AdbConsoleViewModel>, IView
 
         InitializeComponent();
 
-        Loaded += (sender, e) => viewModel.SetAndInitializePageSize(this);
-
         viewModel.AntiMvvm_SetRichTextbox(CommandOutputBox);
         viewModel.WriteGenericLogLine("Enter `:help' for a list of APKognito commands, use `help' to get ADB commands.");
     }

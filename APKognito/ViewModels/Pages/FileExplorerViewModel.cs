@@ -3,6 +3,7 @@ using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Threading;
@@ -10,7 +11,7 @@ using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class FileExplorerViewModel : LoggableObservableObject, IViewable
+public partial class FileExplorerViewModel : LoggableObservableObject
 {
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 

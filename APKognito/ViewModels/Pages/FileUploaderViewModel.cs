@@ -2,15 +2,15 @@
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Windows.Controls;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class FileUploaderViewModel : LoggableObservableObject, IViewable
+public partial class FileUploaderViewModel : LoggableObservableObject
 {
     private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
