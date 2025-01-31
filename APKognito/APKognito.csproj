@@ -35,8 +35,8 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
-    <AssemblyVersion>1.8.*</AssemblyVersion>
-    <FileVersion>1.8.*</FileVersion>
+    <AssemblyVersion>1.9.*</AssemblyVersion>
+    <FileVersion>1.9.*</FileVersion>
     <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
   </PropertyGroup>
 
