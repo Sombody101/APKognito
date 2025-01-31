@@ -1,4 +1,5 @@
 ﻿#if DEBUG
+// Only used for debugging (multiple threads running will disrupt stepthrough-debugging by triggering breakpoints)
 #define SINGLE_THREAD_INSTANCE_REPLACING
 #endif
 
@@ -34,7 +35,7 @@ public class ApkEditorContext
         HomeViewModel homeViewModel,
         string javaPath,
         string sourceApkPath
-        )
+    )
     {
         config = ConfigurationFactory.GetConfig<KognitoConfig>();
 
@@ -42,17 +43,21 @@ public class ApkEditorContext
         viewModel = homeViewModel;
 
         string sourceApkName = Path.GetFileName(sourceApkPath);
+        if (sourceApkName.EndsWith(".apk"))
+        {
+            sourceApkName = sourceApkName[..^4];
+        }
+
         nameData = new()
         {
             FullSourceApkPath = sourceApkPath,
             FullSourceApkFileName = sourceApkName,
             NewCompanyName = homeViewModel.ApkReplacementName,
             ApkSmaliTempDirectory = Path.Combine(viewModel.TempData.FullName, "$smali"),
-            ApkAssemblyDirectory = Path.Combine(viewModel.TempData.FullName, $"{sourceApkName[..^4]}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}")
+            ApkAssemblyDirectory = Path.Combine(viewModel.TempData.FullName, GetFormattedTimeDirectory(sourceApkName))
         };
 
         // Temporary directories
-
         _ = Directory.CreateDirectory(nameData.ApkAssemblyDirectory);
     }
 
@@ -86,14 +91,14 @@ public class ApkEditorContext
                 nameData.NewPackageName
             ) = SplitPackageName(nameData);
             viewModel.FinalName = nameData.NewPackageName;
-            nameData.RenamedApkOutputDirectory = Path.Combine(viewModel.OutputDirectory, $"{nameData.NewPackageName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}");
+            nameData.RenamedApkOutputDirectory = Path.Combine(viewModel.OutputDirectory, GetFormattedTimeDirectory(nameData.NewPackageName));
 
             // 'nameData' should not be modified after this point.
 
             // Replace all instances in the APK and any OBBs
             viewModel.Log($"Changing '{nameData.OriginalPackageName}'  |>  '{nameData.NewPackageName}'");
             await ReplaceAllNameInstancesAsync(packagePrefix, cancellationToken);
-            await ReplaceObbFiles(nameData.OriginalPackageName, nameData.NewCompanyName, nameData.RenamedApkOutputDirectory);
+            await ReplaceObbFiles();
 
             // Repack
             viewModel.Log("Packing APK...");
@@ -110,11 +115,14 @@ public class ApkEditorContext
 
             if (config.ClearTempFilesOnRename)
             {
+                viewModel.LogDebug($"Clearing temp directory `{nameData.ApkAssemblyDirectory}`");
                 Directory.Delete(nameData.ApkAssemblyDirectory, true);
             }
 
             if (!config.CopyFilesWhenRenaming)
             {
+                viewModel.LogDebug($"CopyWhenRenaming enabled, deleting directory `{nameData.FullSourceApkPath}`");
+
                 try
                 {
                     File.Delete(nameData.FullSourceApkPath);
@@ -130,6 +138,9 @@ public class ApkEditorContext
                     viewModel.LogWarning($"Failed to clear source APK (CopyWhenRenaming=Enabled): {ex.Message}");
                 }
             }
+
+            // Claim the directory as an app so it appears in the drive footprint page
+            DriveUsageViewModel.ClaimDirectory(nameData.RenamedApkOutputDirectory);
         }
         catch (OperationCanceledException)
         {
@@ -252,9 +263,9 @@ public class ApkEditorContext
 #endif
     }
 
-    private async Task ReplaceObbFiles(string sourcePackageName, string newApkCompany, string outputDirectory)
+    private async Task ReplaceObbFiles()
     {
-        string originalCompanyName = sourcePackageName.Split('.')[1];
+        string originalCompanyName = nameData.OriginalCompanyName;
         string? sourceDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath);
 
         if (sourceDirectory is null)
@@ -263,20 +274,20 @@ public class ApkEditorContext
             return;
         }
 
-        string obbDirectory = Path.Combine(sourceDirectory, sourcePackageName);
+        string obbDirectory = Path.Combine(sourceDirectory, nameData.OriginalPackageName);
         if (!Directory.Exists(obbDirectory))
         {
             return;
         }
 
-        string newObbDirectory = Path.Combine(outputDirectory, Path.GetFileName(obbDirectory));
+        string newObbDirectory = Path.Combine(nameData.RenamedApkOutputDirectory, Path.GetFileName(obbDirectory));
         if (config.CopyFilesWhenRenaming)
         {
             await CopyDirectory(obbDirectory, newObbDirectory, true);
         }
         else
         {
-            _ = Directory.CreateDirectory(outputDirectory);
+            _ = Directory.CreateDirectory(nameData.RenamedApkOutputDirectory);
             Directory.Move(obbDirectory, newObbDirectory);
         }
 
@@ -284,14 +295,14 @@ public class ApkEditorContext
 
         foreach (string filePath in Directory.GetFiles(newObbDirectory, $"*{fileNameWithoutExtension}.obb"))
         {
-            string newAssetName = $"{Path.GetFileNameWithoutExtension(filePath).Replace(originalCompanyName, newApkCompany)}.obb";
+            string newAssetName = $"{Path.GetFileNameWithoutExtension(filePath).Replace(originalCompanyName, nameData.NewCompanyName)}.obb";
 
             viewModel.Log($"Renaming asset file: {Path.GetFileName(filePath)}  |>  {newAssetName}");
 
             File.Move(filePath, Path.Combine(newObbDirectory, newAssetName));
         }
 
-        string newApkName = sourcePackageName.Replace(originalCompanyName, newApkCompany);
+        string newApkName = nameData.OriginalPackageName.Replace(originalCompanyName, nameData.NewCompanyName);
         RenameDirectory(newObbDirectory, newApkName, nameData);
         AssetPath = Path.Combine(newObbDirectory, newApkName);
     }
@@ -395,7 +406,7 @@ public class ApkEditorContext
 
         _ = Directory.CreateDirectory(destinationDir);
 
-        Parallel.ForEach(dir.GetFiles(), (file) =>
+        _ = Parallel.ForEach(dir.GetFiles(), (file) =>
         {
             string targetFilePath = Path.Combine(destinationDir, file.Name);
             _ = file.CopyTo(targetFilePath, true);
@@ -440,6 +451,11 @@ public class ApkEditorContext
         return (split[0], oldCompanyName, nameData.OriginalPackageName.Replace(oldCompanyName, nameData.NewCompanyName));
     }
 
+    private static string GetFormattedTimeDirectory(string sourceApkName)
+    {
+        return $"{sourceApkName} {DateTime.Now:yyyy-MMMM-dd 'at' h.mm}";
+    }
+
     public static long CalculateUnpackedApkSize(string apkPath, bool copyingFile = true)
     {
         try
@@ -471,17 +487,50 @@ public class ApkEditorContext
     /// </summary>
     private sealed class ApkNameData
     {
+        /// <summary>
+        /// The original full package name, fetched from the AndroidManifest.xml of the APK.
+        /// </summary>
         public string OriginalPackageName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The original company name, extracted from <see cref="OriginalPackageName"/>.
+        /// </summary>
         public string OriginalCompanyName { get; set; } = string.Empty;
 
+        /// <summary>
+        /// The new fully-formatted package name, using <see cref="NewCompanyName"/>.
+        /// </summary>
         public string NewPackageName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The replacement package company name. (Passed from caller)
+        /// </summary>
         public string NewCompanyName { get; init; } = string.Empty;
 
+        /// <summary>
+        /// The full path to the source APK file.
+        /// </summary>
         public string FullSourceApkPath { get; init; } = string.Empty;
+
+        /// <summary>
+        /// The full name for the source APK file.
+        /// </summary>
         public string FullSourceApkFileName { get; init; } = string.Empty;
 
+        /// <summary>
+        /// The final directory that the renamed APK is placed. (Passed from caller)
+        /// </summary>
         public string RenamedApkOutputDirectory { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The temporary directory that the unpacked APK is placed.
+        /// </summary>
         public string ApkAssemblyDirectory { get; init; } = string.Empty;
+
+        /// <summary>
+        /// A sub-directory in side of <see cref="ApkAssemblyDirectory"/> for replacing company name instances.
+        /// (Only used when file is larger than <see cref="MAX_SMALI_LOAD_SIZE"/>)
+        /// </summary>
         public string ApkSmaliTempDirectory { get; init; } = string.Empty;
     }
 }
