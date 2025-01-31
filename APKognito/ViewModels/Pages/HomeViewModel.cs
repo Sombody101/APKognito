@@ -87,15 +87,8 @@ public partial class HomeViewModel : LoggableObservableObject
     /// Creates a copy of the source files rather than moving them.
     /// Can help with data protection when a renaming session fails as APKognito cannot reverse the changes.
     /// </summary>
-    public bool CopyWhenRenaming
-    {
-        get => kognitoConfig.CopyFilesWhenRenaming;
-        set
-        {
-            kognitoConfig.CopyFilesWhenRenaming = value;
-            OnPropertyChanged(nameof(CopyWhenRenaming));
-        }
-    }
+    [ObservableProperty]
+    private bool _copyWhenRenaming;
 
     public bool PushAfterRename
     {
@@ -176,6 +169,8 @@ public partial class HomeViewModel : LoggableObservableObject
         kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
         kognitoCache = ConfigurationFactory.GetConfig<CacheStorage>();
         adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+
+        _copyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming;
 
         string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
 
@@ -305,6 +300,33 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     #endregion Commands
+
+    partial void OnCopyWhenRenamingChanged(bool value)
+    {
+        if (!value)
+        {
+            var result = new MessageBox()
+            {
+                Title = "Are you sure?",
+                Content = "This will remove the entire source APK directory after it is unpacked, meaning if the rename fails, your app will be gone. " +
+                    "Only select this option if the saved drive space is worth the risk of losing your app!",
+                PrimaryButtonText = "Disable Anyway",
+                PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Caution,
+                CloseButtonText = "Cancel",
+            }.ShowDialogAsync().Result;
+
+            if (result is not MessageBoxResult.Primary)
+            {
+                // The user decided to heed my warning.
+                _copyWhenRenaming 
+                    = kognitoConfig.CopyFilesWhenRenaming 
+                    = true;
+                return;
+            }
+        }
+
+        kognitoConfig.CopyFilesWhenRenaming = value;
+    }
 
     public async ValueTask OnRenameCopyChecked()
     {

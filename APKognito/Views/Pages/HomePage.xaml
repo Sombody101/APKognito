@@ -420,8 +420,6 @@
 
             <ui:RichTextBox
                 x:Name="APKLogs"
-                MinHeight="300"
-                MaxHeight="{x:Static SystemParameters.FullPrimaryScreenHeight}"
                 Margin="0,5"
                 VerticalAlignment="Stretch"
                 FontFamily="{StaticResource FiraRegular}"
