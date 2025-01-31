@@ -39,45 +39,48 @@
                 </ui:Card>
 
                 <Label Content="File Selection" />
-                <ui:Card Margin="0,0,0,10">
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <ui:Button
-                            Margin="0,0,10,0"
-                            Command="{Binding ViewModel.SelectItemsCommand}"
-                            Content="Select APKs"
-                            IsEnabled="True"
-                            ToolTip="Clear the list and add more items">
-                            <ui:Button.CommandParameter>
-                                <sys:Boolean>
-                                    True
-                                </sys:Boolean>
-                            </ui:Button.CommandParameter>
-                        </ui:Button>
+                <StackPanel
+                    Grid.Column="1"
+                    Margin="0,0,0,5"
+                    Orientation="Horizontal">
+                    <ui:Button
+                        Margin="0,0,10,0"
+                        Command="{Binding ViewModel.SelectItemsCommand}"
+                        Content="Select APKs"
+                        IsEnabled="True"
+                        ToolTip="Clear the list and add more items">
+                        <ui:Button.CommandParameter>
+                            <sys:Boolean>
+                                True
+                            </sys:Boolean>
+                        </ui:Button.CommandParameter>
+                    </ui:Button>
 
-                        <ui:Button
-                            Margin="0,0,10,0"
-                            Command="{Binding ViewModel.AddItemsCommand}"
-                            Content="Add Items"
-                            ToolTip="Add more items without clearing the list">
-                            <ui:Button.CommandParameter>
-                                <sys:Boolean>
-                                    False
-                                </sys:Boolean>
-                            </ui:Button.CommandParameter>
-                        </ui:Button>
+                    <ui:Button
+                        Margin="0,0,10,0"
+                        Command="{Binding ViewModel.AddItemsCommand}"
+                        Content="Add Items"
+                        ToolTip="Add more items without clearing the list">
+                        <ui:Button.CommandParameter>
+                            <sys:Boolean>
+                                False
+                            </sys:Boolean>
+                        </ui:Button.CommandParameter>
+                    </ui:Button>
 
-                        <ui:Button
-                            Margin="0,0,10,0"
-                            Command="{Binding ViewModel.AddRecurseItemsCommand}"
-                            Content="Add Recursively"
-                            ToolTip="Scans an entire directory and it's subdirectories for APK and OBB files" />
-                    </StackPanel>
-                </ui:Card>
+                    <ui:Button
+                        Margin="0,0,10,0"
+                        Command="{Binding ViewModel.AddRecurseItemsCommand}"
+                        Content="Add Recursively"
+                        ToolTip="Scans an entire directory and it's subdirectories for APK and OBB files" />
+                </StackPanel>
+
+                <Separator Margin="0,5" />
 
                 <Label Content="File Actions" />
-                <ui:Card Margin="0,0,0,10">
+                <StackPanel Margin="0,0,0,10" Orientation="Horizontal">
                     <ui:Button Command="{Binding ViewModel.UploadItemsToDeviceCommand}" Content="Upload Items" />
-                </ui:Card>
+                </StackPanel>
 
                 <ProgressBar IsEnabled="{Binding ViewModel.IsUploading}" IsIndeterminate="{Binding ViewModel.IsUploading}" />
 
