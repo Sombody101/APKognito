@@ -174,32 +174,51 @@ public partial class PackageManagerViewModel : LoggableObservableObject
 
         try
         {
-            foreach (var package in items)
-            {
-                string entryName = package.PackageName;
+            (string, bool)[] packages = [.. items.Select(p => (p.PackageName, p.AssetPath is not null))];
 
-                if (string.IsNullOrWhiteSpace(entryName))
+            foreach (var package in packages)
+            {
+                string packageName = package.Item1;
+                string assetPath = $"{AdbManager.ANDROID_OBB}/{packageName}";
+
+                if (string.IsNullOrWhiteSpace(packageName))
                 {
                     SnackError("Empty package name!", "An entry containing an empty package name was found. This package will not be uninstalled to prevent unintended data loss.");
                     return;
                 }
 
-                FileLogger.Log($"Uninstalling package: {entryName} (soft = {softUninstall})");
+                FileLogger.Log($"Uninstalling package: {packageName} (soft = {softUninstall})");
 
                 // Remove package
-                await AdbManager.QuickDeviceCommand($"{command} {entryName}");
+                await AdbManager.QuickDeviceCommand($"{command} {packageName}");
 
-                if (package.AssetPath is not null)
+                if (package.Item2)
                 {
                     // Assets
-                    await AdbManager.QuickDeviceCommand($"shell rm -r \"{package.AssetPath}\"");
+                    await AdbManager.QuickDeviceCommand($"shell rm -r \"{assetPath}\"");
                 }
 
                 if (!softUninstall)
                 {
                     // Save data
-                    await AdbManager.QuickDeviceCommand($"shell rm -r \"/sdcard/Android/data/{entryName}\"", noThrow: true);
+                    await AdbManager.QuickDeviceCommand($"shell rm -r \"{AdbManager.ANDROID_DATA}/{packageName}\"", noThrow: true);
                 }
+
+                int itemInd = 0;
+                for (; itemInd < PackageList.Count; ++itemInd)
+                {
+                    if (PackageList[itemInd].PackageName == packageName)
+                    {
+                        break;
+                    }
+                }
+
+                if (itemInd > PackageList.Count)
+                {
+                    throw new InvalidOperationException("Failed to find package in list.");
+                }
+
+                PackageList.RemoveAt(itemInd);
             }
 
             SnackSuccess($"{selected} packages removed!", $"{selected} were {(softUninstall ? "soft" : string.Empty)} uninstalled successfully!");
@@ -255,6 +274,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         cachedPackageList.Clear();
         cachedPackageList.AddRange(rawPackages.Select(adbPackage =>
         {
+            // <package name>|<package path>|<package size in bytes>|<assets size in bytes>|<save data size in bytes>
             string[] split = adbPackage.Split('|');
             if (split.Length != 5)
             {
