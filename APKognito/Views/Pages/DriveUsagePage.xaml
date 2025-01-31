@@ -18,6 +18,7 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
     <Page.Resources>
@@ -36,143 +37,126 @@
 
         <ui:Card
             Grid.Column="0"
-            Margin="0,0,5,0"
             VerticalAlignment="Stretch"
             VerticalContentAlignment="Top">
-            <Grid>
+            <StackPanel>
+                <StackPanel Margin="0,0,0,5">
+                    <TextBlock
+                        Grid.ColumnSpan="2"
+                        Margin="0,0,0,10"
+                        FontSize="18"
+                        Text="Summary" />
 
-                <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
-                    <RowDefinition />
-                </Grid.RowDefinitions>
+                    <TextBlock
+                        Grid.Column="0"
+                        Margin="0,0,0,10"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontWeight="Bold"
+                        ToolTip="The total disk space of all found items.">
+                        <TextBlock.Inlines>
+                            <ui:SymbolIcon Symbol="QuestionCircle24" />
+                            <Run FontWeight="Bold" Text="Total Footprint: " />
+                            <Run FontWeight="Normal" Text="{Binding TotalUsedSpace, Converter={StaticResource GBConverter}}" />
+                        </TextBlock.Inlines>
+                    </TextBlock>
 
-                <ui:Card Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock
-                            Grid.ColumnSpan="2"
-                            Margin="0,0,0,10"
-                            FontSize="18"
-                            Text="Summary" />
+                    <TextBlock
+                        Grid.Column="0"
+                        Margin="0,0,0,10"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontWeight="Bold"
+                        ToolTip="The total disk space of the items filtered from all other found items.">
+                        <TextBlock.Inlines>
+                            <ui:SymbolIcon Symbol="QuestionCircle24" />
+                            <Run FontWeight="Bold" Text="Total Filtered:    " />
+                            <Run FontWeight="Normal" Text="{Binding TotalFilteredSpace, Converter={StaticResource GBConverter}}" />
+                        </TextBlock.Inlines>
+                    </TextBlock>
 
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="0,0,0,10"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            FontWeight="Bold"
-                            ToolTip="The total disk space of all found items.">
-                            <TextBlock.Inlines>
-                                <ui:SymbolIcon Symbol="QuestionCircle24" />
-                                <Run FontWeight="Bold" Text="Total Footprint: " />
-                                <Run FontWeight="Normal" Text="{Binding TotalUsedSpace, Converter={StaticResource GBConverter}}" />
-                            </TextBlock.Inlines>
-                        </TextBlock>
+                    <TextBlock
+                        Grid.Column="0"
+                        Margin="0,0,0,10"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontWeight="Bold"
+                        ToolTip="The total disk space of all selected items below.">
+                        <TextBlock.Inlines>
+                            <ui:SymbolIcon Symbol="QuestionCircle24" />
+                            <Run FontWeight="Bold" Text="Total Selected:   " />
+                            <Run FontWeight="Normal" Text="{Binding TotalSelectedSpace, Converter={StaticResource GBConverter}}" />
+                        </TextBlock.Inlines>
+                    </TextBlock>
 
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="0,0,0,10"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            FontWeight="Bold"
-                            ToolTip="The total disk space of the items filtered from all other found items.">
-                            <TextBlock.Inlines>
-                                <ui:SymbolIcon Symbol="QuestionCircle24" />
-                                <Run FontWeight="Bold" Text="Total Filtered:    " />
-                                <Run FontWeight="Normal" Text="{Binding TotalFilteredSpace, Converter={StaticResource GBConverter}}" />
-                            </TextBlock.Inlines>
-                        </TextBlock>
+                    <ui:Button
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding StartSearchCommand}"
+                        Content="{Binding StartButtonText}"
+                        ToolTip="Show all data currently on your drive that was created by APKognito" />
+                </StackPanel>
 
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="0,0,0,10"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            FontWeight="Bold"
-                            ToolTip="The total disk space of all selected items below.">
-                            <TextBlock.Inlines>
-                                <ui:SymbolIcon Symbol="QuestionCircle24" />
-                                <Run FontWeight="Bold" Text="Total Selected:   " />
-                                <Run FontWeight="Normal" Text="{Binding TotalSelectedSpace, Converter={StaticResource GBConverter}}" />
-                            </TextBlock.Inlines>
-                        </TextBlock>
+                <Separator Margin="0,5" />
+
+                <Grid Margin="0,0,0,10" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock
+                        Grid.ColumnSpan="2"
+                        Margin="0,0,0,10"
+                        FontSize="18"
+                        Text="Footprint Manipulation" />
+
+                    <!--  Filters  -->
+                    <StackPanel Grid.Row="1">
+                        <CheckBox
+                            Content="Renamed APKs"
+                            IsChecked="{Binding FilterInRenamedApks, Mode=TwoWay}"
+                            ToolTip="Includes all found renamed APKs" />
+                        <CheckBox
+                            Content="Directories"
+                            IsChecked="{Binding FilterInDirectories, Mode=TwoWay}"
+                            ToolTip="Includes all found directories, including temporary directories." />
+                        <CheckBox
+                            Content="Files"
+                            IsChecked="{Binding FilterInFiles, Mode=TwoWay}"
+                            ToolTip="Includes all found files, including temporary files." />
+                    </StackPanel>
+
+                    <!--  Deletion buttons  -->
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.Column="2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top">
+                        <ui:Button
+                            Margin="0,5"
+                            Appearance="Danger"
+                            Command="{Binding DeleteAllItemsCommand}"
+                            CommandParameter="{Binding ElementName=FolderList}"
+                            Content="Delete All Items"
+                            IsEnabled="{Binding CanDelete}" />
 
                         <ui:Button
-                            Width="143"
-                            Height="32"
-                            Command="{Binding StartSearchCommand}"
-                            Content="{Binding StartButtonText}"
-                            ToolTip="Show all data currently on your drive that was created by APKognito" />
+                            Margin="0,5"
+                            Appearance="Caution"
+                            Command="{Binding DeleteSelectedItemsCommand}"
+                            CommandParameter="{Binding ElementName=FolderList}"
+                            Content="Delete Selected"
+                            IsEnabled="{Binding CanDelete}" />
                     </StackPanel>
-                </ui:Card>
-
-                <ui:Card
-                    Grid.Row="1"
-                    Margin="0,0,0,10"
-                    VerticalAlignment="Stretch"
-                    VerticalContentAlignment="Top">
-                    <Grid VerticalAlignment="Top">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-
-                        <Grid.RowDefinitions>
-                            <RowDefinition />
-                            <RowDefinition />
-                        </Grid.RowDefinitions>
-
-                        <TextBlock
-                            Grid.ColumnSpan="2"
-                            Margin="0,0,0,10"
-                            FontSize="18"
-                            Text="Footprint Manipulation" />
-
-                        <!--  Filters  -->
-                        <StackPanel Grid.Row="1">
-                            <CheckBox
-                                Content="Renamed APKs"
-                                IsChecked="{Binding FilterInRenamedApks, Mode=TwoWay}"
-                                ToolTip="Includes all found renamed APKs" />
-                            <CheckBox
-                                Content="Directories"
-                                IsChecked="{Binding FilterInDirectories, Mode=TwoWay}"
-                                ToolTip="Includes all found directories, including temporary directories." />
-                            <CheckBox
-                                Content="Files"
-                                IsChecked="{Binding FilterInFiles, Mode=TwoWay}"
-                                ToolTip="Includes all found files, including temporary files." />
-                            <CheckBox
-                                Content="Exclude 'OUTPUT'"
-                                IsChecked="{Binding FilterOutOutputDirectory}"
-                                ToolTip="Excludes results from your set 'APK Output Directory' (in case it has been set to a sensitive directory) [REQUIRES REFRESH]" />
-                        </StackPanel>
-
-                        <!--  Deletion buttons  -->
-                        <StackPanel
-                            Grid.Row="1"
-                            Grid.Column="2"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Top">
-                            <ui:Button
-                                Margin="0,5"
-                                Command="{Binding DeleteSelectedItemsCommand}"
-                                CommandParameter="{Binding ElementName=FolderList}"
-                                Content="Delete Selected"
-                                IsEnabled="{Binding CanDelete}" />
-
-                            <ui:Button
-                                Margin="0,5"
-                                Command="{Binding DeleteAllItemsCommand}"
-                                CommandParameter="{Binding ElementName=FolderList}"
-                                Content="Delete All Items"
-                                IsEnabled="{Binding CanDelete}" />
-                        </StackPanel>
-                    </Grid>
-                </ui:Card>
+                </Grid>
 
                 <ProgressBar Grid.Row="2" IsIndeterminate="{Binding IsRunning}" />
-            </Grid>
+            </StackPanel>
         </ui:Card>
 
         <ui:Card

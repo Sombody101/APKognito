@@ -12,6 +12,8 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class DriveUsageViewModel : ViewModel, IViewable
 {
+    const string CLAIM_FILE_NAME = ".apkognito";
+
     private readonly KognitoConfig config;
 
     private readonly List<FootprintInfo> cachedFootprints = [];
@@ -60,9 +62,6 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
     [ObservableProperty]
     private bool _filterInFiles;
-
-    [ObservableProperty]
-    private bool _filterOutOutputDirectory = true;
 
     [ObservableProperty]
     private ObservableCollection<FootprintInfo> _foundFolders = [];
@@ -232,11 +231,10 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
 
         string apkOutputPath = config.ApkOutputDirectory ?? string.Empty;
-        if (!FilterOutOutputDirectory && Directory.Exists(apkOutputPath))
+        if (Directory.Exists(apkOutputPath))
         {
             apkOutputPath = Path.GetFullPath(apkOutputPath);
-            folders.AddRange(Directory.GetDirectories(apkOutputPath));
-            folders.AddRange(Directory.GetFiles(apkOutputPath));
+            folders.AddRange(Directory.GetDirectories(apkOutputPath).Where(IsDirectoryClaimed));
         }
 
         List<Task<FootprintInfo>> tasks = [];
@@ -292,6 +290,28 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         long[] results = await Task.WhenAll(tasks);
 
         return results.Sum();
+    }
+
+    public static void ClaimDirectory(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            throw new ArgumentException($"Unable to claim directory '{directory}' as it doesn't exist.");
+        }
+
+        string hiddenFile = Path.Combine(directory, CLAIM_FILE_NAME);
+        File.Create(hiddenFile).Close();
+        File.SetAttributes(hiddenFile, File.GetAttributes(hiddenFile) | FileAttributes.Hidden);
+    }
+
+    public static bool IsDirectoryClaimed(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            throw new ArgumentException($"Unable to check if directory is claimed '{directory}' as it doesn't exist.");
+        }
+
+        return File.Exists(Path.Combine(directory, CLAIM_FILE_NAME));
     }
 
     partial void OnFilterInRenamedApksChanged(bool value)
