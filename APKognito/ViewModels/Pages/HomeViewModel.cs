@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Documents;
 using System.Windows.Threading;
 using Wpf.Ui;
@@ -199,7 +200,7 @@ public partial class HomeViewModel : LoggableObservableObject
         _renameApksCancelationSource = renameApksCancelationSource;
         CancellationToken cancellationToken = _renameApksCancelationSource.Token;
 
-        await RenameApks(cancellationToken);
+        await StartPackageRenaming(cancellationToken);
 
         _renameApksCancelationSource = null;
     }
@@ -351,7 +352,7 @@ public partial class HomeViewModel : LoggableObservableObject
         return kognitoCache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
     }
 
-    private async Task RenameApks(CancellationToken cancellationToken)
+    private async Task StartPackageRenaming(CancellationToken cancellationToken)
     {
         RunningJobs = true;
         CanEdit = false;
@@ -394,33 +395,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             JobbedApk = Path.GetFileName(sourceApkPath);
 
-            string? errorReason = null;
-            bool apkFailed = false;
-
-            try
-            {
-                ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
-                errorReason = await editorContext.RenameApk(cancellationToken);
-                apkFailed = errorReason is not null;
-
-                if (!apkFailed && PushAfterRename)
-                {
-                    await PushRenamedApk(editorContext, cancellationToken);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Handle cancellation
-                LogWarning(errorReason = "Job canceled.");
-            }
-            catch (Exception ex)
-            {
-                apkFailed = true;
-                errorReason = ex.Message;
-                FileLogger.LogException(errorReason, ex);
-            }
-
-            string? finalName = FinalName;
+            (string? errorReason, bool apkFailed) = await RunPackageRename(javaPath, sourceApkPath, cancellationToken);
 
             if (!apkFailed)
             {
@@ -431,10 +406,9 @@ public partial class HomeViewModel : LoggableObservableObject
                 failedJobs.Add($"\t{Path.GetFileName(sourceApkPath)}: {errorReason}");
             }
 
-            if (finalName == "Unpacking...")
-            {
-                finalName = null;
-            }
+            string? finalName = FinalName == "Unpacking..."
+                ? FinalName
+                : null;
 
             pendingSession[jobIndex] = RenameSession.FormatForSerializer(
                 ApkName ?? JobbedApk,
@@ -480,6 +454,38 @@ public partial class HomeViewModel : LoggableObservableObject
     ChecksFailed:
         RunningJobs = false;
         CanEdit = true;
+    }
+
+    private async Task<(string?, bool)> RunPackageRename(string javaPath, string sourceApkPath, CancellationToken cancellationToken)
+    {
+        string? errorReason;
+        bool apkFailed = false;
+
+        try
+        {
+            ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
+            errorReason = await editorContext.RenameApk(cancellationToken);
+            apkFailed = errorReason is not null;
+
+            if (!apkFailed && PushAfterRename)
+            {
+                await PushRenamedApk(editorContext, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle cancellation
+            errorReason = "Job canceled.";
+            LogWarning(errorReason);
+        }
+        catch (Exception ex)
+        {
+            apkFailed = true;
+            errorReason = ex.Message;
+            FileLogger.LogException(errorReason, ex);
+        }
+
+        return (errorReason, apkFailed);
     }
 
     private async Task<string?> PrepareForRenaming(string[] files)
