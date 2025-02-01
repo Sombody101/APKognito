@@ -102,19 +102,18 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
                 {
                     SelectedDevice = foundDevices[0];
                     DeviceList.Add(SelectedDevice);
+                    return;
                 }
-                else
-                {
-                    foreach (AdbDeviceInfo device in foundDevices)
-                    {
-                        // The device previously used is available, so use it
-                        if (device.DeviceId == adbConfig.CurrentDeviceId)
-                        {
-                            SelectedDevice = device;
-                        }
 
-                        DeviceList.Add(device);
+                foreach (AdbDeviceInfo device in foundDevices)
+                {
+                    // The device previously used is available, so use it
+                    if (device.DeviceId == adbConfig.CurrentDeviceId)
+                    {
+                        SelectedDevice = device;
                     }
+
+                    DeviceList.Add(device);
                 }
             });
         }

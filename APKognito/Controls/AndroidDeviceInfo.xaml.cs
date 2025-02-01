@@ -20,32 +20,17 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
     private static readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
 
     private static AndroidDeviceInfoViewModel viewModel = null!;
-    private static void CreateViewModel()
-    {
-        viewModel ??= new();
-    }
 
     public static readonly DependencyProperty AndroidDeviceProperty =
-        DependencyProperty.Register(
-            "AndroidDevice",
-            typeof(AndroidDevice),
-            typeof(AndroidDeviceInfo)
-    );
-
-    public static readonly DependencyProperty TriggeredEventProperty =
-        DependencyProperty.Register(
-            "TriggeredEvent",
-            typeof(RoutedEvent),
-            typeof(AndroidDeviceInfo),
-            new PropertyMetadata(null)
+        DependencyProperty.Register(nameof(AndroidDevice), typeof(AndroidDevice), typeof(AndroidDeviceInfo)
     );
 
     public static readonly RoutedEvent TriggeredEvent =
-        EventManager.RegisterRoutedEvent(
-            "TriggeredEvent",
-            RoutingStrategy.Bubble,
-            typeof(RoutedEventHandler),
-            typeof(AndroidDeviceInfo)
+        EventManager.RegisterRoutedEvent(nameof(TriggeredEvent), RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(AndroidDeviceInfo)
+    );
+
+    public static readonly DependencyProperty TriggeredEventProperty =
+        DependencyProperty.Register(nameof(TriggeredEvent), typeof(RoutedEvent), typeof(AndroidDeviceInfo)
     );
 
     public AndroidDevice AndroidDevice
@@ -232,5 +217,10 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             FileLogger.LogException(ex);
             return (0, 0, 0);
         }
+    }
+
+    private static void CreateViewModel()
+    {
+        viewModel ??= new();
     }
 }

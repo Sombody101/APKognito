@@ -157,22 +157,20 @@ internal class AdbManager
                     default:
                         try
                         {
-                            CommandOutput output = await QuickCommand($@"-s {deviceId} shell getprop ro.product.model");
+                            CommandOutput output = await QuickCommand($"-s {deviceId} shell getprop ro.product.model");
 
-                            if (output.DeviceNotAuthorized)
+                            if (!output.DeviceNotAuthorized)
                             {
-                                goto case "unauthorized";
+                                device.DeviceName = output.StdOut.Trim();
+                                device.DeviceAuthorized = true;
+                                break;
                             }
-
-                            device.DeviceName = output.StdOut.Trim();
-                            device.DeviceAuthorized = true;
                         }
                         catch (Exception ex)
                         {
                             FileLogger.LogException(ex);
-                            goto case "unauthorized";
                         }
-                        break;
+                        goto case "unauthorized";
                 }
 
                 return device;

@@ -34,9 +34,6 @@ public static class FileLogger
     private static readonly string logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
     private static readonly string exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
 
-    // Jimmy rigged AF
-    private static readonly bool SymbolsAttached;
-
     private static string UtcTime => DateTime.UtcNow.ToString("hh:mm:ss.fff tt: ");
 
     static FileLogger()
@@ -52,15 +49,6 @@ public static class FileLogger
         catch
         {
             // Probably doesn't exist yet
-        }
-
-        try
-        {
-            throw new Exception();
-        }
-        catch (Exception ex)
-        {
-            SymbolsAttached = ex.StackTrace.Contains("line");
         }
     }
 

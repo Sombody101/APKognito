@@ -12,7 +12,6 @@
     d:DesignWidth="800"
     ui:Design.Background="Transparent"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
     <Grid>
 
@@ -23,11 +22,13 @@
 
         <ui:Button
             x:Name="BrowseDirectoryButton"
+            Height="34"
             Margin="0,0,10,0"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Click="BrowseDirectory_Click"
-            Content="Browse" />
+            Content="Browse"
+            Icon="{Binding BrowseButtonIcon, UpdateSourceTrigger=PropertyChanged}" />
 
         <ui:TextBox
             x:Name="DirectoryTextBox"

@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using System.IO;
 using System.Windows.Data;
+using Wpf.Ui.Controls;
 using TextBox = Wpf.Ui.Controls.TextBox;
 
 namespace APKognito.Controls;
@@ -11,30 +12,17 @@ namespace APKognito.Controls;
 /// </summary>
 public partial class DirectorySelector
 {
-    new public event WPF::Input.KeyEventHandler? KeyUp;
+    public new event WPF::Input.KeyEventHandler? KeyUp;
+
+    public SymbolIcon BrowseButtonIcon { get; private set; } = new() { Symbol = SymbolRegular.Folder20 };
 
     public static readonly DependencyProperty DirectoryPathProperty =
-        DependencyProperty.Register(
-            name: "DirectoryPath",
-            propertyType: typeof(string),
-            ownerType: typeof(DirectorySelector),
-            typeMetadata: new FrameworkPropertyMetadata(
-                defaultValue: string.Empty,
-                flags: FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
-                propertyChangedCallback: new PropertyChangedCallback(DirectoryPath_Changed)
-            )
+        DependencyProperty.Register(nameof(DirectoryPath), typeof(string), typeof(DirectorySelector),
+            typeMetadata: new FrameworkPropertyMetadata(string.Empty, new PropertyChangedCallback(DirectoryPath_Changed))
         );
 
     public static readonly DependencyProperty SelectingDirectoryProperty =
-    DependencyProperty.Register(
-        name: "SelectingDirectory",
-        propertyType: typeof(bool),
-        ownerType: typeof(DirectorySelector),
-        typeMetadata: new FrameworkPropertyMetadata(
-            defaultValue: true,
-            flags: FrameworkPropertyMetadataOptions.BindsTwoWayByDefault
-        )
-    );
+        DependencyProperty.Register(nameof(SelectingDirectory), typeof(bool), typeof(DirectorySelector));
 
     public string DirectoryPath
     {
@@ -45,19 +33,23 @@ public partial class DirectorySelector
     public bool SelectingDirectory
     {
         get => (bool)GetValue(SelectingDirectoryProperty);
-        set => SetValue(SelectingDirectoryProperty, value);
+        set
+        {
+            BrowseButtonIcon.Symbol = value
+                ? SymbolRegular.Folder48
+                : SymbolRegular.Document48;
+
+            SetValue(SelectingDirectoryProperty, value);
+        }
     }
 
     public DirectorySelector()
     {
         InitializeComponent();
-
     }
 
     private void DirectoryTextBox_KeyUp(object? sender, WPF::Input.KeyEventArgs e)
     {
-        // KeyUp?.Invoke(sender, e);
-
         TextBox tBox;
 
         switch (sender)
@@ -126,9 +118,9 @@ public partial class DirectorySelector
         {
             return;
         }
-        
+
         string value = (string)e.NewValue;
-        
+
         selector.DirectoryPath = VariablePathResolver.Resolve(value);
     }
 }
