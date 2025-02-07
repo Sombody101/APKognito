@@ -5,10 +5,10 @@ namespace APKognito.Models;
 [MemoryPackable]
 public partial record RenameSession
 {
+    private const string SEPARATOR = ";;";
+
     [MemoryPackIgnore]
     public static readonly RenameSession Empty = new();
-
-    private const string separator = ";;";
 
     public string[] ApkTransforms { get; }
 
@@ -24,6 +24,23 @@ public partial record RenameSession
         DateEpochSeconds = dateEpochSeconds;
     }
 
+#if DEBUG
+    public RenameSession((bool success, string originalName, string finalName)[] elements, long epoch)
+    {
+        DateEpochSeconds = epoch;
+
+        List<string> transforms = [];
+
+        foreach ((bool success, string originalName, string finalName) in elements)
+        {
+            int iSuccess = success ? 1 : 0;
+            transforms.Add($"{iSuccess}{SEPARATOR}{originalName}{SEPARATOR}{finalName}");
+        }
+
+        ApkTransforms = [.. transforms];
+    }
+#endif
+
     private RenameSession()
     {
         ApkTransforms = ["<>"];
@@ -32,12 +49,12 @@ public partial record RenameSession
 
     public static string FormatForSerializer(string str1, string str2, bool wasSuccess = true)
     {
-        return $"{(wasSuccess ? 1 : 0)}{separator}{str1}{separator}{str2}";
+        return $"{(wasSuccess ? 1 : 0)}{SEPARATOR}{str1}{SEPARATOR}{str2}";
     }
 
     public static string[] FormatForView(string str)
     {
-        string[] parts = str.Split(separator);
+        string[] parts = str.Split(SEPARATOR);
 
         parts[0] = parts[0] is "1"
             ? "✔️"

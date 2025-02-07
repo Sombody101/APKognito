@@ -7,6 +7,8 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 {
+    readonly RenameSessionList storedSessions = ConfigurationFactory.GetConfig<RenameSessionList>();
+
     #region Properties
 
     [ObservableProperty]
@@ -18,10 +20,13 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
     [ObservableProperty]
     private ObservableCollection<RenameSession> _renameSessions = [
 #if DEBUG
-        new(["1;;com.google.idk;;com.apkognito.idk", "0;;com.facebook.spooky;;com.apkognito.spooky"], 1098234423),
-        new(["1;;com.clouds.someapp;;com.apkognito.someapp"], 10955824023),
-        new(["0;;com.fire.whatif;;com.apkognito.whatif", "0;;com.amazon.somedumbapp;;com.apkognito.newcoolappidk",
-            "0;;com.notspyware.spyware;;com.apkognito.stillspyware", "1;;com.oof.oof;;com.apkognito.oof"], 1098624023),
+        new([(false, "com.google.idk", "com.apkognito.idk"), 
+            (false, "com.facebook.spooky", "com.apkognito.spooky")], 1098234423),
+        new([(false, "com.clouds.someapp", "com.apkognito.someapp")], 10955824023),
+        new([(false, "com.fire.whatif", "com.apkognito.whatif"), 
+            (false, "com.amazon.somedumbapp", "com.apkognito.newcoolappidk"), 
+            (false, "com.notspyware.spyware", "com.apkognito.stillspyware"), 
+            (true, "com.oof.oof", "com.apkognito.oof")], 1098624023),
 #endif
         ];
 
@@ -32,13 +37,13 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
     [RelayCommand]
     public async Task RefreshRenameSessions()
     {
-        RenameSessionList storedSessions = ConfigurationFactory.GetConfig<RenameSessionList>();
-        List<RenameSession> sessions = storedSessions.RenameSessions;
+        List<RenameSession> sessions = new(storedSessions.RenameSessions);
+        sessions.Reverse();
 
         RenameSessions.Clear();
 
         // Add a delay so the user knows something happened
-        await Task.Delay(200);
+        await Task.Delay(10);
 
         if (sessions.Count is 0)
         {

@@ -12,12 +12,12 @@ internal static class Constants
      * URLs
      */
 
-    public const string APL_SIGNER_URL = "https://api.github.com/repos/patrickfav/uber-apk-signer/releases";
+    public const string APL_SIGNER_URL_LTST = "https://api.github.com/repos/patrickfav/uber-apk-signer/releases/latest";
+    public const string APKTOOL_JAR_URL_LTST = "https://api.github.com/repos/iBotPeaches/apktool/releases/latest";
     public const string APKTOOL_BAT_URL = "https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/windows/apktool.bat";
-    public const string APKTOOL_JAR_URL = "https://api.github.com/repos/iBotPeaches/apktool/releases";
 
     public const string ADB_INSTALL_URL = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip";
 
     public const string GITHUB_API_URL = "https://api.github.com/repos/Sombody101/APKognito/releases";
-    public const string GITHUB_API_URL_LATEST = "https://api.github.com/repos/Sombody101/APKognito/releases/latest";
+    public const string GITHUB_API_URL_LATEST = $"{GITHUB_API_URL}/latest";
 }

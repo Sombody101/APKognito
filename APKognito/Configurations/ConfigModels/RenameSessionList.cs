@@ -7,9 +7,6 @@ namespace APKognito.Configurations.ConfigModels;
 [ConfigFile("history.bin", ConfigType.MemoryPacked)]
 public partial class RenameSessionList : IKognitoConfig
 {
-    [MemoryPackIgnore]
-    public ConfigType ConfigType => ConfigType.MemoryPacked;
-
     public List<RenameSession> RenameSessions { get; set; } = [];
 
     public RenameSessionList()

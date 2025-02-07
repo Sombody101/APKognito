@@ -3,6 +3,7 @@ using MemoryPack;
 using Newtonsoft.Json;
 using System.IO;
 using System.IO.Compression;
+using System.Reactive.Linq;
 using System.Runtime.InteropServices;
 
 namespace APKognito.Configurations;
@@ -18,16 +19,18 @@ public static class ConfigurationFactory
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static T GetConfig<T>() where T : class, IKognitoConfig, new()
+    public static T GetConfig<T>(bool forceReload = false) where T : class, IKognitoConfig, new()
     {
         Type configType = typeof(T);
 
-        if (_cachedConfigs.TryGetValue(configType, out IKognitoConfig? value))
+        // Return a cached config
+        if (forceReload && _cachedConfigs.TryGetValue(configType, out IKognitoConfig? value))
         {
             FileLogger.Log($"Fetch cached {configType.Name}");
             return (T)value;
         }
 
+        // Get the config attributes for the model, or create one
         ConfigFileAttribute? configAttribute = GetConfigAttribute(configType);
 
         if (configAttribute is null)
@@ -43,6 +46,12 @@ public static class ConfigurationFactory
         return config;
     }
 
+    /// <summary>
+    /// Attempts to get a cached config. Returns <see langword="null"/> if the wanted config is not cached.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="config"></param>
+    /// <returns></returns>
     public static bool TryGetConfig<T>(out T? config) where T : class, IKognitoConfig, new()
     {
         if (_cachedConfigs.TryGetValue(typeof(T), out var fetchedConfig))
@@ -121,22 +130,26 @@ public static class ConfigurationFactory
     /// <summary>
     /// Transfers all valid configuration files found in the apps startup directory to the respective place in %APPDATA%.
     /// </summary>
-    public static void TransferAppStartConfigurations()
+    public static (byte success, byte total) TransferAppStartConfigurations()
     {
-        foreach (KeyValuePair<Type, IKognitoConfig> config in _cachedConfigs)
+        byte success = 0, total = 0;
+
+        foreach ((Type type, IKognitoConfig config) in _cachedConfigs)
         {
-            ConfigFileAttribute attr = GetConfigAttribute(config.Key);
+            ConfigFileAttribute attr = GetConfigAttribute(type);
             if (attr.LoadedFromCurrentDirectory)
             {
-                SaveConfig(config.Value, attr, true);
+                total++;
+                SaveConfig(config, attr, true);
 
                 // Reset it to save to %APPDATA% on close
                 attr.RevertSaveToCurrent();
 
                 try
                 {
-                    // Remove the file once transfered
+                    // Remove the file once transferred
                     File.Delete(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, attr.FileName));
+                    success++;
                 }
                 catch (Exception ex)
                 {
@@ -144,6 +157,8 @@ public static class ConfigurationFactory
                 }
             }
         }
+
+        return (success, total);
     }
 
     private static T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
@@ -157,7 +172,7 @@ public static class ConfigurationFactory
         }
         else
         {
-            FileLogger.Log($"Ld CurDir file: ./{filePath}");
+            FileLogger.Log($"Config found in current directory");
             configAttribute.LoadedFromCurrent();
         }
 

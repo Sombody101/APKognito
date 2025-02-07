@@ -80,21 +80,15 @@
                                     FontWeight="Bold"
                                     Text="{Binding FormattedDate}" />
 
-                                <TextBlock Grid.Row="1" FontWeight="Bold">
-                                    APKs:
-                                </TextBlock>
+                                <TextBlock
+                                    Grid.Row="1"
+                                    FontWeight="Bold"
+                                    Text="APKs:" />
 
                                 <TextBlock
                                     Grid.Row="1"
                                     Grid.Column="1"
                                     Text="{Binding ApkTransforms, Converter={StaticResource RenameSessionConverter}}" />
-
-                                <StackPanel Grid.Row="2" />
-
-                                <StackPanel
-                                    Grid.Row="2"
-                                    Grid.Column="1"
-                                    VerticalAlignment="Center" />
                             </Grid>
                         </ui:Card>
                     </DataTemplate>

@@ -25,28 +25,7 @@ namespace APKognito;
 /// </summary>
 public partial class App
 {
-    private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
-    private static HttpClient? _sharedHttpClient;
-
     public static DirectoryInfo AppDataDirectory { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
-
-    /// <summary>
-    /// An <see cref="HttpClient"/> instance that is shared throughout the application.
-    /// </summary>
-    public static HttpClient SharedHttpClient
-    {
-        get
-        {
-            // Is only created when needed, stays open in the app after that (to save sockets)
-            if (_sharedHttpClient is null)
-            {
-                _sharedHttpClient = new();
-                _sharedHttpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
-            }
-
-            return _sharedHttpClient;
-        }
-    }
 
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
     // https://docs.microsoft.com/dotnet/core/extensions/generic-host

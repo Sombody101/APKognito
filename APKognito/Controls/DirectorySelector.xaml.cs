@@ -12,17 +12,20 @@ namespace APKognito.Controls;
 /// </summary>
 public partial class DirectorySelector
 {
+    [SuppressMessage("Major Code Smell", "S3264:Events should be invoked", Justification = "Used externally")]
     public new event WPF::Input.KeyEventHandler? KeyUp;
 
-    public SymbolIcon BrowseButtonIcon { get; private set; } = new() { Symbol = SymbolRegular.Folder20 };
 
     public static readonly DependencyProperty DirectoryPathProperty =
         DependencyProperty.Register(nameof(DirectoryPath), typeof(string), typeof(DirectorySelector),
-            typeMetadata: new FrameworkPropertyMetadata(string.Empty, new PropertyChangedCallback(DirectoryPath_Changed))
+            new FrameworkPropertyMetadata(string.Empty, new PropertyChangedCallback(DirectoryPath_Changed))
         );
 
     public static readonly DependencyProperty SelectingDirectoryProperty =
         DependencyProperty.Register(nameof(SelectingDirectory), typeof(bool), typeof(DirectorySelector));
+
+    public static readonly DependencyProperty BrowseButtonIconProperty =
+        DependencyProperty.Register(nameof(BrowseButtonIcon), typeof(SymbolIcon), typeof(DirectorySelector));
 
     public string DirectoryPath
     {
@@ -33,19 +36,19 @@ public partial class DirectorySelector
     public bool SelectingDirectory
     {
         get => (bool)GetValue(SelectingDirectoryProperty);
-        set
-        {
-            BrowseButtonIcon.Symbol = value
-                ? SymbolRegular.Folder48
-                : SymbolRegular.Document48;
+        set => SetValue(SelectingDirectoryProperty, value);
+    }
 
-            SetValue(SelectingDirectoryProperty, value);
-        }
+    public SymbolIcon BrowseButtonIcon
+    {
+        get => (SymbolIcon)GetValue(BrowseButtonIconProperty);
+        set => SetValue(BrowseButtonIconProperty, value);
     }
 
     public DirectorySelector()
     {
         InitializeComponent();
+        BrowseButtonIcon ??= new() { Symbol = SymbolRegular.Folder20 };
     }
 
     private void DirectoryTextBox_KeyUp(object? sender, WPF::Input.KeyEventArgs e)

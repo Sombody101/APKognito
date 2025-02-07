@@ -59,6 +59,8 @@ public static class FileLogger
             return;
         }
 
+        text = text.Trim('\n');
+
         string newline = text.Length > 40 && text.Contains('\n')
             ? "\n\n"
             : "\n";
@@ -81,6 +83,8 @@ public static class FileLogger
         {
             log.Append(" [ADMIN]");
         }
+
+        partnerLog = partnerLog.Trim('\n');
 
         log.Append(string.IsNullOrWhiteSpace(partnerLog) ? "[No log]" : string.Empty).Append(": ")
             .AppendLine(GetFormattedException(ex)).AppendLine()

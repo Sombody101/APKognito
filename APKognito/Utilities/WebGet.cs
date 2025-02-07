@@ -10,6 +10,20 @@ namespace APKognito.Utilities;
 
 public static partial class WebGet
 {
+    private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
+
+    private static readonly HttpClient _sharedHttpClient = new();
+
+    /// <summary>
+    /// An <see cref="HttpClient"/> instance that is shared throughout the application.
+    /// </summary>
+    public static HttpClient SharedHttpClient => _sharedHttpClient;
+
+    static WebGet()
+    {
+        _sharedHttpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
+    }
+
     public class InvalidJsonIndexerException : Exception
     {
         public InvalidJsonIndexerException(object indexValue)
@@ -24,11 +38,13 @@ public static partial class WebGet
     /// <param name="url"></param>
     /// <param name="num"></param>
     /// <returns></returns>
-    public static async Task<string?> FetchAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, int num = 0)
+    public static async Task<string?> FetchGitHubReleaseAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, int num = 0)
     {
-        object? result = await FetchParseDocument(url, [[0, "assets", num, "browser_download_url"]], logger, cToken);
+        object? result = await FetchParseDocument(url, [["assets", num, "browser_download_url"]], logger, cToken);
 
-        return result is string[] strArray ? strArray[0] : null;
+        return result is string[] strArray 
+            ? strArray[0] 
+            : null;
     }
 
     /// <summary>
@@ -53,7 +69,7 @@ public static partial class WebGet
         {
             string fileName = Path.GetFileName(name);
             logger?.Log($"Fetching {fileName}");
-            using HttpResponseMessage response = await App.SharedHttpClient.GetAsync(url, cToken);
+            using HttpResponseMessage response = await _sharedHttpClient.GetAsync(url, cToken);
             _ = response.EnsureSuccessStatusCode();
 
             await using FileStream fileStream = File.Create(name);
@@ -76,11 +92,11 @@ public static partial class WebGet
         return false;
     }
 
-    public static async Task<bool> FetchAndDownload(string url, string name, LoggableObservableObject? logger, CancellationToken cToken, int assetIndex = 0)
+    public static async Task<bool> FetchAndDownloadGitHubRelease(string url, string downloadPath, LoggableObservableObject? logger, CancellationToken cToken, int assetIndex = 0)
     {
-        string? downloadUrl = await FetchAsync(url, logger, cToken, assetIndex);
+        string? downloadUrl = await FetchGitHubReleaseAsync(url, logger, cToken, assetIndex);
 
-        return downloadUrl is not null && await DownloadAsync(downloadUrl, name, logger, cToken);
+        return downloadUrl is not null && await DownloadAsync(downloadUrl, downloadPath, logger, cToken);
     }
 
     private static async Task<object?> FetchParseDocument(string url, object[][] indexes, LoggableObservableObject? logger, CancellationToken cToken)
@@ -100,7 +116,7 @@ public static partial class WebGet
 
         try
         {
-            HttpResponseMessage response = await App.SharedHttpClient.GetAsync(url, cToken);
+            HttpResponseMessage response = await _sharedHttpClient.GetAsync(url, cToken);
             _ = response.EnsureSuccessStatusCode();
 
             jsonResult = await response.Content.ReadAsStringAsync(cToken);
@@ -119,7 +135,6 @@ public static partial class WebGet
 
             for (int i = 0; i < indexes.Length; ++i)
             {
-                JToken? lastToken = originalToken;
                 JToken? currentToken = originalToken;
 
                 foreach (object index in indexes[i])
@@ -134,11 +149,8 @@ public static partial class WebGet
                     if (currentToken is null)
                     {
                         logger?.LogError($"Failed to find '{index}' in JSON response.");
-                        FileLogger.LogDebug($"Json token: {lastToken.ToString().Truncate(1500) ?? "[NULL]"}");
                         break;
                     }
-
-                    lastToken = currentToken;
                 }
 
                 output[i] = currentToken?.ToString();
@@ -165,7 +177,7 @@ public static partial class WebGet
     {
         try
         {
-            (int result, IPStatus? status) = await IsConnectedToInternet();
+            (ConnectionStatus result, IPStatus? status) = await IsConnectedToInternet();
 
             if (result is 0)
             {
@@ -179,15 +191,15 @@ public static partial class WebGet
 
             switch (result)
             {
-                case 1:
+                case ConnectionStatus.NotConnected:
                     logger?.LogError("No network device found. A WiFi adapter or ethernet is required.");
                     return false;
 
-                case 2:
+                case ConnectionStatus.IpFailed:
                     logger?.LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
                     return false;
 
-                case 3:
+                case ConnectionStatus.DnsFailed:
                     logger?.LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
                     return false;
             }
@@ -204,32 +216,14 @@ public static partial class WebGet
     /// Tests for internet connection.
     /// </summary>
     /// <returns>
-    ///     <list type="bullet|number|table">
-    ///         <listheader>
-    ///             <term>0</term>
-    ///             <description>No issues; Internet connection works.</description>
-    ///         </listheader>
-    ///         <item>
-    ///             <term>1</term>
-    ///             <description>Got a <see langword="false"/> return from <see cref="InternetGetConnectedState"/>.</description>
-    ///         </item>
-    ///         <item>
-    ///             <term>2</term>
-    ///             <description>IP Cloudflare ping test failed</description>
-    ///         </item>
-    ///         <item>
-    ///             <term>3</term>
-    ///             <description>DNS Cloudflare ping test failed</description>
-    ///         </item>
-    ///     </list>
     /// </returns>
-    private static async Task<(int, IPStatus?)> IsConnectedToInternet()
+    private static async Task<(ConnectionStatus, IPStatus?)> IsConnectedToInternet()
     {
         // This was added as an attempt to resolve this issue: https://github.com/Sombody101/APKognito/issues/2
 
         if (!InternetGetConnectedState(out _, 0))
         {
-            return (1, null);
+            return (ConnectionStatus.NotConnected, null);
         }
 
         Ping ping = new();
@@ -238,18 +232,26 @@ public static partial class WebGet
         PingReply reply = await ping.SendPingAsync(new IPAddress([1, 1, 1, 1]));
         if (reply.Status is not IPStatus.Success)
         {
-            return (2, reply.Status);
+            return (ConnectionStatus.IpFailed, reply.Status);
         }
 
         // DNS check
         reply = await ping.SendPingAsync("cloudflare.com", 3000);
 
         return reply.Status is not IPStatus.Success
-            ? ((int, IPStatus?))(3, reply.Status)
-            : (0, null);
+            ? (ConnectionStatus.DnsFailed, reply.Status)
+            : (ConnectionStatus.Success, null);
     }
 
     [LibraryImport("wininet.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool InternetGetConnectedState(out int Description, int ReservedValue);
+
+    private enum ConnectionStatus
+    {
+        Success,
+        NotConnected,
+        IpFailed,
+        DnsFailed,
+    }
 }

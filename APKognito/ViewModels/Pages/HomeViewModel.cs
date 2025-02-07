@@ -11,7 +11,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Windows.Documents;
 using System.Windows.Threading;
 using Wpf.Ui;
@@ -37,9 +36,9 @@ public partial class HomeViewModel : LoggableObservableObject
     // Tool paths
     internal DirectoryInfo TempData;
     public readonly string
-            ApktoolJar,
-            ApktoolBat,
-            ApksignerJar;
+            ApktoolJarPath,
+            ApktoolBatPath,
+            ApksignerJarPath;
 
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel Instance { get; private set; } = null!;
@@ -176,9 +175,9 @@ public partial class HomeViewModel : LoggableObservableObject
         string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
 
         _ = Directory.CreateDirectory(appDataTools);
-        ApktoolJar = Path.Combine(appDataTools, "apktool.jar");
-        ApktoolBat = Path.Combine(appDataTools, "apktool.bat");
-        ApksignerJar = Path.Combine(appDataTools, "uber-apk-signer.jar");
+        ApktoolJarPath = Path.Combine(appDataTools, "apktool.jar");
+        ApktoolBatPath = Path.Combine(appDataTools, "apktool.bat");
+        ApksignerJarPath = Path.Combine(appDataTools, "uber-apk-signer.jar");
     }
 
     public async Task Initialize()
@@ -285,6 +284,36 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
+    private async Task OnManualUnpackApk()
+    {
+        try
+        {
+            if (!JavaVersionLocator.GetJavaPath(out string? javaPath, this))
+            {
+                return;
+            }
+
+            foreach (var file in GetFilePaths())
+            {
+                var context = new ApkEditorContext(this, javaPath!, file, true);
+
+                string outputDirectory = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file));
+                string apkFileName = Path.GetFileName(file);
+
+                Log($"Unpacking {apkFileName}");
+                await context.UnpackApk(file, outputDirectory);
+
+                Log($"Unpacked {Path.GetFileName(file)} into {outputDirectory}");
+            }
+        }
+        catch (Exception ex)
+        {
+            LogError($"Error: {ex.Message}");
+            LogDebug(ex.StackTrace ?? "[NoTrace]");
+        }
+    }
+
+    [RelayCommand]
     private void OnClearLogBox()
     {
         ClearLogs();
@@ -319,8 +348,8 @@ public partial class HomeViewModel : LoggableObservableObject
             if (result is not MessageBoxResult.Primary)
             {
                 // The user decided to heed my warning.
-                _copyWhenRenaming 
-                    = kognitoConfig.CopyFilesWhenRenaming 
+                _copyWhenRenaming
+                    = kognitoConfig.CopyFilesWhenRenaming
                     = true;
                 return;
             }
@@ -406,23 +435,26 @@ public partial class HomeViewModel : LoggableObservableObject
                 failedJobs.Add($"\t{Path.GetFileName(sourceApkPath)}: {errorReason}");
             }
 
-            string? finalName = FinalName == "Unpacking..."
-                ? FinalName
-                : null;
+            string finalName;
+            if (FinalName == "Unpacking...")
+            {
+                finalName = "[Job Canceled]";
+            }
+            else if (apkFailed)
+            {
+                finalName = "[Rename Failed]";
+            }
+            else
+            {
+                finalName = "[Unknown]";
+            }
 
-            pendingSession[jobIndex] = RenameSession.FormatForSerializer(
-                ApkName ?? JobbedApk,
-                finalName ?? (apkFailed
-                    ? "[Rename Failed]"
-                    : "[Unknown]"),
-                apkFailed
-            );
-
+            pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? JobbedApk, finalName, apkFailed);
             ++jobIndex;
+            WriteGenericLog($"------------------ Job {jobIndex} End\n");
         }
 
     Exit:
-        WriteGenericLog("------------------ Job End\n");
         Log($"{completeJobs} of {files.Length} APKs were renamed successfully.");
         if (completeJobs != files.Length)
         {
@@ -456,7 +488,7 @@ public partial class HomeViewModel : LoggableObservableObject
         CanEdit = true;
     }
 
-    private async Task<(string?, bool)> RunPackageRename(string javaPath, string sourceApkPath, CancellationToken cancellationToken)
+    private async Task<(string? error, bool success)> RunPackageRename(string javaPath, string sourceApkPath, CancellationToken cancellationToken)
     {
         string? errorReason;
         bool apkFailed = false;
@@ -565,6 +597,12 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private async Task<string?> RenameConditionsMet()
     {
+        if (string.IsNullOrWhiteSpace(ApkReplacementName))
+        {
+            LogError("The replacement APK name cannot be empty. Use 'apkognito' if you don't know what to replace it with.");
+            return null;
+        }
+
         if (!ValidCompanyName(ApkReplacementName))
         {
             string fixedName = ApkNameFixerRegex().Replace(ApkReplacementName, string.Empty);
@@ -579,7 +617,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
         Log("Verifying that Java 8+ and APK tools are installed...");
 
-        if (JavaVersionLocator.GetJavaPath(out string? javaPath) && await VerifyToolInstallation())
+        if (JavaVersionLocator.GetJavaPath(out string? javaPath, this) && await VerifyToolInstallation())
         {
             return javaPath;
         }
@@ -587,7 +625,6 @@ public partial class HomeViewModel : LoggableObservableObject
         return null;
     }
 
-    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "It's stupid.")]
     private async Task<bool> VerifyToolInstallation()
     {
         CancellationToken cToken = CancellationToken.None;
@@ -596,28 +633,28 @@ public partial class HomeViewModel : LoggableObservableObject
         {
             bool allSuccess = true;
 
-            if (!File.Exists(ApktoolJar))
+            if (!File.Exists(ApktoolJarPath))
             {
                 Log("Installing Apktool.jar...");
-                if (!await WebGet.FetchAndDownload(Constants.APKTOOL_JAR_URL, ApktoolJar, this, cToken))
+                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APKTOOL_JAR_URL_LTST, ApktoolJarPath, this, cToken))
                 {
                     allSuccess = false;
                 }
             }
 
-            if (!File.Exists(ApktoolBat))
+            if (!File.Exists(ApktoolBatPath))
             {
                 Log("Installing Apktool.bat...");
-                if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, ApktoolBat, this, cToken))
+                if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, ApktoolBatPath, this, cToken))
                 {
                     allSuccess = false;
                 }
             }
 
-            if (!File.Exists(ApksignerJar))
+            if (!File.Exists(ApksignerJarPath))
             {
                 Log("Installing ApkSigner.jar");
-                if (!await WebGet.FetchAndDownload(Constants.APL_SIGNER_URL, ApksignerJar, this, cToken, 1))
+                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APL_SIGNER_URL_LTST, ApksignerJarPath, this, cToken, 1))
                 {
                     allSuccess = false;
                 }

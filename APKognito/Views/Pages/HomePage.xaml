@@ -30,6 +30,10 @@
         <helpers:BoolInterterConverter x:Key="BoolInverter" />
     </Page.Resources>
 
+    <Page.InputBindings>
+        <KeyBinding Command="{Binding ManualUnpackApkCommand}" Gesture="CTRL+SHIFT+U" />
+    </Page.InputBindings>
+
     <Grid Margin="0,30">
 
         <Grid.RowDefinitions>
@@ -76,6 +80,7 @@
                     <ctrls:DirectorySelector
                         Grid.Column="1"
                         Margin="0,5"
+                        BrowseButtonIcon="{ui:SymbolIcon Symbol=Document20}"
                         DirectoryPath="{Binding JavaExecutablePath}"
                         SelectingDirectory="False" />
                 </Grid>
@@ -188,231 +193,229 @@
                 <Grid.RowDefinitions>
                     <RowDefinition />
                     <RowDefinition />
-                    <RowDefinition />
                 </Grid.RowDefinitions>
 
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="225" />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-
-                <Grid
-                    x:Name="DragDropPresenter"
-                    Grid.ColumnSpan="10"
-                    Panel.ZIndex="100"
-                    Visibility="Collapsed">
-                    <ui:Card
-                        Margin="-15,-17,-15,-21"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Stretch"
-                        AllowDrop="{Binding RunningJobs, Converter={StaticResource BoolInverter}}"
-                        Background="Gray"
-                        Drop="DragDropPresenter_Drop"
-                        Opacity=".5"
-                        PreviewDragLeave="DragDropPresenter_PreviewDragLeave" />
-
-                    <ui:SymbolIcon
-                        Drop="DragDropPresenter_Drop"
-                        Filled="True"
-                        FontSize="48"
-                        PreviewDragLeave="DragDropPresenter_PreviewDragLeave"
-                        Symbol="Dock24" />
-                </Grid>
-
-                <!--  Selected File Information (AKA: Fuster Cluck)  -->
-
-                <Grid Grid.Column="2" Margin="10,5">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="225" />
+                        <ColumnDefinition />
                     </Grid.ColumnDefinitions>
 
-                    <Grid.RowDefinitions>
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                    </Grid.RowDefinitions>
+                    <Grid
+                        x:Name="DragDropPresenter"
+                        Grid.ColumnSpan="10"
+                        Panel.ZIndex="100"
+                        Visibility="Collapsed">
+                        <ui:Card
+                            Margin="-15,-17,-15,-21"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            AllowDrop="{Binding RunningJobs, Converter={StaticResource BoolInverter}}"
+                            Background="Gray"
+                            Drop="DragDropPresenter_Drop"
+                            Opacity=".5"
+                            PreviewDragLeave="DragDropPresenter_PreviewDragLeave" />
 
-                    <StackPanel Grid.Column="0">
-                        <!--  Input Field Labels  -->
-                        <TextBlock
-                            Margin="1"
-                            FontWeight="Bold"
-                            Text="Filename:" />
+                        <ui:SymbolIcon
+                            Drop="DragDropPresenter_Drop"
+                            Filled="True"
+                            FontSize="48"
+                            PreviewDragLeave="DragDropPresenter_PreviewDragLeave"
+                            Symbol="Dock24" />
+                    </Grid>
 
-                        <!--
+                    <!--  Selected File Information (AKA: Fuster Cluck)  -->
+
+                    <Grid Grid.Column="2" Margin="10,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition />
+                            <RowDefinition />
+                            <RowDefinition />
+                            <RowDefinition />
+                            <RowDefinition />
+                            <RowDefinition />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <!--  Input Field Labels  -->
+                            <TextBlock
+                                Margin="1"
+                                FontWeight="Bold"
+                                Text="Filename:" />
+
+                            <!--
                         <TextBlock
                             Margin="1"
                             FontWeight="Bold"
                             Text="Filepath:" />
-                        -->
-                    </StackPanel>
+                            -->
+                        </StackPanel>
 
-                    <StackPanel Grid.Column="1">
-                        <!--  Input Field Values  -->
-                        <ui:TextBlock
-                            Margin="1"
-                            Text="{Binding ApkName}"
-                            TextTrimming="CharacterEllipsis"
-                            ToolTip="{Binding FilePath}" />
+                        <StackPanel Grid.Column="1">
+                            <!--  Input Field Values  -->
+                            <ui:TextBlock
+                                Margin="1"
+                                Text="{Binding ApkName}"
+                                TextTrimming="CharacterEllipsis"
+                                ToolTip="{Binding FilePath}" />
 
-                        <!--
+                            <!--
                         <TextBlock
                             Margin="1"
                             Text="{Binding FilePath}"
                             TextTrimming="CharacterEllipsis" />
-                        -->
-                    </StackPanel>
+                            -->
+                        </StackPanel>
 
-                    <StackPanel Grid.Row="2">
-                        <!--  Output Field Labels  -->
-                        <TextBlock
-                            Margin="1"
-                            FontWeight="Bold"
-                            Text="Final Package Name:" />
-                        <TextBlock
-                            Margin="1"
-                            FontWeight="Bold"
-                            Text="Output Path:" />
-                    </StackPanel>
+                        <StackPanel Grid.Row="2">
+                            <!--  Output Field Labels  -->
+                            <TextBlock
+                                Margin="1"
+                                FontWeight="Bold"
+                                Text="Final Package Name:" />
+                            <TextBlock
+                                Margin="1"
+                                FontWeight="Bold"
+                                Text="Output Path:" />
+                        </StackPanel>
 
-                    <StackPanel Grid.Row="2" Grid.Column="1">
-                        <!--  Output Field Values  -->
-                        <TextBlock
-                            Margin="1"
-                            Text="{Binding FinalName}"
-                            TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Row="2" Grid.Column="1">
+                            <!--  Output Field Values  -->
+                            <TextBlock
+                                Margin="1"
+                                Text="{Binding FinalName}"
+                                TextTrimming="CharacterEllipsis" />
 
-                        <TextBlock
-                            Margin="1"
-                            Text="{Binding OutputDirectory}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                            <TextBlock
+                                Margin="1"
+                                Text="{Binding OutputDirectory}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
 
-                    <!--  File Size Info  -->
+                        <!--  File Size Info  -->
 
-                    <Separator
-                        Grid.Row="3"
-                        Grid.ColumnSpan="2"
-                        Margin="0,2.5" />
+                        <Separator
+                            Grid.Row="3"
+                            Grid.ColumnSpan="2"
+                            Margin="0,2.5" />
 
-                    <StackPanel Grid.Row="4">
-                        <!--  Field Labels  -->
-                        <TextBlock Margin="1" ToolTip="The drive space requried to rename the APK and OBB files. Not always accurate.">
-                            <Run FontWeight="Bold" Text="Required Space:" />
-                        </TextBlock>
-                    </StackPanel>
+                        <StackPanel Grid.Row="4">
+                            <!--  Field Labels  -->
+                            <TextBlock Margin="1" ToolTip="The drive space requried to rename the APK and OBB files. Not always accurate.">
+                                <Run FontWeight="Bold" Text="Required Space:" />
+                            </TextBlock>
+                        </StackPanel>
 
-                    <StackPanel Grid.Row="4" Grid.Column="1">
-                        <!--  Field Values  -->
-                        <TextBlock>
-                            <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0:n0}    ({1:n0} bytes)">
-                                    <Binding Converter="{StaticResource GBConverter}" Path="FootprintSizeBytes" />
-                                    <Binding Path="FootprintSizeBytes" />
-                                </MultiBinding>
-                            </TextBlock.Text>
-                        </TextBlock>
-                    </StackPanel>
+                        <StackPanel Grid.Row="4" Grid.Column="1">
+                            <!--  Field Values  -->
+                            <TextBlock>
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="{}{0:n0}    ({1:n0} bytes)">
+                                        <Binding Converter="{StaticResource GBConverter}" Path="FootprintSizeBytes" />
+                                        <Binding Path="FootprintSizeBytes" />
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                        </StackPanel>
 
-                    <Separator
-                        Grid.Row="5"
-                        Grid.ColumnSpan="2"
-                        Margin="0,2.5" />
+                        <Separator
+                            Grid.Row="5"
+                            Grid.ColumnSpan="2"
+                            Margin="0,2.5" />
 
-                    <!--  Job Time Labels  -->
+                        <!--  Job Time Labels  -->
 
-                    <StackPanel Grid.Row="6">
-                        <TextBlock FontWeight="Bold" Text="Elapsed Time:" />
-                        <TextBlock FontWeight="Bold" Text="Working On:" />
-                    </StackPanel>
+                        <StackPanel Grid.Row="6">
+                            <TextBlock FontWeight="Bold" Text="Elapsed Time:" />
+                            <TextBlock FontWeight="Bold" Text="Working On:" />
+                        </StackPanel>
 
-                    <!--  Job Time Values  -->
+                        <!--  Job Time Values  -->
 
-                    <StackPanel Grid.Row="6" Grid.Column="1">
-                        <TextBlock
-                            Margin="1"
-                            Text="{Binding ElapsedTime}"
-                            TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Row="6" Grid.Column="1">
+                            <TextBlock
+                                Margin="1"
+                                Text="{Binding ElapsedTime}"
+                                TextTrimming="CharacterEllipsis" />
 
-                        <TextBlock
-                            Margin="1"
-                            Text="{Binding JobbedApk}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                </Grid>
-
-                <!--  Main Interaction Buttons  -->
-
-                <Grid Margin="0,7.5">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height=".5*" />
-                        <RowDefinition />
-                    </Grid.RowDefinitions>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-
-                        <Button
-                            x:Name="LoadAPK"
-                            Width="105"
-                            VerticalAlignment="Stretch"
-                            Command="{Binding LoadApkCommand}"
-                            Content="Select APKs"
-                            Cursor="Hand"
-                            IsEnabled="{Binding CanEdit}" />
-
-                        <Button
-                            Grid.Column="1"
-                            Width="105"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Stretch"
-                            Command="{Binding ShowOutputFolderCommand}"
-                            Content="View Output"
-                            Cursor="Hand" />
+                            <TextBlock
+                                Margin="1"
+                                Text="{Binding JobbedApk}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
                     </Grid>
 
-                    <!--  Start/Cancel Buttons  -->
+                    <!--  Main Interaction Buttons  -->
 
-                    <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
-                        <Button
-                            Height="75"
-                            Margin="0,0,0,5"
-                            HorizontalAlignment="Stretch"
-                            Command="{Binding StartApkRenameCommand}"
-                            Content="Start Renaming"
-                            Cursor="Hand"
-                            IsEnabled="{Binding CanStart}"
-                            ToolTip="{Binding CantStartReason}"
-                            Visibility="{Binding StartButtonVisible, Converter={StaticResource BoolToVisibility}}" />
+                    <Grid Margin="0,7.5">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height=".5*" />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
 
-                        <Button
-                            Height="75"
-                            Margin="0,0,0,5"
-                            HorizontalAlignment="Stretch"
-                            Command="{Binding CancelApkRenameCommand}"
-                            Content="Cancel"
-                            Cursor="Hand"
-                            Visibility="{Binding StartButtonVisible, Converter={StaticResource VisibilityInverter}}" />
-                    </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+
+                            <Button
+                                x:Name="LoadAPK"
+                                Width="105"
+                                VerticalAlignment="Stretch"
+                                Command="{Binding LoadApkCommand}"
+                                Content="Select APKs"
+                                Cursor="Hand"
+                                IsEnabled="{Binding CanEdit}" />
+
+                            <Button
+                                Grid.Column="1"
+                                Width="105"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Stretch"
+                                Command="{Binding ShowOutputFolderCommand}"
+                                Content="View Output"
+                                Cursor="Hand" />
+                        </Grid>
+
+                        <!--  Start/Cancel Buttons  -->
+
+                        <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
+                            <Button
+                                Height="75"
+                                Margin="0,0,0,5"
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding StartApkRenameCommand}"
+                                Content="Start Renaming"
+                                Cursor="Hand"
+                                IsEnabled="{Binding CanStart}"
+                                ToolTip="{Binding CantStartReason}"
+                                Visibility="{Binding StartButtonVisible, Converter={StaticResource BoolToVisibility}}" />
+
+                            <Button
+                                Height="75"
+                                Margin="0,0,0,5"
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding CancelApkRenameCommand}"
+                                Content="Cancel"
+                                Cursor="Hand"
+                                Visibility="{Binding StartButtonVisible, Converter={StaticResource VisibilityInverter}}" />
+                        </StackPanel>
+                    </Grid>
                 </Grid>
 
-                <ProgressBar
-                    Grid.Row="1"
-                    Grid.ColumnSpan="2"
-                    IsIndeterminate="{Binding RunningJobs}" />
+                <ProgressBar Grid.Row="1" IsIndeterminate="{Binding RunningJobs}" />
+
             </Grid>
         </ui:Card>
 
         <Grid Grid.Row="3">
-
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" MinHeight="50" />
                 <RowDefinition Height="auto" />

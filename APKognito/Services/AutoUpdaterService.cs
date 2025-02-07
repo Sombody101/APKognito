@@ -16,8 +16,6 @@ namespace APKognito.Services;
 
 public sealed class AutoUpdaterService : IHostedService, IDisposable
 {
-    private const int LATEST = 0;
-
     public static readonly string UpdatesFolder = Path.Combine(App.AppDataDirectory!.FullName, "updates");
 
     private readonly UpdateConfig config;
@@ -70,7 +68,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _ = (_timer?.Change(Timeout.Infinite, 0));
+        _ = _timer?.Change(Timeout.Infinite, 0);
         return Task.CompletedTask;
     }
 
@@ -106,16 +104,13 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         // Only accept debug releases for debug builds, public releases for release builds
 #if DEBUG && EMULATE_RELEASE_ON_DEBUG
         if (!tagName!.StartsWith('v'))
-#else
-        if (!tagName!.StartsWith(App.Version.VersionPrefix))
-#endif
         {
-#if RELEASE || EMULATE_RELEASE_ON_DEBUG
             FileLogger.Log($"Most recent release isn't a public build: {tagName}");
 #else
-            FileLogger.Log($"Most recent release isn't a debug build: {tagName}");
+        if (!tagName!.StartsWith(App.Version.VersionPrefix))
+        {
+            FileLogger.Log($"Most recent release isn't a {App.Version.VersionIdentifier} build: {tagName}");
 #endif
-
             return;
         }
 

@@ -14,28 +14,22 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
     <Grid>
-
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="auto" />
-            <ColumnDefinition />
-        </Grid.ColumnDefinitions>
-
         <ui:Button
             x:Name="BrowseDirectoryButton"
-            Height="34"
-            Margin="0,0,10,0"
-            HorizontalAlignment="Center"
+            Margin="3,0"
+            HorizontalAlignment="Left"
             VerticalAlignment="Center"
+            Panel.ZIndex="1"
             Click="BrowseDirectory_Click"
             Content="Browse"
-            Icon="{Binding BrowseButtonIcon, UpdateSourceTrigger=PropertyChanged}" />
+            Icon="{Binding BrowseButtonIcon}" />
 
         <ui:TextBox
             x:Name="DirectoryTextBox"
-            Grid.Column="1"
+            Height="36"
+            Padding="80,7,7,7"
             DataContext="{Binding ElementName=this}"
             KeyUp="DirectoryTextBox_KeyUp"
             Text="{Binding DirectoryPath}" />
-
     </Grid>
 </UserControl>
