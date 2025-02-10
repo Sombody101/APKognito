@@ -529,7 +529,7 @@ public class ApkEditorContext
 
     private static Regex CreateNameReplacementRegex(string searchValue)
     {
-        return new Regex($@"(?<=[\./])({Regex.Escape(searchValue)})(?=[/\.])", RegexOptions.Compiled);
+        return new Regex($@"(?<=[\./])({Regex.Escape(searchValue)})(?=[/\.])", RegexOptions.Compiled, TimeSpan.FromMilliseconds(1000));
     }
 
     /// <summary>
