@@ -58,7 +58,7 @@ internal static class Tools
             return (int)methodTable->m_BaseSize + (arr.Length * methodTable->m_dwFlags.m_componentSize);
         }
 
-        return t is string str
+        return (t is string str)
             ? (int)methodTable->m_BaseSize + (str.Length * methodTable->m_dwFlags.m_componentSize)
             : (int)methodTable->m_BaseSize;
 #else

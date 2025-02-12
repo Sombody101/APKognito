@@ -1,6 +1,7 @@
 ﻿using APKognito.Configurations;
 using APKognito.Controls;
 using APKognito.Models.Settings;
+using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using System.IO;
 using System.Windows.Data;

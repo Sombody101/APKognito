@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Documents;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Brush = System.Windows.Media.Brush;
 
 namespace APKognito.Utilities.MVVM;
@@ -165,6 +166,11 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         DisplaySnack(header, body, ControlAppearance.Danger);
     }
 
+    public void SnackError(string body)
+    {
+        DisplaySnack("Error", body, ControlAppearance.Danger);
+    }
+
     private void AppendRunToLogbox(string text, [Optional] Brush? color, LogType? logType)
     {
         richTextBox.Dispatcher.BeginInvoke(() =>
@@ -242,32 +248,4 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         Error,
         Debug,
     }
-
-    private static readonly SymbolIcon SymbolInfo = new()
-    {
-        Symbol = SymbolRegular.Info16,
-        FontSize = 14,
-        Margin = new(1, 0, 0, 0)
-    };
-
-    private static readonly SymbolIcon SymbolSuccess = new()
-    {
-        Symbol = SymbolRegular.CheckmarkCircle16,
-    };
-
-    private static readonly SymbolIcon SymbolWarning = new()
-    {
-        Symbol = SymbolRegular.Warning16,
-    };
-
-    private static readonly SymbolIcon SymbolError = new()
-    {
-        Symbol = SymbolRegular.ErrorCircle16,
-        FontSize = 15.5,
-    };
-
-    private static readonly SymbolIcon SymbolDebug = new()
-    {
-        Symbol = SymbolRegular.Bug16,
-    };
 }

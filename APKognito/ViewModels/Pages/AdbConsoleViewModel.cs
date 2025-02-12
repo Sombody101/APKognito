@@ -68,6 +68,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
             if (!string.IsNullOrWhiteSpace(CommandBuffer))
             {
+                FileLogger.Log($"Running command: {CommandBuffer}");
                 await EnterCommand();
             }
         }
@@ -447,12 +448,14 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
     }
 
-    [Command("install-adb", "Auto installs platform tools.", "[--force]")]
+    [Command("install-adb", "Auto installs platform tools.", "[--force|-f]")]
     private void InstallAdbCommand(ParsedCommand ctx)
     {
         bool result = ThreadPool.QueueUserWorkItem(async (__) =>
         {
-            if (AdbManager.AdbWorks() && !ctx.Args.Contains("--force"))
+            if (AdbManager.AdbWorks() 
+                && !ctx.Args.Contains("--force")
+                && !ctx.Args.Contains("-f"))
             {
                 LogError("ADB is already installed. Run with '--force' to force a reinstall.");
                 return;

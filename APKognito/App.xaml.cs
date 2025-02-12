@@ -3,6 +3,7 @@
 using APKognito.Configurations;
 using APKognito.Services;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Windows;

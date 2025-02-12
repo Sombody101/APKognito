@@ -1,4 +1,5 @@
-﻿using APKognito.ViewModels.Pages;
+﻿using APKognito.Utilities.MVVM;
+using APKognito.ViewModels.Pages;
 using System.Windows.Data;
 using System.Windows.Interop;
 using Wpf.Ui.Controls;

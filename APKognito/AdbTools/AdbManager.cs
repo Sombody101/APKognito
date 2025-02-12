@@ -216,7 +216,7 @@ internal class AdbManager
     public static bool AdbWorks([Optional] string? platformToolsPath, LoggableObservableObject? snackService = null)
     {
         platformToolsPath ??= adbConfig.PlatformToolsPath;
-        bool isInstalled = Directory.Exists(platformToolsPath) || File.Exists(Path.Combine(platformToolsPath, "adb.exe"));
+        bool isInstalled = Directory.Exists(platformToolsPath) && File.Exists(Path.Combine(platformToolsPath, "adb.exe"));
 
         if (isInstalled)
         {

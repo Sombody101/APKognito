@@ -1,6 +1,7 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
+using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
 
 namespace APKognito.ViewModels.Pages;

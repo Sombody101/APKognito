@@ -4,6 +4,7 @@ using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
@@ -28,13 +29,14 @@ public enum LogLevel
 /// </summary>
 public static class FileLogger
 {
+    public const string TimeFormatString = "hh:mm:ss.fff tt: ";
     public const string ReplacementUsername = "[:USER:]";
 
     private static readonly object lockObject = new();
     private static readonly string logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
     private static readonly string exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
 
-    private static string UtcTime => DateTime.UtcNow.ToString("hh:mm:ss.fff tt: ");
+    private static string UtcTime => DateTime.UtcNow.ToString(TimeFormatString, CultureInfo.InvariantCulture);
 
     static FileLogger()
     {

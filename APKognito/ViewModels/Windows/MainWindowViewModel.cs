@@ -8,6 +8,10 @@ using System.Security.Principal;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 
+#if DEBUG
+using APKognito.Views.Pages.Debugging;
+#endif
+
 using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace APKognito.ViewModels.Windows;
@@ -58,6 +62,14 @@ public partial class MainWindowViewModel : LoggableObservableObject
     [ObservableProperty]
     private ObservableCollection<object> _footerMenuItems =
     [
+#if DEBUG
+        new NavigationViewItem()
+        {
+            Content = "Log Viewer",
+            Icon = new SymbolIcon { Symbol = SymbolRegular.ContentViewGallery28 },
+            TargetPageType = typeof(LogViewerPage)
+        },
+#endif
         new NavigationViewItem()
         {
             Content = "Settings",
@@ -150,8 +162,8 @@ public partial class MainWindowViewModel : LoggableObservableObject
     {
         App.Version.VersionTypeValue type = App.Version.VersionType;
 
-        return type is App.Version.VersionTypeValue.Release 
-            ? string.Empty 
+        return type is App.Version.VersionTypeValue.Release
+            ? string.Empty
             : $"[{type.ToString().ToUpper()}]";
     }
 

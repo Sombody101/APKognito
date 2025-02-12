@@ -359,9 +359,9 @@ public class ApkEditorContext
         string? line;
         while ((line = await reader.ReadLineAsync(cToken)) is not null)
         {
-            if (!(string.IsNullOrEmpty(line) 
+            if (!string.IsNullOrEmpty(line) 
                 && line.Length >= nameData.OriginalCompanyName.Length 
-                && line.StartsWith('#')))
+                && !line.StartsWith('#'))
             {
                 line = Replace(line);
             }
@@ -529,7 +529,7 @@ public class ApkEditorContext
 
     private static Regex CreateNameReplacementRegex(string searchValue)
     {
-        return new Regex($@"(?<=[\./])({Regex.Escape(searchValue)})(?=[/\.])", RegexOptions.Compiled, TimeSpan.FromMilliseconds(1000));
+        return new Regex($@"(?<=[\./])({Regex.Escape(searchValue)})(?=[/\.])", RegexOptions.Compiled, TimeSpan.FromMilliseconds(60_000));
     }
 
     /// <summary>
