@@ -10,17 +10,17 @@ public class LogViewerLine
     private const string DEFAULT = "[None]";
 
     public string RawLog { get; }
-    public string? RawExceptionLog { get; }
+    public bool IsException { get; }
 
     public DateTime LogTime { get; private set; }
     public string CallSite { get; private set; } = DEFAULT;
     public string LogMessage { get; private set; } = DEFAULT;
     public string LogLevel { get; private set; } = DEFAULT;
 
-    public LogViewerLine(string log, string? exceptionLog = null)
+    public LogViewerLine(string log, bool exceptionLog)
     {
         RawLog = log;
-        RawExceptionLog = exceptionLog;
+        IsException = exceptionLog;
 
         ParseLog();
     }

@@ -86,6 +86,12 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         WriteGenericLog($"{log}\n", Brushes.Red, logType: LogType.Error);
     }
 
+    public void LogError(Exception ex)
+    {
+        FileLogger.LogException(ex);
+        WriteGenericLog($"{ex}\n", Brushes.Red, logType: LogType.Error);
+    }
+
     [Conditional("DEBUG")]
     public void LogDebug(string log)
     {

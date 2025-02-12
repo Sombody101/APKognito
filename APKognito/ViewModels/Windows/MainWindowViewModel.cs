@@ -151,6 +151,14 @@ public partial class MainWindowViewModel : LoggableObservableObject
         _cleanupDebounce = false;
     }
 
+    [RelayCommand]
+    private static void OnSimulateCrash()
+    {
+#if DEBUG
+        throw new DebugOnlyException();
+#endif
+    }
+
     #endregion Commands
 
     public static readonly bool LaunchedAsAdministrator =

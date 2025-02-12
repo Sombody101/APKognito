@@ -31,6 +31,8 @@
     <Window.InputBindings>
         <KeyBinding Command="{Binding ViewModel.SaveAllConfigsCommand}" Gesture="CTRL+S" />
         <KeyBinding Command="{Binding ViewModel.ForceGarbageCollectionCommand}" Gesture="CTRL+SHIFT+G" />
+
+        <KeyBinding Command="{Binding ViewModel.SimulateCrashCommand}" Gesture="CTRL+SHIFT+ALT+Q" />
     </Window.InputBindings>
 
     <Grid>
