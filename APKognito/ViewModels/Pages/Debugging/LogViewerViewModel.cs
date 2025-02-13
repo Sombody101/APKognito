@@ -30,18 +30,19 @@ public partial class LogViewerViewModel : LoggableObservableObject
     private string _logpackPath = "None selected.";
 
     [ObservableProperty]
-    private ObservableCollection<LogViewerLine> _logLines = [
-#if DEBUG
-        new("[10:12:55.999 PM: INFO] \t[App.OnStartup] App start. v1.8.9150.29065, Release", false),
-        new("[10:12:55.999 AM: INFO] \t[AutoUpdaterService.LogNextUpdate] Next update check will be at x/xx/xxxx x:xx:xx FM", false),
-#endif
-    ];
+    private ObservableCollection<LogViewerLine> _logLines = [];
 
     #endregion Properties
 
     public LogViewerViewModel()
     {
         // For designer
+        _logLines = [
+#if DEBUG
+        new("[10:12:55.999 PM: INFO] \t[App.OnStartup] App start. v1.8.9150.29065, Release", false),
+        new("[10:12:55.999 AM: INFO] \t[AutoUpdaterService.LogNextUpdate] Next update check will be at x/xx/xxxx x:xx:xx FM", false),
+#endif
+        ];
     }
 
     public LogViewerViewModel(ISnackbarService _snackbarService)
@@ -198,22 +199,32 @@ public partial class LogViewerViewModel : LoggableObservableObject
                 continue;
             }
 
+            if (exceptionLogsAvailable && line.StartsWith("Exception: "))
+            {
+                logBuilder.AppendLine(await GetNextException(exLogReader));
+                isException = true;
+                continue;
+            }
+
             logBuilder.AppendLine(line.Trim());
 
             // The start of a log line.
             if (logStreamReader.Peek() is '[')
             {
-                LogViewerLine newLine = new(logBuilder.ToString().TrimEnd(), isException);
-                LogLines.Add(newLine);
+                FinalizeLog();
+            }
+        }
 
-                logBuilder.Clear();
-                isException = false;
-            }
-            else if (exceptionLogsAvailable && line.StartsWith("Exception: "))
-            {
-                logBuilder.AppendLine(await GetNextException(exLogReader));
-                isException = true;
-            }
+        FinalizeLog();
+
+        void FinalizeLog()
+        {
+            string log = logBuilder.ToString().TrimEnd();
+            LogViewerLine newLine = new(log, isException);
+            LogLines.Add(newLine);
+
+            logBuilder.Clear();
+            isException = false;
         }
     }
 

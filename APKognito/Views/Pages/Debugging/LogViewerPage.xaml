@@ -46,7 +46,7 @@
                     IsReadOnly="True"
                     IsSynchronizedWithCurrentItem="True"
                     ItemsSource="{Binding ViewModel.RecentPacks}"
-                    SelectedItem="{Binding ViewModel.LogpackPath}"
+                    SelectedItem="{Binding ViewModel.LogpackPath, UpdateSourceTrigger=PropertyChanged}"
                     SelectionChanged="ComboBox_SelectionChanged" />
 
                 <ui:Button
@@ -108,6 +108,7 @@
                         <ListBox.ItemContainerStyle>
                             <Style BasedOn="{StaticResource {x:Type ListBoxItem}}" TargetType="{x:Type ListBoxItem}">
                                 <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,0,0,5" />
                             </Style>
                         </ListBox.ItemContainerStyle>
 
@@ -115,7 +116,7 @@
                             <DataTemplate>
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition />
+                                        <RowDefinition Height="auto" />
                                         <RowDefinition />
                                     </Grid.RowDefinitions>
 
@@ -124,11 +125,19 @@
                                         <ColumnDefinition />
                                     </Grid.ColumnDefinitions>
 
-                                    <ui:TextBlock Grid.Column="0" FontWeight="Bold">
+                                    <ui:TextBlock Text="{Binding LogLevel}" />
+
+                                    <ui:TextBlock
+                                        Grid.Row="1"
+                                        Grid.Column="0"
+                                        FontWeight="Bold">
                                         <Run Text="{Binding LogTime, Mode=OneWay}" /><Run Text=":" />
                                     </ui:TextBlock>
 
-                                    <ui:TextBlock Grid.Column="1" Text="{Binding LogMessage}" />
+                                    <ui:TextBlock
+                                        Grid.Row="1"
+                                        Grid.Column="1"
+                                        Text="{Binding LogMessage}" />
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

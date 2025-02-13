@@ -1,11 +1,10 @@
 ﻿using APKognito.Utilities;
 using System.Globalization;
-using System.IO;
 using System.Text.RegularExpressions;
 
 namespace APKognito.Models;
 
-public class LogViewerLine
+public partial class LogViewerLine
 {
     private const string DEFAULT = "[None]";
 
@@ -32,8 +31,7 @@ public class LogViewerLine
             throw new ArgumentException("Invalid or empty raw log");
         }
 
-        string pattern = @"\[(.*?)\]\s*\[(.*?)\]\s*(.*)";
-        Match match = Regex.Match(RawLog, pattern);
+        Match match = LogParseRegex().Match(RawLog);
 
         if (!match.Success)
         {
@@ -41,10 +39,10 @@ public class LogViewerLine
         }
 
         string timeString = match.Groups[1].Value;
-        int lastSpace = timeString.LastIndexOf(' ');
-        timeString = timeString[..(lastSpace + 1)];
+        int lastSpace = timeString.LastIndexOf(' ') + 1;
 
         LogLevel = timeString[lastSpace..];
+        timeString = timeString[..lastSpace];
         CallSite = match.Groups[2].Value;
         LogMessage = match.Groups[3].Value;
         LogTime = DateTime.ParseExact(timeString, FileLogger.TimeFormatString, CultureInfo.InvariantCulture);
@@ -54,4 +52,7 @@ public class LogViewerLine
     {
         return RawLog;
     }
+
+    [GeneratedRegex(@"\[(.*?)\]\s*\[(.*?)\]\s*(.*)")]
+    private static partial Regex LogParseRegex();
 }

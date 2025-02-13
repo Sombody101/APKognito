@@ -31,6 +31,8 @@ public partial class LogViewerPage : INavigableView<LogViewerViewModel>, IViewab
 
     private async void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        return;
+
         string? path = ViewModel.LogpackPath ?? ((string)((ComboBox)sender).SelectedItem);
 
         if (path is null)
