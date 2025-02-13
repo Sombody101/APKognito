@@ -1,7 +1,6 @@
 ﻿using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages.Debugging;
 using Wpf.Ui.Controls;
-using ComboBox = System.Windows.Controls.ComboBox;
 
 namespace APKognito.Views.Pages.Debugging;
 
@@ -27,20 +26,5 @@ public partial class LogViewerPage : INavigableView<LogViewerViewModel>, IViewab
         // For designer
         DataContext = this;
         ViewModel = new();
-    }
-
-    private async void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        return;
-
-        string? path = ViewModel.LogpackPath ?? ((string)((ComboBox)sender).SelectedItem);
-
-        if (path is null)
-        {
-            return;
-        }
-
-        ViewModel.LogpackPath = path;
-        await ViewModel.OpenLogpack(path);
     }
 }

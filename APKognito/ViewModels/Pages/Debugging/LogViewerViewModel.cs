@@ -41,8 +41,19 @@ public partial class LogViewerViewModel : LoggableObservableObject
 #if DEBUG
         new("[10:12:55.999 PM: INFO] \t[App.OnStartup] App start. v1.8.9150.29065, Release", false),
         new("[10:12:55.999 AM: INFO] \t[AutoUpdaterService.LogNextUpdate] Next update check will be at x/xx/xxxx x:xx:xx FM", false),
+        new("[04:01:36.955 PM: INFO] \t[JavaVersionLocator.CheckLtsDirectory] Checking Java latest directory...\r\n" +
+        "[04:01:37.041 PM: ]: EXCEPTION[No log]: DirectoryNotFoundException: Could not find a part of the path 'C:\\Program Files\\Java\\latest'.\r\n" +
+        "   at System.IO.Enumeration.FileSystemEnumerator`1.CreateDirectoryHandle(String path, Boolean ignoreNotFound)\r\n" +
+        "   at System.IO.Enumeration.FileSystemEnumerator`1.Init()\r\n" +
+        "   at System.IO.Enumeration.FileSystemEnumerable`1..ctor(String directory, FindTransform transform, EnumerationOptions options, Boolean isNormalized)\r\n" +
+        "   at System.IO.Enumeration.FileSystemEnumerableFactory.UserDirectories(String directory, String expression, EnumerationOptions options)\r\n" +
+        "   at System.IO.Directory.InternalEnumeratePaths(String path, String searchPattern, SearchTarget searchTarget, EnumerationOptions options)\r\n" +
+        "   at System.IO.Directory.GetDirectories(String path, String searchPattern, EnumerationOptions enumerationOptions)\r\n" +
+        "   at APKognito.Utilities.JavaVersionLocator.CheckLtsDirectory(String& javaPath) in C:\\Users\\[:USER:]\\repo\\APKognito\\APKognito\\Utilities\\JavaVersionLocator.cs:line 106", true),
 #endif
         ];
+
+        RefreshRecents();
     }
 
     public LogViewerViewModel(ISnackbarService _snackbarService)
@@ -240,7 +251,12 @@ public partial class LogViewerViewModel : LoggableObservableObject
         string? line;
         while ((line = await exReader.ReadLineAsync()) is not (null or "-- END LOG --"))
         {
-            sb.AppendLine(line);
+            if (string.IsNullOrEmpty(line))
+            {
+                continue;
+            }
+
+            sb.AppendLine(line.TrimEnd());
         }
 
         return sb.ToString();

@@ -11,7 +11,7 @@
     d:DataContext="{d:DesignInstance local:LogViewerPage,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="800"
-    d:DesignWidth="800"
+    d:DesignWidth="1600"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -20,7 +20,7 @@
 
     <Grid Margin="0,10">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width=".3*" />
             <ColumnDefinition Width="auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
@@ -46,8 +46,7 @@
                     IsReadOnly="True"
                     IsSynchronizedWithCurrentItem="True"
                     ItemsSource="{Binding ViewModel.RecentPacks}"
-                    SelectedItem="{Binding ViewModel.LogpackPath, UpdateSourceTrigger=PropertyChanged}"
-                    SelectionChanged="ComboBox_SelectionChanged" />
+                    SelectedItem="{Binding ViewModel.LogpackPath, UpdateSourceTrigger=PropertyChanged}" />
 
                 <ui:Button
                     Margin="0,0,0,10"
@@ -117,11 +116,12 @@
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="auto" />
-                                        <RowDefinition />
+                                        <RowDefinition Height="auto" />
+                                        <RowDefinition Height="auto" />
                                     </Grid.RowDefinitions>
 
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition MaxWidth="125" />
                                         <ColumnDefinition />
                                     </Grid.ColumnDefinitions>
 
@@ -130,14 +130,19 @@
                                     <ui:TextBlock
                                         Grid.Row="1"
                                         Grid.Column="0"
-                                        FontWeight="Bold">
-                                        <Run Text="{Binding LogTime, Mode=OneWay}" /><Run Text=":" />
-                                    </ui:TextBlock>
+                                        FontWeight="Bold"
+                                        Text="{Binding LogTime}" />
 
                                     <ui:TextBlock
                                         Grid.Row="1"
                                         Grid.Column="1"
                                         Text="{Binding LogMessage}" />
+
+                                    <ui:TextBlock
+                                        Grid.Row="2"
+                                        Grid.ColumnSpan="3"
+                                        Text="{Binding ExceptionLog}"
+                                        Visibility="{Binding ExceptionLogVisible, Mode=OneTime}" />
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
