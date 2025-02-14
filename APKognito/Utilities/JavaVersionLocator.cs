@@ -28,7 +28,7 @@ internal static class JavaVersionLocator
         if (skipIfSet && JavaIsUpToDate && File.Exists(JavaExecutablePath))
         {
             // Java already found
-            _logger?.Log($"Using cached Java version {rawJavaVersion}");
+            _logger?.Log($"Using cached Java version '{rawJavaVersion}'");
 
             javaPath = JavaExecutablePath;
             return true;
@@ -38,7 +38,7 @@ internal static class JavaVersionLocator
         JavaIsUpToDate = VerifyJavaInstallation(out javaPath);
         JavaExecutablePath = javaPath;
 
-        FileLogger.Log($"Using Java version {rawJavaVersion}");
+        FileLogger.Log($"Using Java version '{rawJavaVersion}'");
 
         return JavaIsUpToDate;
     }
@@ -47,9 +47,10 @@ internal static class JavaVersionLocator
     {
         javaPath = null;
 
-        // Check for JDK via registry
+        // Check for JDK via registry (there's likely not a Java install if these don't exist)
         try
         {
+            FileLogger.Log("Checking Registry for JRE installation.");
             if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
                 || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath))
             {
@@ -64,6 +65,7 @@ internal static class JavaVersionLocator
         // Checks C:\Program Files\Java\latest
         try
         {
+            FileLogger.Log("Checking Registry for JDK installation.");
             if (CheckLtsDirectory(out javaPath))
             {
                 return true;
@@ -77,6 +79,7 @@ internal static class JavaVersionLocator
         // Checks the JAVA_HOME environment variable (requires jimmy-rigged parsing, not super reliable)
         try
         {
+            FileLogger.Log("Checking JAVA_HOME environment variable.");
             if (CheckJavaHome(out javaPath))
             {
                 return true;
@@ -96,14 +99,19 @@ internal static class JavaVersionLocator
     [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "nuh uh")]
     private static bool CheckLtsDirectory(out string? javaPath)
     {
+        const string JAVA_LTS_DIRECTORY = @"C:\Program Files\Java\latest";
+
         javaPath = null;
 
-        FileLogger.Log("Checking Java latest directory...");
+        if (!Directory.Exists(JAVA_LTS_DIRECTORY))
+        {
+            return false;
+        }
 
         try
         {
             // Check for 'latest' directory, use the shortcut to the latest JRE version.
-            string[] dirs = Directory.GetDirectories(@"C:\Program Files\Java\latest");
+            string[] dirs = Directory.GetDirectories(JAVA_LTS_DIRECTORY);
             if (dirs.Length > 0)
             {
                 DirectoryInfo latest = new(dirs[0]);
