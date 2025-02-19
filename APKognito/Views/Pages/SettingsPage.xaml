@@ -110,11 +110,10 @@
 
                     <ui:NumberBox
                         Grid.Column="1"
-                        Width="130"
+                        Width="120"
                         HorizontalAlignment="Right"
                         Maximum="9999"
                         Minimum="1"
-                        PlaceholderText="Update Delay (minutes)"
                         Value="{Binding ViewModel.UpdateDelay, Mode=TwoWay}" />
                 </Grid>
                 <Separator />
@@ -145,7 +144,7 @@
                         HorizontalAlignment="Right"
                         Command="{Binding ViewModel.SaveUpdatesSettingsCommand}"
                         Content="Save Settings"
-                        ToolTip="Saves your update preferences to file." />
+                        ToolTip="Saves your update preferences." />
                 </Grid>
             </StackPanel>
         </ui:CardExpander>
@@ -229,6 +228,12 @@
                         OffContent="No"
                         OnContent="Yes" />
                 </Grid>
+                <Separator />
+                <ui:CardAction
+                    Margin="16"
+                    Command="{Binding ViewModel.NavigateToLogViewerCommand}"
+                    Content="Open LogViewer Page"
+                    Icon="{ui:SymbolIcon Symbol=ContentViewGallery28}" />
             </StackPanel>
         </ui:CardExpander>
 
@@ -266,17 +271,17 @@
                     <ui:TextBlock
                         Grid.Row="1"
                         Grid.Column="1"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                        Text="© 2024 Sombody101" />
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                        <Run Text="© 2024 Sombody101" />
+                        <Run Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
+                    </ui:TextBlock>
 
                     <ui:TextBlock
                         Grid.RowSpan="2"
                         Grid.Column="3"
-                        Margin="0,0,16,0"
                         HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
+                        VerticalAlignment="Bottom"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" />
                 </Grid>
             </ui:CardExpander.Header>
             <TextBlock Margin="16" Text="{Binding ViewModel.FullAppVersion, Mode=OneWay}" />
@@ -327,11 +332,28 @@
         </ui:CardAction>
 
         <Separator Margin="0,10" />
-        <TextBlock Margin="0,0,0,30" HorizontalAlignment="Center">
-            <Run Text="Found a bug? Create an" />
-            <Hyperlink NavigateUri="https://github.com/Sombody101/APKognito/issues" RequestNavigate="Hyperlink_RequestNavigate">
-                issue on Github!
-            </Hyperlink>
-        </TextBlock>
+
+        <ui:Card Margin="0,0,0,30">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+
+                <ui:TextBlock Margin="0,0,0,10" HorizontalAlignment="Center">
+                    <Run Text="Have an idea you want implemented in APKognito? Submit a" />
+                    <Hyperlink NavigateUri="https://github.com/Sombody101/APKognito/issues/new?template=bug_report.md" RequestNavigate="Hyperlink_RequestNavigate">
+                        feature request on Github!
+                    </Hyperlink>
+                </ui:TextBlock>
+
+                <TextBlock Grid.Row="1" HorizontalAlignment="Center">
+                    <Run Text="Found a bug? Create an" />
+                    <Hyperlink NavigateUri="https://github.com/Sombody101/APKognito/issues/new?template=bug_report.md" RequestNavigate="Hyperlink_RequestNavigate">
+                        issue on Github!
+                    </Hyperlink>
+                </TextBlock>
+            </Grid>
+        </ui:Card>
     </StackPanel>
 </Page>

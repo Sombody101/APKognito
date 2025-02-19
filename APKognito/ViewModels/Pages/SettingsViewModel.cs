@@ -3,6 +3,8 @@ using APKognito.Configurations.ConfigModels;
 using APKognito.Models.Settings;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
+using APKognito.Views.Pages.Debugging;
+using APKognito.Views.Windows;
 using System.IO;
 using System.Reflection;
 using Wpf.Ui;
@@ -12,7 +14,7 @@ using Wpf.Ui.Extensions;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class SettingsViewModel : ViewModel, IViewable
+public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
 {
     private readonly IContentDialogService contentDialogService;
     private readonly UpdateConfig updateConfig;
@@ -77,6 +79,7 @@ public partial class SettingsViewModel : ViewModel, IViewable
     public SettingsViewModel()
     {
         // For designer
+        OnNavigatedTo();
     }
 
     public SettingsViewModel(IContentDialogService _contentDialogService)
@@ -148,6 +151,12 @@ public partial class SettingsViewModel : ViewModel, IViewable
         {
             return;
         }
+    }
+
+    [RelayCommand]
+    private static void OnNavigateToLogViewer()
+    {
+        ((MainWindow)App.Current.MainWindow).Navigate(typeof(LogViewerPage));
     }
 
     #endregion Commands
