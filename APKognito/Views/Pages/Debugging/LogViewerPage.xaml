@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helper="clr-namespace:APKognito.Helpers"
     xmlns:local="clr-namespace:APKognito.Views.Pages.Debugging"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -39,29 +40,58 @@
             Margin="0,0,5,0"
             VerticalAlignment="Stretch"
             VerticalContentAlignment="Top">
-            <StackPanel>
-                <ComboBox
-                    Margin="0,0,0,10"
-                    IsEditable="False"
-                    IsReadOnly="True"
-                    IsSynchronizedWithCurrentItem="True"
-                    ItemsSource="{Binding ViewModel.RecentPacks}"
-                    SelectedItem="{Binding ViewModel.LogpackPath, UpdateSourceTrigger=PropertyChanged}" />
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="10*" />
+                    <RowDefinition Height="auto" />
+                </Grid.RowDefinitions>
 
-                <ui:Button
-                    Margin="0,0,0,10"
-                    HorizontalAlignment="Stretch"
-                    Command="{Binding ViewModel.LoadLogpackCommand}"
-                    Content="Load Logpack" />
+                <StackPanel>
+                    <StackPanel.Resources>
+                        <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="{x:Type ui:Button}">
+                            <Setter Property="Margin" Value="0,0,0,10" />
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                        </Style>
+                        <Style BasedOn="{StaticResource {x:Type ui:ToggleSwitch}}" TargetType="{x:Type ui:ToggleSwitch}">
+                            <Setter Property="Margin" Value="0,0,0,10" />
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                        </Style>
+                    </StackPanel.Resources>
 
-                <ui:Button
-                    Margin="0,0,0,10"
-                    HorizontalAlignment="Stretch"
-                    Command="{Binding ViewModel.ReloadPackCommand}"
-                    Content="Reload Pack" />
+                    <ComboBox
+                        Margin="0,0,0,10"
+                        IsEditable="False"
+                        IsReadOnly="True"
+                        IsSynchronizedWithCurrentItem="True"
+                        ItemsSource="{Binding ViewModel.RecentPacks}"
+                        SelectedItem="{Binding ViewModel.LogpackPath, UpdateSourceTrigger=PropertyChanged}" />
 
-                <Separator />
-            </StackPanel>
+                    <ui:Button Command="{Binding ViewModel.LoadLogpackCommand}" Content="Load Logpack" />
+                    <ui:Button Command="{Binding ViewModel.ReloadPackCommand}" Content="Reload Pack" />
+
+                    <Separator Margin="0,0,0,5" />
+
+                    <ui:Button Command="{Binding ViewModel.CreateLogpackCommand}" Content="Create Logpack" />
+                    <ui:Button Command="{Binding ViewModel.OpenAppDataCommand}" Content="Open AppData" />
+
+                    <Separator Margin="0,0,0,5" />
+
+                    <Label Content="Log type" />
+                    <ComboBox
+                        Margin="0,0,0,10"
+                        ItemsSource="{Binding ViewModel.LogLevelCombo}"
+                        SelectedItem="{Binding ViewModel.SelectedLogFilter}" />
+
+                    <Separator Margin="0,0,0,5" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" VerticalAlignment="Stretch">
+                    <ui:TextBlock>
+                        <Run Text="Creator version:" />
+                        <Run Text="{Binding ViewModel.LogpackCreatorVersion}" />
+                    </ui:TextBlock>
+                </StackPanel>
+            </Grid>
         </ui:Card>
 
         <Grid Grid.Column="2">
@@ -69,7 +99,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition />
                 <RowDefinition Height="auto" />
-                <RowDefinition />
+                <RowDefinition Height=".25*" />
             </Grid.RowDefinitions>
 
             <GridSplitter
@@ -94,10 +124,24 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <ui:TextBox
-                        Grid.Row="0"
-                        Margin="0,0,0,5"
-                        PlaceholderText="Search..." />
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <CheckBox
+                            Margin="0,0,5,0"
+                            IsChecked="{Binding ViewModel.CaseSensitiveSearch}"
+                            ToolTip="Case sensitive search" />
+
+                        <ui:TextBox
+                            Grid.Column="1"
+                            Margin="0,0,0,5"
+                            KeyUp="TextBox_KeyUp"
+                            PlaceholderText="Search..."
+                            Text="{Binding ViewModel.SearchFilterText}" />
+                    </Grid>
 
                     <ListBox
                         Grid.Row="1"
@@ -106,44 +150,87 @@
 
                         <ListBox.ItemContainerStyle>
                             <Style BasedOn="{StaticResource {x:Type ListBoxItem}}" TargetType="{x:Type ListBoxItem}">
+                                <Style.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="5" />
+                                    </Style>
+                                </Style.Resources>
+
                                 <Setter Property="Padding" Value="0" />
-                                <Setter Property="Margin" Value="0,0,0,5" />
                             </Style>
                         </ListBox.ItemContainerStyle>
 
+                        <ListBox.Resources>
+                            <ResourceDictionary>
+                                <helper:BoolToVisibility x:Key="BoolToVisibility" />
+                            </ResourceDictionary>
+                        </ListBox.Resources>
+
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="auto" />
-                                        <RowDefinition Height="auto" />
-                                        <RowDefinition Height="auto" />
-                                    </Grid.RowDefinitions>
+                                <ui:Card Background="{Binding Background}">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="auto" />
+                                            <RowDefinition Height="auto" />
+                                            <RowDefinition Height="auto" />
+                                        </Grid.RowDefinitions>
 
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition MaxWidth="125" />
-                                        <ColumnDefinition />
-                                    </Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition MaxWidth="100" />
+                                            <ColumnDefinition />
+                                        </Grid.ColumnDefinitions>
 
-                                    <ui:TextBlock Text="{Binding LogLevel}" />
+                                        <StackPanel Grid.ColumnSpan="3" Orientation="Horizontal">
+                                            <ui:TextBlock
+                                                Margin="0,0,5,0"
+                                                FontWeight="Bold"
+                                                Text="{Binding LogLevel}" />
 
-                                    <ui:TextBlock
-                                        Grid.Row="1"
-                                        Grid.Column="0"
-                                        FontWeight="Bold"
-                                        Text="{Binding LogTime}" />
+                                            <ui:SymbolIcon
+                                                Filled="True"
+                                                FontSize="18"
+                                                Foreground="Yellow"
+                                                Symbol="ShieldError24"
+                                                ToolTip="App was launched as administrator when this occured."
+                                                Visibility="{Binding IsAdmin, Converter={StaticResource BoolToVisibility}}" />
 
-                                    <ui:TextBlock
-                                        Grid.Row="1"
-                                        Grid.Column="1"
-                                        Text="{Binding LogMessage}" />
+                                            <ui:TextBlock Text="{Binding CallSite}" />
+                                        </StackPanel>
 
-                                    <ui:TextBlock
-                                        Grid.Row="2"
-                                        Grid.ColumnSpan="3"
-                                        Text="{Binding ExceptionLog}"
-                                        Visibility="{Binding ExceptionLogVisible, Mode=OneTime}" />
-                                </Grid>
+                                        <ui:TextBlock
+                                            Grid.Row="1"
+                                            Grid.Column="0"
+                                            FontWeight="Bold"
+                                            Text="{Binding LogTime}" />
+
+                                        <ui:TextBlock
+                                            Grid.Row="1"
+                                            Grid.Column="1"
+                                            Text="{Binding LogMessage}" />
+
+                                        <ui:Card
+                                            Grid.Row="2"
+                                            Grid.ColumnSpan="3"
+                                            Margin="5,0,5,5"
+                                            Background="#F44336"
+                                            Visibility="{Binding ExceptionLogVisible, Mode=OneTime}">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition />
+                                                    <RowDefinition />
+                                                </Grid.RowDefinitions>
+
+                                                <ui:TextBlock>
+                                                    <Run FontWeight="Bold" Text="Exception Callsite:" />
+                                                    <Run Text="{Binding CallSite, Mode=OneWay}" />
+                                                </ui:TextBlock>
+
+                                                <ui:TextBlock Grid.Row="1" Text="{Binding ExceptionLog}" />
+                                            </Grid>
+                                        </ui:Card>
+                                    </Grid>
+                                </ui:Card>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>

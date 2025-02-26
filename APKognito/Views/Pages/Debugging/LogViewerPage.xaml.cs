@@ -27,4 +27,9 @@ public partial class LogViewerPage : INavigableView<LogViewerViewModel>, IViewab
         DataContext = this;
         ViewModel = new();
     }
+
+    private void TextBox_KeyUp(object sender, KeyEventArgs e)
+    {
+        App.ForwardKeystrokeToBinding(sender);
+    }
 }

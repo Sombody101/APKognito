@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Helpers;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
@@ -13,7 +14,10 @@ namespace APKognito.ViewModels.Pages.Debugging;
 
 public partial class LogViewerViewModel : LoggableObservableObject
 {
-    private readonly LogViewerConfig viewerConfig = ConfigurationFactory.GetConfig<LogViewerConfig>();
+    private readonly LogViewerConfig viewerConfig = ConfigurationFactory.Instance.GetConfig<LogViewerConfig>();
+
+    // These aren't really being "cached", but it sounds weirder to say "realLogs"
+    private List<LogViewerLine> _cachedLogs = [];
 
     #region Properties
 
@@ -21,10 +25,13 @@ public partial class LogViewerViewModel : LoggableObservableObject
     private ObservableCollection<string> _recentPacks = [];
 
     [ObservableProperty]
-    private string _logpackCreatorVersion = string.Empty;
+    private string _logpackCreatorVersion = "Unkown";
 
     [ObservableProperty]
-    private string _filterSearch = string.Empty;
+    private string _searchFilterText = string.Empty;
+
+    [ObservableProperty]
+    private bool _caseSensitiveSearch = false;
 
     [ObservableProperty]
     private string _logpackPath = "None selected.";
@@ -32,10 +39,18 @@ public partial class LogViewerViewModel : LoggableObservableObject
     [ObservableProperty]
     private ObservableCollection<LogViewerLine> _logLines = [];
 
+    [ObservableProperty]
+    private LogLevel[] _logLevelCombo = [.. Enum.GetValues(typeof(LogLevel)).Cast<LogLevel>()];
+
+    [ObservableProperty]
+    private LogLevel _selectedLogFilter = LogLevel.ANY;
+
     #endregion Properties
 
     public LogViewerViewModel()
     {
+        DisableFileLogging = true;
+
         // For designer
         _logLines = [
 #if DEBUG
@@ -58,8 +73,13 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
     public LogViewerViewModel(ISnackbarService _snackbarService)
     {
+        DisableFileLogging = true;
         SetSnackbarProvider(_snackbarService);
+
+        Log($"Loading recent logs ({viewerConfig.RecentPacks.Count})");
         RefreshRecents();
+
+        Log("Ready to load logpack.");
     }
 
     #region Commands
@@ -93,7 +113,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
             AddOrMoveRecent(LogpackPath);
 
             RefreshRecents();
-            ConfigurationFactory.SaveConfig(viewerConfig);
+            ConfigurationFactory.Instance.SaveConfig(viewerConfig);
         }
         catch (Exception ex)
         {
@@ -114,7 +134,39 @@ public partial class LogViewerViewModel : LoggableObservableObject
         await OpenLogpack(LogpackPath);
     }
 
+    [RelayCommand]
+    private static void OnCreateLogpack()
+    {
+        SettingsViewModel.CreateLogPack();
+    }
+
+    [RelayCommand]
+    private static void OnOpenAppData()
+    {
+        App.OpenDirectory(App.AppDataDirectory!.FullName);
+    }
+
     #endregion Commands
+
+    partial void OnLogpackPathChanged(string value)
+    {
+        AddOrMoveRecent(value);
+    }
+
+    partial void OnSearchFilterTextChanged(string value)
+    {
+        MoveCacheLogsToView(value);
+    }
+
+    partial void OnCaseSensitiveSearchChanged(bool value)
+    {
+        MoveCacheLogsToView(SearchFilterText);
+    }
+
+    partial void OnSelectedLogFilterChanged(LogLevel value)
+    {
+        OnSearchFilterTextChanged(SearchFilterText);
+    }
 
     public async Task OpenLogpack(string packPath)
     {
@@ -131,6 +183,28 @@ public partial class LogViewerViewModel : LoggableObservableObject
         }
     }
 
+    private void MoveCacheLogsToView(string filter)
+    {
+        if (_cachedLogs.Count is 0)
+        {
+            return;
+        }
+
+        bool noTextFilter = string.IsNullOrEmpty(filter);
+        bool noLevelFilter = SelectedLogFilter is LogLevel.ANY;
+        StringComparison comparer = CaseSensitiveSearch
+            ? StringComparison.CurrentCulture
+            : StringComparison.OrdinalIgnoreCase;
+
+        LogLines.Clear();
+
+        foreach (var log in _cachedLogs.Where(l => (noLevelFilter || l.LogLevel == SelectedLogFilter)
+            && (noTextFilter || l.Contains(filter, comparer))))
+        {
+            LogLines.Add(log);
+        }
+    }
+
     private async Task OpenAndDeployLogpack(string packPath)
     {
         if (packPath is null)
@@ -141,12 +215,16 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
         Log($"Opening pack {packPath}");
 
-        using ZipArchive zip = new(File.OpenRead(packPath));
+        using var zipStream = File.OpenRead(packPath);
+        using ZipArchive zip = new(zipStream);
 
         ZipArchiveEntry? appLogs = null, exLogs = null;
 
+        WriteGenericLogLine($"Processing archive files ({GBConverter.FormatSizeFromBytes(zipStream.Length)}):");
         foreach (var entry in zip.Entries)
         {
+            WriteGenericLogLine($"\t{entry.Name} ({GBConverter.FormatSizeFromBytes(entry.Length)})");
+
             switch (entry.Name)
             {
                 case "applog.log": appLogs = entry; break;
@@ -179,7 +257,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
     private async Task ParseOutLogFiles(ZipArchiveEntry logs, ZipArchiveEntry? exLogs)
     {
-        LogLines.Clear();
+        _cachedLogs.Clear();
 
         if (logs.Length is 0)
         {
@@ -217,7 +295,10 @@ public partial class LogViewerViewModel : LoggableObservableObject
                 continue;
             }
 
-            logBuilder.AppendLine(line.Trim());
+            if (!isException)
+            {
+                logBuilder.AppendLine(line.Trim());
+            }
 
             // The start of a log line.
             if (logStreamReader.Peek() is '[')
@@ -232,11 +313,13 @@ public partial class LogViewerViewModel : LoggableObservableObject
         {
             string log = logBuilder.ToString().TrimEnd();
             LogViewerLine newLine = new(log, isException);
-            LogLines.Add(newLine);
+            _cachedLogs.Add(newLine);
 
             logBuilder.Clear();
             isException = false;
         }
+
+        MoveCacheLogsToView(SearchFilterText);
     }
 
     private static async Task<string?> GetNextException(StreamReader? exReader)
@@ -267,6 +350,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
         var recents = viewerConfig.RecentPacks.ToList();
         recents.Reverse();
 
+        RecentPacks.Clear();
         foreach (string pack in recents.Where(File.Exists))
         {
             RecentPacks.Add(pack);
@@ -278,13 +362,18 @@ public partial class LogViewerViewModel : LoggableObservableObject
         int index = RecentPacks.Select((value, idx) => new { value, idx })
             .FirstOrDefault(x => x.value == path)?.idx ?? -1;
 
+        if (index is 0)
+        {
+            return;
+        }
+
         if (index is not -1)
         {
-            RecentPacks.Move(index, RecentPacks.Count - 1);
+            RecentPacks.Move(index, 0);
         }
         else
         {
-            viewerConfig.RecentPacks.Add(path);
+            viewerConfig.RecentPacks.Insert(0, path);
         }
     }
 }
