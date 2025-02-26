@@ -30,6 +30,6 @@
             Padding="80,7,7,7"
             DataContext="{Binding ElementName=this}"
             KeyUp="DirectoryTextBox_KeyUp"
-            Text="{Binding DirectoryPath}" />
+            Text="{Binding DirectoryPath, RelativeSource={RelativeSource AncestorType=local:DirectorySelector}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
     </Grid>
 </UserControl>
