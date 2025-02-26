@@ -38,11 +38,11 @@ public class PackageEntry
                 return "(no assets)";
             }
 
-            return AdbGBConverter.FormatSizeFromBytes(AssetsSizeBytes);
+            return GBConverter.FormatSizeFromBytes(AssetsSizeBytes);
         }
     }
 
-    public string FormattedPackageSize => AdbGBConverter.FormatSizeFromBytes(PackageSizeBytes);
+    public string FormattedPackageSize => GBConverter.FormatSizeFromBytes(PackageSizeBytes);
 
     public string FormattedSaveDataSize
     {
@@ -53,7 +53,7 @@ public class PackageEntry
                 return "(no save data)";
             }
 
-            return AdbGBConverter.FormatSizeFromBytes(SaveDataSizeBytes);
+            return GBConverter.FormatSizeFromBytes(SaveDataSizeBytes);
         }
     }
 
@@ -69,7 +69,7 @@ public class PackageEntry
                 ? 0
                 : SaveDataSizeBytes;
 
-            return AdbGBConverter.FormatSizeFromBytes(PackageSizeBytes + assetsSize + saveDataSize);
+            return GBConverter.FormatSizeFromBytes(PackageSizeBytes + assetsSize + saveDataSize);
         }
     }
 
