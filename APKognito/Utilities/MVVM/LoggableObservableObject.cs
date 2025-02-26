@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Windows.Documents;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Brush = System.Windows.Media.Brush;
 
 namespace APKognito.Utilities.MVVM;
@@ -24,6 +23,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     /* Log box */
     private RichTextBox richTextBox = null!;
+
     public RichTextBox? RichTextBoxInUse => richTextBox;
     public Block RichTextLastBlock => richTextBox.Document.Blocks.LastBlock;
 
@@ -33,8 +33,9 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     /* Configs */
     protected bool LogIconPrefixes = true;
+    protected bool DisableFileLogging = true;
 
-    private List<(string, Brush?, LogType?)>? logBuffer = [];
+    private List<(string log, Brush? color, LogType? type)>? logBuffer = [];
     public void WriteGenericLog(string text, [Optional] Brush color, LogType? logType = LogType.None)
     {
         if (richTextBox is null)
@@ -43,17 +44,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
             return;
         }
 
-        if (logBuffer is not null)
-        {
-            foreach (var logPair in logBuffer)
-            {
-                AppendRunToLogbox(logPair.Item1, logPair.Item2, logType);
-            }
-
-            logBuffer.Clear();
-            logBuffer = null;
-        }
-
+        ClearBuffedLogs();
         AppendRunToLogbox(text, color, logType);
     }
 
@@ -64,46 +55,50 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     public void Log(string log)
     {
-        FileLogger.Log(log);
+        FileLogger.Log(log, DisableFileLogging);
         WriteGenericLog($"{log}\n", logType: LogType.Info);
     }
 
     public void LogSuccess(string log)
     {
-        FileLogger.Log(log);
+        FileLogger.Log(log, DisableFileLogging);
         WriteGenericLog($"{log}\n", Brushes.Green, logType: LogType.Success);
     }
 
     public void LogWarning(string log)
     {
-        FileLogger.LogWarning(log);
+        FileLogger.LogWarning(log, DisableFileLogging);
         WriteGenericLog($"{log}\n", Brushes.Yellow, logType: LogType.Warning);
     }
 
     public void LogError(string log)
     {
-        FileLogger.LogError(log);
+        FileLogger.LogError(log, DisableFileLogging);
         WriteGenericLog($"{log}\n", Brushes.Red, logType: LogType.Error);
     }
 
     public void LogError(Exception ex)
     {
-        FileLogger.LogException(ex);
+        FileLogger.LogException(ex, DisableFileLogging);
         WriteGenericLog($"{ex}\n", Brushes.Red, logType: LogType.Error);
     }
 
-    [Conditional("DEBUG")]
     public void LogDebug(string log)
     {
         FileLogger.LogDebug(log);
+
+#if DEBUG
         WriteGenericLog($"{log}\n", Brushes.Cyan, logType: LogType.Debug);
+#endif
     }
 
-    [Conditional("DEBUG")]
     public void LogDebug(Exception ex)
     {
         FileLogger.LogDebug(ex);
+
+#if DEBUG
         WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", Brushes.Cyan, logType: LogType.Debug);
+#endif
     }
 
     public void ClearLogs()
@@ -115,9 +110,19 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         });
     }
 
+    public async Task ClearLogsAsync()
+    {
+        await richTextBox.Dispatcher.InvokeAsync(() =>
+        {
+            richTextBox.Document.Blocks.Clear();
+            richTextBox.Document.Blocks.Add(new Paragraph());
+        });
+    }
+
     public virtual void AntiMvvm_SetRichTextbox(RichTextBox rtb)
     {
         richTextBox = rtb;
+        ClearBuffedLogs();
     }
 
     protected void SetSnackbarProvider(ISnackbarService _snackbarService)
@@ -125,7 +130,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         snackbarService = _snackbarService;
     }
 
-    public void DisplaySnack(string header, string body, ControlAppearance appearance, int time_ms = 10_000)
+    public void DisplaySnack(string header, string body, ControlAppearance appearance, int displayTimeMs = 10_000)
     {
         if (snackbarService is null)
         {
@@ -149,7 +154,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
             },
         };
 
-        snackbarService.Show(header, body, appearance, icon, TimeSpan.FromMilliseconds(time_ms));
+        snackbarService.Show(header, body, appearance, icon, TimeSpan.FromMilliseconds(displayTimeMs));
     }
 
     public void SnackInfo(string header, string body)
@@ -243,6 +248,22 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
             p.Inlines.Add(log);
             richTextBox.ScrollToEnd();
         });
+    }
+
+    private void ClearBuffedLogs()
+    {
+        if (logBuffer is null)
+        {
+            return;
+        }
+
+        foreach ((string bLog, Brush? bColor, LogType? bType) in logBuffer)
+        {
+            AppendRunToLogbox(bLog, bColor, bType);
+        }
+
+        logBuffer.Clear();
+        logBuffer = null;
     }
 
     public enum LogType
