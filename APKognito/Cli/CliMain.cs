@@ -1,7 +1,6 @@
 ﻿#define DEBUG_WITHOUT_CONSOLE
 
 using APKognito.Utilities;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -32,7 +31,8 @@ internal static class CliMain
         // Check basic input argument first (mostly used for auto publish script)
         if (args.GetVersion)
         {
-            Console.WriteLine(Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString() ?? "[Null]");
+            string foundVersion = Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString() ?? "[Null]";
+            Console.WriteLine(foundVersion);
         }
 
         if (args.StartApp)
@@ -46,12 +46,14 @@ internal static class CliMain
 
     public static void AttachConsole()
     {
-        if (!AttachConsole(-1))
+        if (AttachConsole(-1))
         {
-            // No console handle from the parent
-            FileLogger.LogFatal($"CLI usage attempted. Failed to get parent console handle. Given args:\r\n{string.Join("\r\n\t", Environment.GetCommandLineArgs())}");
-            Environment.Exit((int)ExitCode.ParentConsoleHandleNotFound);
+            return;
         }
+
+        // No console handle from the parent
+        FileLogger.LogFatal($"CLI usage attempted. Failed to get parent console handle. Given args:\r\n{string.Join("\r\n\t", Environment.GetCommandLineArgs())}");
+        Environment.Exit((int)ExitCode.ParentConsoleHandleNotFound);
     }
 
     [DoesNotReturn]
