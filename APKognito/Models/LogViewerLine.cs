@@ -1,6 +1,5 @@
 ﻿using APKognito.Utilities;
 using System.Text.RegularExpressions;
-using Wpf.Ui.Appearance;
 using Brush = System.Windows.Media.Brush;
 
 namespace APKognito.Models;
@@ -18,15 +17,13 @@ public partial class LogViewerLine
     public LogLevel LogLevel { get; private set; }
     public string? ExceptionLog { get; private set; }
 
+    public bool IsAdmin { get; private set; }
+
     public Visibility ExceptionLogVisible => string.IsNullOrEmpty(ExceptionLog)
         ? Visibility.Collapsed
         : Visibility.Visible;
 
-    public Brush Background => LogLevel switch 
-    {
-        LogLevel.INFO => ApplicationAccentColorManager.PrimaryAccentBrush,
-        LogLevel.WARNING => 
-    };
+    public Brush Background => FileLogger.LogLevelToBrush(LogLevel);
 
     public LogViewerLine(string log, bool hasExceptionLog)
     {
@@ -51,12 +48,20 @@ public partial class LogViewerLine
         }
 
         string timeString = match.Groups[1].Value;
-        int lastSpace = timeString.LastIndexOf(' ') + 1;
+        int lastSpace = timeString[..timeString.LastIndexOf(' ')].LastIndexOf(' ') + 1;
 
-        _ = Enum.TryParse(timeString[lastSpace..], out LogLevel level);
+        string rawLogLevel = timeString[lastSpace..];
+
+        if (rawLogLevel.EndsWith("ADMIN"))
+        {
+            IsAdmin = true;
+            rawLogLevel = rawLogLevel[..^6];
+        }
+
+        _ = Enum.TryParse(rawLogLevel, out LogLevel level);
         LogLevel = level;
         timeString = timeString[..lastSpace];
-        CallSite = match.Groups[2].Value;
+        CallSite = match.Groups[2].Value.Replace(".", " → ");
         LogMessage = match.Groups[3].Value;
 
         if (HasException)
@@ -65,6 +70,12 @@ public partial class LogViewerLine
         }
 
         LogTime = timeString;
+    }
+
+    public bool Contains(string key, StringComparison comparison)
+    {
+        return RawLog.Contains(key, comparison)
+            || (HasException && ExceptionLog!.Contains(key, comparison));
     }
 
     private static string ParseExceptionLog(string log)
@@ -86,7 +97,14 @@ public partial class LogViewerLine
             }
         }
 
-        return log[(prefixTrim + 2)..];
+        prefixTrim += 2;
+
+        if (prefixTrim > log.Length)
+        {
+            throw new ArgumentException("Invalid exception format.");
+        }
+
+        return log[prefixTrim..];
     }
 
     public override string ToString()
