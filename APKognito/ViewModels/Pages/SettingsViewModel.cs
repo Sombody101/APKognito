@@ -85,8 +85,8 @@ public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
     public SettingsViewModel(IContentDialogService _contentDialogService)
     {
         contentDialogService = _contentDialogService;
-        updateConfig = ConfigurationFactory.GetConfig<UpdateConfig>();
-        kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
+        updateConfig = ConfigurationFactory.Instance.GetConfig<UpdateConfig>();
+        kognitoConfig = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
 
         AppDataPath = App.AppDataDirectory.FullName;
     }
@@ -102,7 +102,7 @@ public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
     [RelayCommand]
     private void OnSaveUpdatesSettings()
     {
-        ConfigurationFactory.SaveConfig(updateConfig);
+        ConfigurationFactory.Instance.SaveConfig(updateConfig);
     }
 
     [RelayCommand]
@@ -116,7 +116,7 @@ public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
     {
         try
         {
-            ConfigurationFactory.TransferAppStartConfigurations();
+            ConfigurationFactory.Instance.TransferAppStartConfigurations();
         }
         catch (Exception ex)
         {

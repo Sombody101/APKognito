@@ -23,8 +23,7 @@
             <helpers:ThemeToIndexConverter x:Key="ThemeToIndexConverter" />
 
             <StackPanel x:Key="UninstallContent">
-                <TextBlock Text="Lorem ipsum dolor sit amet, adipisicing elit." TextWrapping="Wrap" />
-                <CheckBox Content="Upload your content to the cloud." />
+                <CheckBox x:Name="RemoveConfigurations" Content="Remove all configurations" />
             </StackPanel>
         </ResourceDictionary>
     </Page.Resources>
@@ -99,7 +98,9 @@
                         OffContent="Off"
                         OnContent="On" />
                 </Grid>
+
                 <Separator />
+
                 <Grid Margin="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />
@@ -116,7 +117,9 @@
                         Minimum="1"
                         Value="{Binding ViewModel.UpdateDelay, Mode=TwoWay}" />
                 </Grid>
+
                 <Separator />
+
                 <Grid Margin="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />
