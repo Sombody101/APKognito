@@ -13,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Windows.Data;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
 
@@ -116,7 +117,7 @@ public partial class App
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
         HomeViewModel.Instance?.Log("Saving all settings...");
-        ConfigurationFactory.SaveAllConfigs();
+        ConfigurationFactory.Instance.SaveAllConfigs();
 
         await _host.StopAsync();
 
@@ -175,6 +176,19 @@ public partial class App
         }
     }
 
+    public static void ForwardKeystrokeToBinding(object? sender)
+    {
+        if (sender is not TextBox tBox)
+        {
+            return;
+        }
+
+        DependencyProperty prop = TextBox.TextProperty;
+
+        BindingExpression binding = BindingOperations.GetBindingExpression(tBox, prop);
+        binding?.UpdateSource();
+    }
+
     public readonly struct Version
     {
         public static string GetFullVersion(Assembly? assembly = null)
@@ -182,7 +196,7 @@ public partial class App
             return $"{VersionPrefix}{(assembly ?? Assembly.GetExecutingAssembly()).GetName().Version}";
         }
 
-        public static string GetVersion(Assembly? assembly)
+        public static string GetVersion(Assembly? assembly = null)
         {
             return (assembly ?? Assembly.GetExecutingAssembly()).GetName().Version!.ToString();
         }
