@@ -16,7 +16,7 @@ public class AdbGBConverter : IValueConverter
             }
 
             long size = pair.Key;
-            return FormatSizeFromBytes(size);
+            return GBConverter.FormatSizeFromBytes(size);
         }
 
         return value;
@@ -25,16 +25,5 @@ public class AdbGBConverter : IValueConverter
     object IValueConverter.ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
-    }
-
-    public static string FormatSizeFromBytes(long size)
-    {
-        return size switch
-        {
-            >= (1024 * 1024 * 1024) => $"{size / 1024f / 1024f / 1024f:0.00} GB",
-            >= (1024 * 1024) => $"{size / 1024f / 1024f:n0} MB",
-            >= 1024 => $"{size / 1024f:n0} KB",
-            _ => $"{size} bytes"
-        };
     }
 }
