@@ -81,7 +81,7 @@
                         Grid.Column="1"
                         Margin="0,5"
                         BrowseButtonIcon="{ui:SymbolIcon Symbol=Document20}"
-                        DirectoryPath="{Binding JavaExecutablePath}"
+                        DirectoryPath="{Binding JavaExecutablePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         SelectingDirectory="False" />
                 </Grid>
 
@@ -100,25 +100,25 @@
                     <ctrls:DirectorySelector
                         Grid.Column="1"
                         Margin="0,5"
-                        DirectoryPath="{Binding OutputDirectory}" />
+                        DirectoryPath="{Binding OutputDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
 
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="493*" />
+                        <ColumnDefinition Width="107*" />
                     </Grid.ColumnDefinitions>
 
                     <ui:TextBlock
-                        Grid.Row="2"
                         Height="36"
                         Margin="15,10,0,0"
                         FontWeight="Bold"
                         Text="Output APK Name" />
                     <ui:TextBox
-                        Grid.Row="2"
-                        Grid.Column="2"
-                        Margin="0,5"
+                        Grid.Column="1"
+                        Grid.ColumnSpan="2"
+                        Margin="0,5,0,5"
                         IsEnabled="{Binding CanEdit}"
                         KeyUp="TextBox_KeyUp"
                         PlaceholderText="Replacement name. (e.g.: new-company)"
@@ -180,7 +180,6 @@
                     Command="{Binding SaveSettingsCommand}"
                     Content="Save APK Settings"
                     ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
-
             </StackPanel>
         </ui:CardExpander>
 
@@ -411,7 +410,6 @@
                 </Grid>
 
                 <ProgressBar Grid.Row="1" IsIndeterminate="{Binding RunningJobs}" />
-
             </Grid>
         </ui:Card>
 
