@@ -35,10 +35,6 @@ public partial class HomeViewModel : LoggableObservableObject
 
     // Tool paths
     internal DirectoryInfo TempData;
-    public readonly string
-            ApktoolJarPath,
-            ApktoolBatPath,
-            ApksignerJarPath;
 
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel Instance { get; private set; } = null!;
@@ -166,18 +162,18 @@ public partial class HomeViewModel : LoggableObservableObject
         SetSnackbarProvider(_snackbarService);
         SetCurrentLogger();
 
-        kognitoConfig = ConfigurationFactory.GetConfig<KognitoConfig>();
-        kognitoCache = ConfigurationFactory.GetConfig<CacheStorage>();
-        adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+        kognitoConfig = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
+        kognitoCache = ConfigurationFactory.Instance.GetConfig<CacheStorage>();
+        adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
 
         _copyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming;
 
         string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
 
         _ = Directory.CreateDirectory(appDataTools);
-        ApktoolJarPath = Path.Combine(appDataTools, "apktool.jar");
-        ApktoolBatPath = Path.Combine(appDataTools, "apktool.bat");
-        ApksignerJarPath = Path.Combine(appDataTools, "uber-apk-signer.jar");
+        ApkEditorToolPaths.ApktoolJarPath = Path.Combine(appDataTools, "apktool.jar");
+        ApkEditorToolPaths.ApktoolBatPath = Path.Combine(appDataTools, "apktool.bat");
+        ApkEditorToolPaths.ApksignerJarPath = Path.Combine(appDataTools, "uber-apk-signer.jar");
     }
 
     public async Task Initialize()
@@ -278,8 +274,8 @@ public partial class HomeViewModel : LoggableObservableObject
     [RelayCommand]
     private void OnSaveSettings()
     {
-        ConfigurationFactory.SaveConfig(kognitoConfig);
-        ConfigurationFactory.SaveConfig(kognitoCache);
+        ConfigurationFactory.Instance.SaveConfig(kognitoConfig);
+        ConfigurationFactory.Instance.SaveConfig(kognitoCache);
         Log("Settings saved!");
     }
 
@@ -293,17 +289,22 @@ public partial class HomeViewModel : LoggableObservableObject
                 return;
             }
 
-            foreach (var file in GetFilePaths())
+            foreach (var filePath in GetFilePaths())
             {
-                var context = new ApkEditorContext(this, javaPath!, file, true);
-
-                string outputDirectory = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file));
-                string apkFileName = Path.GetFileName(file);
+                var context = new ApkEditorContext(new()
+                {
+                    JavaPath = javaPath!,
+                    SourceApkPath = filePath,
+                    TempDirectory = TempData.FullName,
+                }, this, true);
+  
+                string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetFileNameWithoutExtension(filePath));
+                string apkFileName = Path.GetFileName(filePath);
 
                 Log($"Unpacking {apkFileName}");
-                await context.UnpackApk(file, outputDirectory);
+                await context.UnpackApk(filePath, outputDirectory);
 
-                Log($"Unpacked {Path.GetFileName(file)} into {outputDirectory}");
+                Log($"Unpacked {Path.GetFileName(filePath)} into {outputDirectory}");
             }
         }
         catch (Exception ex)
@@ -411,6 +412,16 @@ public partial class HomeViewModel : LoggableObservableObject
 
         StartButtonVisible = false;
 
+        ApkRenameSettings sharedRenameSettings = new()
+        {
+            OutputDirectory = OutputDirectory,
+            JavaPath = javaPath,
+            TempDirectory = TempData.FullName,
+            ApkReplacementName = ApkReplacementName,
+
+            OnPackageNameFound = (string name) => FinalName = name,
+        };
+
         int jobIndex = 0;
         foreach (string sourceApkPath in files)
         {
@@ -424,7 +435,10 @@ public partial class HomeViewModel : LoggableObservableObject
 
             JobbedApk = Path.GetFileName(sourceApkPath);
 
-            (string? errorReason, bool apkFailed) = await RunPackageRename(javaPath, sourceApkPath, cancellationToken);
+            sharedRenameSettings.SourceApkPath = sourceApkPath;
+
+            // Rename the package
+            (string? errorReason, bool apkFailed) = await RunPackageRename(sharedRenameSettings, cancellationToken);
 
             if (!apkFailed)
             {
@@ -472,9 +486,9 @@ public partial class HomeViewModel : LoggableObservableObject
 
         // Finalize session and write it to the history file
         RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
-        RenameSessionList renameHistory = ConfigurationFactory.GetConfig<RenameSessionList>();
+        RenameSessionList renameHistory = ConfigurationFactory.Instance.GetConfig<RenameSessionList>();
         renameHistory.RenameSessions.Add(currentSession);
-        ConfigurationFactory.SaveConfig(renameHistory);
+        ConfigurationFactory.Instance.SaveConfig(renameHistory);
 
         elapsedTime.Stop();
         taskTimer.Stop();
@@ -488,14 +502,16 @@ public partial class HomeViewModel : LoggableObservableObject
         CanEdit = true;
     }
 
-    private async Task<(string? error, bool success)> RunPackageRename(string javaPath, string sourceApkPath, CancellationToken cancellationToken)
+    private async Task<(string? error, bool success)> RunPackageRename(ApkRenameSettings renameSettings, CancellationToken cancellationToken)
     {
         string? errorReason;
         bool apkFailed = false;
 
         try
         {
-            ApkEditorContext editorContext = new(this, javaPath, sourceApkPath);
+            FinalName = "Unpacking...";
+
+            ApkEditorContext editorContext = new(renameSettings, this);
             errorReason = await editorContext.RenameApk(cancellationToken);
             apkFailed = errorReason is not null;
 
@@ -633,28 +649,28 @@ public partial class HomeViewModel : LoggableObservableObject
         {
             bool allSuccess = true;
 
-            if (!File.Exists(ApktoolJarPath))
+            if (!File.Exists(ApkEditorToolPaths.ApktoolJarPath))
             {
                 Log("Installing Apktool.jar...");
-                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APKTOOL_JAR_URL_LTST, ApktoolJarPath, this, cToken))
+                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APKTOOL_JAR_URL_LTST, ApkEditorToolPaths.ApktoolJarPath, this, cToken))
                 {
                     allSuccess = false;
                 }
             }
 
-            if (!File.Exists(ApktoolBatPath))
+            if (!File.Exists(ApkEditorToolPaths.ApktoolBatPath))
             {
                 Log("Installing Apktool.bat...");
-                if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, ApktoolBatPath, this, cToken))
+                if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, ApkEditorToolPaths.ApktoolBatPath, this, cToken))
                 {
                     allSuccess = false;
                 }
             }
 
-            if (!File.Exists(ApksignerJarPath))
+            if (!File.Exists(ApkEditorToolPaths.ApksignerJarPath))
             {
                 Log("Installing ApkSigner.jar");
-                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APL_SIGNER_URL_LTST, ApksignerJarPath, this, cToken, 1))
+                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APL_SIGNER_URL_LTST, ApkEditorToolPaths.ApksignerJarPath, this, cToken, 1))
                 {
                     allSuccess = false;
                 }
