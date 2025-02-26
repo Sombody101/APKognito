@@ -55,7 +55,15 @@
 
                     <ui:MenuItem Command="{Binding UpdatePackageListCommand}" ToolTip="Refresh ADB packages.">
                         <ui:MenuItem.Header>
-                            <ui:SymbolIcon Symbol="ArrowCounterclockwise48" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+
+                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowCounterclockwise48" />
+                                <ui:TextBlock Grid.Column="1" Text="Refresh" />
+                            </Grid>
                         </ui:MenuItem.Header>
                     </ui:MenuItem>
 
@@ -66,7 +74,15 @@
                         CommandParameter="{Binding ElementName=PackagesList}"
                         ToolTip="Fully uninstall selected packages.">
                         <ui:MenuItem.Header>
-                            <ui:SymbolIcon Symbol="Delete48" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+
+                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="Delete48" />
+                                <ui:TextBlock Grid.Column="1" Text="Uninstall" />
+                            </Grid>
                         </ui:MenuItem.Header>
                     </ui:MenuItem>
 
@@ -75,7 +91,15 @@
                         CommandParameter="{Binding ElementName=PackagesList}"
                         ToolTip="Soft uninstall selected packages (keeps save data on device).">
                         <ui:MenuItem.Header>
-                            <ui:SymbolIcon Symbol="DeleteLines20" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+
+                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="DeleteLines20" />
+                                <ui:TextBlock Grid.Column="1" Text="Soft Uninstall" />
+                            </Grid>
                         </ui:MenuItem.Header>
                     </ui:MenuItem>
 
@@ -86,7 +110,15 @@
                         CommandParameter="{Binding ElementName=PackagesList}"
                         ToolTip="Pull the selected packages to your PC.">
                         <ui:MenuItem.Header>
-                            <ui:SymbolIcon Symbol="ArrowDownload48" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+
+                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowDownload48" />
+                                <ui:TextBlock Grid.Column="1" Text="Pull" />
+                            </Grid>
                         </ui:MenuItem.Header>
                     </ui:MenuItem>
                 </Menu>
