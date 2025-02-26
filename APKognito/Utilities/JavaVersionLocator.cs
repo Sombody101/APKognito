@@ -52,7 +52,7 @@ internal static class JavaVersionLocator
         {
             FileLogger.Log("Checking Registry for JRE installation.");
             if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
-                || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath))
+                || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath, "JDK"))
             {
                 return true;
             }
@@ -91,12 +91,12 @@ internal static class JavaVersionLocator
         }
 
         // Nothing found, tell user and yeet false
-        logger?.LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows");
-        logger?.LogError("If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
+        logger?.LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows\n" +
+            "If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
+
         return false;
     }
 
-    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "nuh uh")]
     private static bool CheckLtsDirectory(out string? javaPath)
     {
         const string JAVA_LTS_DIRECTORY = @"C:\Program Files\Java\latest";
@@ -179,34 +179,12 @@ internal static class JavaVersionLocator
         }
 
         // Java installation is messed up
+        LogInvalidInstallation(javaHome);
 
-        StringBuilder logBuffer = new();
-        bool binExists = Directory.Exists($"{javaHome}\\bin");
-
-        logBuffer.Append("JAVA_HOME is set to '")
-            .Append(javaHome).Append("', but does not have java.exe. bin\\: does ");
-
-        if (!binExists)
-        {
-            logBuffer.Append("not ");
-        }
-
-        logBuffer.Append("exist.");
-
-        if (binExists)
-        {
-            logBuffer.AppendLine(" Files found in bin\\:");
-            foreach (var file in Directory.GetFiles(javaHome))
-            {
-                logBuffer.Append('\t').AppendLine(Path.GetFileName(file));
-            }
-        }
-
-        FileLogger.LogError(logBuffer.ToString());
         return false;
     }
 
-    private static bool GetKey(RegistryKey? javaJdkKey, out string? javaPath, string javaType = "JDK")
+    private static bool GetKey(RegistryKey? javaJdkKey, out string? javaPath, string javaType)
     {
         javaPath = null;
 
@@ -261,5 +239,32 @@ internal static class JavaVersionLocator
         }
 
         return supportedVersion;
+    }
+
+    private static void LogInvalidInstallation(string javaPath)
+    {
+        StringBuilder logBuffer = new();
+        bool binExists = Directory.Exists($"{javaPath}\\bin");
+
+        logBuffer.Append("JAVA_HOME is set to '")
+            .Append(javaPath).Append("', but does not have java.exe. bin\\: does ");
+
+        if (!binExists)
+        {
+            logBuffer.Append("not ");
+        }
+
+        logBuffer.Append("exist.");
+
+        if (binExists)
+        {
+            logBuffer.AppendLine(" Files found in bin\\:");
+            foreach (var file in Directory.GetFiles(javaPath))
+            {
+                logBuffer.Append('\t').AppendLine(Path.GetFileName(file));
+            }
+        }
+
+        FileLogger.LogError(logBuffer.ToString());
     }
 }
