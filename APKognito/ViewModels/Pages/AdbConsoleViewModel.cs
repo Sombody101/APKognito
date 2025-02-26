@@ -21,8 +21,8 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     private const string VARIABLE_SETTER = "__VARIABLE_SETTER";
 
     private readonly AdbManager adbManager;
-    private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
-    private readonly AdbHistory adbHistory = ConfigurationFactory.GetConfig<AdbHistory>();
+    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+    private readonly AdbHistory adbHistory = ConfigurationFactory.Instance.GetConfig<AdbHistory>();
 
     private int historyIndex;
 
@@ -64,7 +64,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
             adbHistory.CommandHistory.Add(CommandBuffer);
             historyIndex = adbHistory.CommandHistory.Count;
-            ConfigurationFactory.SaveConfig(adbHistory);
+            ConfigurationFactory.Instance.SaveConfig(adbHistory);
 
             if (!string.IsNullOrWhiteSpace(CommandBuffer))
             {
@@ -418,7 +418,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         string cmdlet = ctx[0]!;
         adbConfig.UserCmdlets[cmdlet] = string.Join(' ', ctx[1..]);
         Log($"Cmdlet '::{cmdlet}' created.");
-        ConfigurationFactory.SaveConfig(adbConfig);
+        ConfigurationFactory.Instance.SaveConfig(adbConfig);
     }
 
     [Command("unset", "Removes a custom cmdlet.", "<cmdlet name>")]
@@ -440,7 +440,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         if (adbConfig.UserCmdlets.Remove(cmdlet))
         {
             Log($"Removed cmdlet '{cmdlet}'");
-            ConfigurationFactory.SaveConfig(adbConfig);
+            ConfigurationFactory.Instance.SaveConfig(adbConfig);
         }
         else
         {
@@ -499,7 +499,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
             WriteGenericLogLine("Updating ADB configuration.");
             adbConfig.PlatformToolsPath = $"{appDataPath}\\platform-tools";
-            ConfigurationFactory.SaveConfig(adbConfig);
+            ConfigurationFactory.Instance.SaveConfig(adbConfig);
 
             WriteGenericLogLine("Testing adb...");
             CommandOutput output = (await AdbManager.QuickCommand("--version"));

@@ -26,8 +26,8 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
     public AutoUpdaterService()
     {
-        config = ConfigurationFactory.GetConfig<UpdateConfig>();
-        cache = ConfigurationFactory.GetConfig<CacheStorage>();
+        config = ConfigurationFactory.Instance.GetConfig<UpdateConfig>();
+        cache = ConfigurationFactory.Instance.GetConfig<CacheStorage>();
         currentVersion = Assembly.GetExecutingAssembly().GetName().Version!;
     }
 
@@ -240,7 +240,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             case MessageBoxResult.Secondary:
                 // Cancel automatic updates
                 config.CheckForUpdates = false;
-                ConfigurationFactory.SaveConfig(config);
+                ConfigurationFactory.Instance.SaveConfig(config);
                 return;
 
             default:

@@ -10,7 +10,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class AdbConfigurationViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
 
     #region Properties
 
@@ -65,7 +65,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
             return AdbDevicesStatus.NoDevices;
         }
 
-        adbConfig ??= ConfigurationFactory.GetConfig<AdbConfig>();
+        adbConfig ??= ConfigurationFactory.Instance.GetConfig<AdbConfig>();
 
         if (adbConfig.CurrentDeviceId is not null && foundDevices.Contains(adbConfig.CurrentDeviceId))
         {

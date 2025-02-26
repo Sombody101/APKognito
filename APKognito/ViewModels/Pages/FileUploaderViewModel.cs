@@ -12,7 +12,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class FileUploaderViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
 
     private readonly List<string> _files = [];
 

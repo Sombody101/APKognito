@@ -13,7 +13,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class FileExplorerViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
 
     private int directoryHistoryIndex = -1;
     private readonly List<string> directoryHistory = [];
@@ -113,12 +113,6 @@ public partial class FileExplorerViewModel : LoggableObservableObject
     private async Task OnTryRefreshDirectory()
     {
         await UpdateFolders(directoryHistory[^1]);
-    }
-
-    [RelayCommand]
-    private async Task OnShowProperties(ListView list)
-    {
-
     }
 
     #endregion Commands

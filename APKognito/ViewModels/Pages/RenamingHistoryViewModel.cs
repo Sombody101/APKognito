@@ -8,7 +8,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 {
-    readonly RenameSessionList storedSessions = ConfigurationFactory.GetConfig<RenameSessionList>();
+    readonly RenameSessionList storedSessions = ConfigurationFactory.Instance.GetConfig<RenameSessionList>();
 
     #region Properties
 

@@ -8,18 +8,24 @@ using System.Runtime.InteropServices;
 
 namespace APKognito.Configurations;
 
-public static class ConfigurationFactory
+public class ConfigurationFactory
 {
+    private static readonly ConfigurationFactory _instance = new();
+
+    private readonly string configDirectory = AppDomain.CurrentDomain.BaseDirectory;
+    
     // Keeps the configs "secure" (classes will still have references to each instance, but this ensures there can only be one instance in use at a time)
-    private static readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
-    private static readonly Dictionary<Type, ConfigFileAttribute> _cachedAttributes = [];
+    private readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
+    private readonly Dictionary<Type, ConfigFileAttribute> _cachedAttributes = [];
+
+    public static ConfigurationFactory Instance => _instance;
 
     /// <summary>
     /// Loads the given config type from file. If the file doesn't exist, a default config is returned and no file is created, edited, or destroyed.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static T GetConfig<T>(bool forceReload = false) where T : class, IKognitoConfig, new()
+    public T GetConfig<T>(bool forceReload = false) where T : class, IKognitoConfig, new()
     {
         Type configType = typeof(T);
 
@@ -52,7 +58,7 @@ public static class ConfigurationFactory
     /// <typeparam name="T"></typeparam>
     /// <param name="config"></param>
     /// <returns></returns>
-    public static bool TryGetConfig<T>(out T? config) where T : class, IKognitoConfig, new()
+    public bool TryGetConfig<T>(out T? config) where T : class, IKognitoConfig, new()
     {
         if (_cachedConfigs.TryGetValue(typeof(T), out var fetchedConfig))
         {
@@ -69,7 +75,7 @@ public static class ConfigurationFactory
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static ConfigFileAttribute GetConfigInfo<T>()
+    public ConfigFileAttribute GetConfigInfo<T>()
     {
         return GetConfigAttribute(typeof(T));
     }
@@ -78,11 +84,11 @@ public static class ConfigurationFactory
     /// Saves the given configuration to it's respective file.
     /// </summary>
     /// <param name="config"></param>
-    public static void SaveConfig(IKognitoConfig config, [Optional] ConfigFileAttribute? configAttribute, [Optional] bool forceAppdataSave)
+    public void SaveConfig(IKognitoConfig config, [Optional] ConfigFileAttribute? configAttribute, [Optional] bool forceAppdataSave)
     {
         configAttribute ??= GetConfigAttribute(config.GetType())!;
 
-        string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configAttribute.FileName);
+        string filePath = Path.Combine(configDirectory, configAttribute.FileName);
 
         if (!configAttribute.LoadedFromCurrentDirectory || forceAppdataSave)
         {
@@ -106,7 +112,7 @@ public static class ConfigurationFactory
         }
     }
 
-    public static void SaveConfig<T>()
+    public void SaveConfig<T>()
     {
         Type passedType = typeof(T);
 
@@ -119,7 +125,7 @@ public static class ConfigurationFactory
     /// <summary>
     /// Saves all configs in the config cache to their respective files. Should only be called by <see cref="App.OnExit"/>
     /// </summary>
-    public static void SaveAllConfigs()
+    public void SaveAllConfigs()
     {
         foreach (IKognitoConfig? config in _cachedConfigs.Select(cfg => cfg.Value))
         {
@@ -130,7 +136,7 @@ public static class ConfigurationFactory
     /// <summary>
     /// Transfers all valid configuration files found in the apps startup directory to the respective place in %APPDATA%.
     /// </summary>
-    public static (byte success, byte total) TransferAppStartConfigurations()
+    public (byte success, byte total) TransferAppStartConfigurations()
     {
         byte success = 0, total = 0;
 
@@ -148,7 +154,7 @@ public static class ConfigurationFactory
                 try
                 {
                     // Remove the file once transferred
-                    File.Delete(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, attr.FileName));
+                    File.Delete(Path.Combine(configDirectory, attr.FileName));
                     success++;
                 }
                 catch (Exception ex)
@@ -161,9 +167,9 @@ public static class ConfigurationFactory
         return (success, total);
     }
 
-    private static T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
+    private T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
     {
-        string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configAttribute.FileName);
+        string filePath = Path.Combine(configDirectory, configAttribute.FileName);
 
         // Check if the file was moved into the same directory as the app
         if (!File.Exists(filePath))
@@ -252,7 +258,7 @@ public static class ConfigurationFactory
         serializer.Serialize(jsonWriter, config);
     }
 
-    private static ConfigFileAttribute GetConfigAttribute(Type configType)
+    private ConfigFileAttribute GetConfigAttribute(Type configType)
     {
         if (_cachedAttributes.TryGetValue(configType, out ConfigFileAttribute? attribute))
         {
@@ -292,5 +298,23 @@ public static class ConfigurationFactory
         }
 
         return mso.ToArray();
+    }
+
+    public void W_RemoveAllConfigurationFiles(bool security)
+    {
+        // Cheap way to ensure it's not called by accident
+        if (!security)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(configDirectory, true);
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException("Failed to delete configuration directory", ex);
+        }
     }
 }

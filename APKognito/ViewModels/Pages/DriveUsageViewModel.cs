@@ -70,7 +70,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
     public DriveUsageViewModel()
     {
-        config = ConfigurationFactory.GetConfig<KognitoConfig>();
+        config = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
 
         FilterInRenamedApks = false;
         FilterInFiles = FilterInDirectories = true;
@@ -138,7 +138,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         MessageBox confirmation = new()
         {
             Title = $"Delete {GetFormattedItems(itemsToDelete)}?",
-            Content = "All previously selected items will be deleted. (Click 'Cancel' to view once more if needed).\n\nContinue?",
+            Content = $"This will remove the following items:\n  ⚬  {GetFormattedSelectedPackages(itemsToDelete)}\n\nContinue?",
             PrimaryButtonText = "Delete",
             PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
             CloseButtonText = "Cancel",
@@ -146,13 +146,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
         MessageBoxResult result = await confirmation.ShowDialogAsync();
 
-        if (result != MessageBoxResult.Primary)
+        if (result is MessageBoxResult.Primary)
         {
-            goto Exit;
+            await DeleteFileCollection(itemsToDelete);
+            FoundFolders.Clear();
         }
-
-        await DeleteFileCollection(itemsToDelete);
-        FoundFolders.Clear();
 
     Exit:
         CanDelete = true;
@@ -175,7 +173,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         MessageBox confirmation = new()
         {
             Title = $"Delete {GetFormattedItems(FoundFolders)}?",
-            Content = "All items displayed will be deleted (Click 'Cancel' to view once more if needed).\n\nContinue?",
+            Content = $"This will remove the following items:\n  ⚬  {GetFormattedSelectedPackages(FoundFolders)}\n\nContinue?",
             PrimaryButtonText = "Delete",
             PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
             CloseButtonText = "Cancel",
@@ -358,6 +356,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         }
 
         UpdateItemsList();
+    }
+
+    private static string GetFormattedSelectedPackages(IEnumerable<FootprintInfo> items)
+    {
+        return string.Join("\n  ⚬  ", items.Select(item => item.FolderName));
     }
 
     private static async ValueTask DeleteFileCollection(IEnumerable<FootprintInfo> files)

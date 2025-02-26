@@ -104,7 +104,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
     {
         try
         {
-            ConfigurationFactory.SaveAllConfigs();
+            ConfigurationFactory.Instance.SaveAllConfigs();
         }
         catch (Exception ex)
         {
