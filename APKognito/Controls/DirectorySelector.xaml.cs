@@ -1,7 +1,6 @@
 ﻿using APKognito.Utilities;
 using Microsoft.Win32;
 using System.IO;
-using System.Windows.Data;
 using Wpf.Ui.Controls;
 using TextBox = Wpf.Ui.Controls.TextBox;
 
@@ -13,8 +12,7 @@ namespace APKognito.Controls;
 public partial class DirectorySelector
 {
     [SuppressMessage("Major Code Smell", "S3264:Events should be invoked", Justification = "Used externally")]
-    public new event WPF::Input.KeyEventHandler? KeyUp;
-
+    public new event KeyEventHandler? KeyUp;
 
     public static readonly DependencyProperty DirectoryPathProperty =
         DependencyProperty.Register(nameof(DirectoryPath), typeof(string), typeof(DirectorySelector),
@@ -69,10 +67,7 @@ public partial class DirectorySelector
                 return;
         }
 
-        DependencyProperty prop = TextBox.TextProperty;
-
-        BindingExpression binding = BindingOperations.GetBindingExpression(tBox, prop);
-        binding?.UpdateSource();
+        App.ForwardKeystrokeToBinding(tBox);
     }
 
     private void BrowseDirectory_Click(object sender, RoutedEventArgs e)
