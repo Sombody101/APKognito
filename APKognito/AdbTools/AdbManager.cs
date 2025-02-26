@@ -24,7 +24,7 @@ internal class AdbManager
 
     public bool IsRunning => AdbProcess?.HasExited is false;
 
-    private static readonly AdbConfig adbConfig = ConfigurationFactory.GetConfig<AdbConfig>();
+    private static readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
 
     private static bool _noCommandRecurse = false;
 
