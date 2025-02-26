@@ -396,7 +396,7 @@ public class ApkEditorContext
         }
     }
 
-    [Conditional("DEBUG")]
+#if DEBUG
     private void ReplaceLibInstances()
     {
         string libs = Path.Combine(nameData.ApkAssemblyDirectory, "lib");
@@ -415,6 +415,7 @@ public class ApkEditorContext
                 Encoding.ASCII.GetBytes(nameData.NewCompanyName));
         }
     }
+#endif
 
     private Process CreateJavaProcess(string arguments)
     {
