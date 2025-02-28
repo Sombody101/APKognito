@@ -460,7 +460,10 @@ public class ApkEditorContext
             return;
         }
 
-        string trimmedDirectory = originalDirectory[nameData.ApkAssemblyDirectory.Length..];
+        string trimmedDirectory = originalDirectory.Length > nameData.ApkAssemblyDirectory.Length
+            ? originalDirectory[nameData.ApkAssemblyDirectory.Length..]
+            : originalDirectory;
+
         FileLogger.Log($"Changing .{trimmedDirectory} -> {newName}");
 
         string newFolderPath = Path.Combine(Path.GetDirectoryName(originalDirectory)!, newName);
