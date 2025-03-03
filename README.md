@@ -38,6 +38,11 @@
 
 ![APKognito example](./gitassets/image.png)
 
+# How to use
+
+If you're new to APKognito and don't know what you're doing, then check out the [Wiki Quickstart](https://github.com/Sombody101/APKognito/wiki/Quickstart).
+It will give you general information on renaming your packages.
+
 # Requirements
 
 `APKognito` is precompiled for a _64 bit operating system_. If you're running 32 bit Windows 10, you need to compile `APKognito` yourself (which requires the SDK, see [build](#build) for more instructions).
