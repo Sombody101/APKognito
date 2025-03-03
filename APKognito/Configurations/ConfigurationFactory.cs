@@ -13,7 +13,7 @@ public class ConfigurationFactory
     private static readonly ConfigurationFactory _instance = new();
 
     private readonly string configDirectory = AppDomain.CurrentDomain.BaseDirectory;
-    
+
     // Keeps the configs "secure" (classes will still have references to each instance, but this ensures there can only be one instance in use at a time)
     private readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
     private readonly Dictionary<Type, ConfigFileAttribute> _cachedAttributes = [];
@@ -30,7 +30,7 @@ public class ConfigurationFactory
         Type configType = typeof(T);
 
         // Return a cached config
-        if (forceReload && _cachedConfigs.TryGetValue(configType, out IKognitoConfig? value))
+        if (!forceReload && _cachedConfigs.TryGetValue(configType, out IKognitoConfig? value))
         {
             FileLogger.Log($"Fetch cached {configType.Name}");
             return (T)value;
@@ -49,6 +49,7 @@ public class ConfigurationFactory
         FileLogger.Log($"'{configAttribute.FileName}' for {configType.Name}, caching");
         T config = LoadConfig<T>(configAttribute);
         _cachedConfigs[configType] = config;
+
         return config;
     }
 
@@ -81,7 +82,7 @@ public class ConfigurationFactory
     }
 
     /// <summary>
-    /// Saves the given configuration to it's respective file.
+    /// Saves the given configuration to its respective file.
     /// </summary>
     /// <param name="config"></param>
     public void SaveConfig(IKognitoConfig config, [Optional] ConfigFileAttribute? configAttribute, [Optional] bool forceAppdataSave)
@@ -169,23 +170,25 @@ public class ConfigurationFactory
 
     private T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
     {
-        string filePath = Path.Combine(configDirectory, configAttribute.FileName);
+        string configPath = configAttribute.GetCompletePath();
+        string secondaryConfigPath = Path.Combine(configDirectory, configAttribute.FileName);
 
-        // Check if the file was moved into the same directory as the app
-        if (!File.Exists(filePath))
+        if (File.Exists(secondaryConfigPath))
         {
-            filePath = configAttribute.GetCompletePath();
-        }
-        else
-        {
-            FileLogger.Log($"Config found in current directory");
+            // Load config found in app start directory.
+            configPath = secondaryConfigPath;
+
+            FileLogger.Log($"Config found in app start directory.");
             configAttribute.LoadedFromCurrent();
         }
 
+        // Load methods will return a default instance of each config type if their file is not found.
+        // That way all configs are only stored in memory until it's time to save them, at which point they're serialized to
+        // their respective files.
         return configAttribute.ConfigType switch
         {
-            ConfigType.Json => Load_Json<T>(filePath, configAttribute.ConfigModifier) ?? new(),
-            ConfigType.MemoryPacked => Load_MemoryPack<T>(filePath, configAttribute.ConfigModifier) ?? new(),
+            ConfigType.Json => Load_Json<T>(configPath, configAttribute.ConfigModifier) ?? new(),
+            ConfigType.MemoryPacked => Load_MemoryPack<T>(configPath, configAttribute.ConfigModifier) ?? new(),
             _ => new T(),
         };
     }
@@ -194,7 +197,7 @@ public class ConfigurationFactory
     {
         if (!File.Exists(filePath))
         {
-            return default;
+            return new();
         }
 
         byte[] loadedData = File.ReadAllBytes(filePath);
@@ -227,7 +230,7 @@ public class ConfigurationFactory
     {
         if (!File.Exists(filePath))
         {
-            return default;
+            return new();
         }
 
         using StreamReader reader = new(filePath);
