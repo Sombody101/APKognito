@@ -1,6 +1,7 @@
 name: Bug Report
 description: File a report for a bug in APKognito. Make sure to open one issue per bug.
 labels: ["bug"]
+assignees: ["Sombody101"]
 body:
   - type: markdown
     attributes:
