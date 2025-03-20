@@ -1,11 +1,3 @@
----
-name: Bug report
-about: Create a report to help APKognito improve
-title: ''
-labels: bug
-assignees: Sombody101
-
----
 name: Bug Report
 description: File a report for a bug in the library. Make sure to open one issue per bug.
 labels: ["bug"]
