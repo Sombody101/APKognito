@@ -35,11 +35,11 @@ body:
   - type: textarea
     id: repro
     attributes:
+      label: Reproduction Steps # Added the missing label
       placeholder: Anything that can help us reproduce the issue. A step-by-step guide to reproducing the problem, or your code that caused the issue.
     validations:
       required: true
   - type: markdown
     attributes:
-      label: Attach Logpack
       value: |
-        [How to create a logpack](https://github.com/Sombody101/APKognito/wiki/Creating-A-Logpack)
+        Paste your logpack here. [How to create a logpack](https://github.com/Sombody101/APKognito/wiki/Creating-A-Logpack).
