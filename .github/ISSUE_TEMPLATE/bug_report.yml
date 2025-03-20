@@ -1,12 +1,11 @@
 name: Bug Report
-description: File a report for a bug in the library. Make sure to open one issue per bug.
+description: File a report for a bug in APKognito. Make sure to open one issue per bug.
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        First, give a brief description of what's going wrong. Are you seeing errors you don't think you should be seeing? Is the library doing something unexpected? Are you getting Discord to yell at you because you exceeded ratelimits? Keep in mind that this description will likely decide the
-        priority and effort spent on your issue.
+        First, give a brief description of what's going wrong.
   - type: textarea
     id: summary
     attributes:
@@ -36,7 +35,6 @@ body:
   - type: textarea
     id: repro
     attributes:
-      label: Reproduction Steps
       placeholder: Anything that can help us reproduce the issue. A step-by-step guide to reproducing the problem, or your code that caused the issue.
     validations:
       required: true
