@@ -9,6 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://discord.gg/rNR2VHySgF">
+    <img src="https://dcbadge.limes.pink/api/server/https://discord.gg/rNR2VHySgF?style=flat">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://github.com/Sombody101/APKognito/releases/latest">
     <img src="https://img.shields.io/github/v/release/Sombody101/APKognito" alt="GitHub release badge">
   </a>
