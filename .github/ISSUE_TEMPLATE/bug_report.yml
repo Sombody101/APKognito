@@ -1,0 +1,50 @@
+name: Bug Report
+description: File a report for a bug in APKognito. Make sure to open one issue per bug.
+labels: ["bug"]
+assignees: ["Sombody101"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        First, give a brief description of what's going wrong.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: What is going wrong?
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Next, we'll take a look at some circumstantial information, like versions and operating systems, that will help us diagnose the issue.
+  - type: input
+    id: version
+    attributes:
+      label: What version of APKognito are you using?
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating System
+      placeholder: The operating system APKognito was running on when you encountered the issue, eg. Windows 11 23H2 or Windows 10 22H2, etc.
+  - type: markdown
+    attributes:
+      value: |
+        Now, we'll look at more specific information. This will further help us diagnose, reproduce, and finally fix the issue. Please provide as much detail as possible here.
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction Steps
+      placeholder: Anything that can help us reproduce the issue. A step-by-step guide to reproducing the problem, or your code that caused the issue.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Paste your logpack below. [How to create a logpack](https://github.com/Sombody101/APKognito/wiki/Creating-A-Logpack).
+  - type: textarea
+    attributes:
+      label: Drop Logpack Here
+      placeholder: Drop logpack...
