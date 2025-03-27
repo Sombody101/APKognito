@@ -1,8 +1,11 @@
 ﻿#if DEBUG
 // Only used for debugging (multiple threads running will disrupt stepthrough-debugging by triggering breakpoints)
-//#define SINGLE_THREAD_INSTANCE_REPLACING
+// #define SINGLE_THREAD_INSTANCE_REPLACING
+
+#define CHANGE_BINARY_NAMES
 #endif
 
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Exceptions;
 using APKognito.Models.Settings;
@@ -21,7 +24,7 @@ public class ApkEditorContext
 {
     private const int MAX_SMALI_LOAD_SIZE = 1024 * 20; // 20KB
 
-    private Regex lineReplaceRegex;
+    private Regex lineReplaceRegex = null!;
 
     private readonly LoggableObservableObject logger;
     private readonly KognitoConfig kognitoConfig;
@@ -74,7 +77,7 @@ public class ApkEditorContext
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     /// <exception cref="RenameFailedException"></exception>
-    public async Task<string?> RenameApk(CancellationToken cancellationToken)
+    public async Task<string?> RenameLoadedPackageAsync(CancellationToken cancellationToken)
     {
         // This method is a big mess due to the usage of Path.Combine(). I've tried to clean it up as
         // much as I can without defining so many strings.
@@ -83,7 +86,7 @@ public class ApkEditorContext
         {
             // Unpack
             logger.Log($"Unpacking {nameData.FullSourceApkFileName}");
-            await UnpackApk(cancellationToken);
+            await UnpackApkAsync(cancellationToken);
 
             // Get original package name
             logger.Log("Getting package name...");
@@ -119,11 +122,15 @@ public class ApkEditorContext
 
             // Repack
             logger.Log("Packing APK...");
-            string unsignedApk = await PackApk(cancellationToken);
+            string unsignedApk = await PackApkAsync(cancellationToken);
+
+            // Align
+            logger.Log("Aligning package...");
+            await AlignPackageAsync(unsignedApk);
 
             // Sign
             logger.Log("Signing APK...");
-            await SignApkTool(unsignedApk, cancellationToken);
+            await SignApkToolAsync(unsignedApk, cancellationToken);
 
             // Copy to output and cleanup
             logger.Log($"Finished APK {nameData.NewPackageName}");
@@ -170,8 +177,9 @@ public class ApkEditorContext
             // All methods called in this try/catch will not handle their own exceptions.
             // If they do, it's to reformat the error message and re-throw it to be caught here.
 #if DEBUG
-            // Exceptions are added to the exceptions log file, so there's no reason to add a stack trace here.
-            // Will that stop people from copying the entire LogBox control and pasting it in their GitHub issue along with the logpack which already contains that information?
+            // Exceptions are added to the exceptions log file, so there's no reason to add a stack trace here. It could overwhelm or distract the user if
+            // they're not used to that kind of thing. Will that stop people from copying the entire LogBox control and pasting it in
+            // their GitHub issue along with the logpack which already contains that information?
             // Nope.
             return $"{(ex.InnerException ?? ex).GetType().Name}: {ex.Message}\n{ex.StackTrace}";
 #else
@@ -182,7 +190,7 @@ public class ApkEditorContext
         return null;
     }
 
-    public async Task UnpackApk(string apkPath, string outputDirectory, CancellationToken cToken = default)
+    public async Task UnpackApkAsync(string apkPath, string outputDirectory, CancellationToken cToken = default)
     {
         string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f d \"{apkPath}\" -o \"{outputDirectory}\"";
         using Process process = CreateJavaProcess(args);
@@ -200,7 +208,7 @@ public class ApkEditorContext
         throw new RenameFailedException(error);
     }
 
-    private async Task UnpackApk(CancellationToken cToken)
+    private async Task UnpackApkAsync(CancellationToken cToken)
     {
         // Output the unpacked APK in the temp folder
         string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f d \"{nameData.FullSourceApkPath}\" -o \"{nameData.ApkAssemblyDirectory}\"";
@@ -224,7 +232,7 @@ public class ApkEditorContext
         throw new RenameFailedException(error);
     }
 
-    private async Task<string> PackApk(CancellationToken cToken)
+    private async Task<string> PackApkAsync(CancellationToken cToken)
     {
         string outputApkPath = Path.Combine(
             nameData.ApkAssemblyDirectory,
@@ -242,7 +250,19 @@ public class ApkEditorContext
             : outputApkPath;
     }
 
-    private async Task SignApkTool(string apkPath, CancellationToken cToken)
+    private static async Task AlignPackageAsync(string apkPath)
+    {
+        string aligned = $"{apkPath}.aligned";
+
+        string args = $"-f -p 4 \"{apkPath}\" \"{aligned}\"";
+        await AdbManager.QuickGenericCommand(ApkEditorToolPaths.ZipalignPath, args);
+
+        // c.z.a.apk.aligned -> c.z.a.apk
+        File.Delete(apkPath);
+        File.Move(aligned, apkPath);
+    }
+
+    private async Task SignApkToolAsync(string apkPath, CancellationToken cToken)
     {
         string args = $"-jar \"{ApkEditorToolPaths.ApksignerJarPath}\" -a \"{apkPath}\" -o \"{nameData.RenamedApkOutputDirectory}\" --allowResign";
         using Process process = CreateJavaProcess(args);
@@ -275,9 +295,12 @@ public class ApkEditorContext
         logger.LogDebug("Renaming smali directories.");
         ReplaceAllDirectoryNames(nameData.ApkAssemblyDirectory, nameData);
 
-        // ReplaceLibInstances();
+#if CHANGE_BINARY_NAMES
+        await ReplaceLibInstancesAsync();
+#endif
 
-        IEnumerable<string> files = Directory.EnumerateFiles(Path.Combine(nameData.ApkAssemblyDirectory, "smali"), "*.smali", SearchOption.AllDirectories)
+        string smaliDirectory = Path.Combine(nameData.ApkAssemblyDirectory, "smali");
+        IEnumerable<string> files = Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories)
             .Append($"{nameData.ApkAssemblyDirectory}\\AndroidManifest.xml")
             .Append($"{nameData.ApkAssemblyDirectory}\\apktool.yml");
 
@@ -290,7 +313,7 @@ public class ApkEditorContext
 
 #if SINGLE_THREAD_INSTANCE_REPLACING
         string[] filesArr = [.. files];
-        viewModel.LogDebug($"Beginning sequential rename on {filesArr.Length:n0} smali files.");
+        logger.LogDebug($"Beginning sequential rename on {filesArr.Length:n0} smali files.");
 
         foreach (string filePath in filesArr)
         {
@@ -308,10 +331,10 @@ public class ApkEditorContext
 
         // This will take the most disk space, so do it only if the actual renaming
         // was successful
-        await ReplaceObbFiles();
+        await ReplaceObbFilesAsync();
     }
 
-    private async Task ReplaceObbFiles()
+    private async Task ReplaceObbFilesAsync()
     {
         string originalCompanyName = nameData.OriginalCompanyName;
         string? sourceDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath);
@@ -332,7 +355,7 @@ public class ApkEditorContext
         string newObbDirectory = Path.Combine(nameData.RenamedApkOutputDirectory, Path.GetFileName(sourceObbDirectory));
         if (kognitoConfig.CopyFilesWhenRenaming)
         {
-            await CopyDirectory(sourceObbDirectory, newObbDirectory, true);
+            await CopyDirectoryAsync(sourceObbDirectory, newObbDirectory, true);
         }
         else
         {
@@ -397,7 +420,7 @@ public class ApkEditorContext
     }
 
 #if DEBUG
-    private void ReplaceLibInstances()
+    private async Task ReplaceLibInstancesAsync()
     {
         string libs = Path.Combine(nameData.ApkAssemblyDirectory, "lib");
         if (!Directory.Exists(libs))
@@ -409,10 +432,17 @@ public class ApkEditorContext
         foreach (string file in Directory.EnumerateFiles(libs, "*", SearchOption.AllDirectories))
         {
             logger.Log($"Renaming lib file: {Path.GetFileName(file)}");
+            logger.AddIndent();
 
-            ReplaceBinaryStrings(file,
+            await ReplaceBinaryStringsAsync(file,
                 Encoding.ASCII.GetBytes(nameData.OriginalCompanyName),
-                Encoding.ASCII.GetBytes(nameData.NewCompanyName));
+                Encoding.ASCII.GetBytes(nameData.NewCompanyName),
+                logger);
+
+            logger.ResetIndent();
+
+            string originalName = Path.GetFileName(file);
+            File.Move(file, Path.Combine(Path.GetDirectoryName(file), originalName.Replace(nameData.OriginalCompanyName, nameData.NewCompanyName)));
         }
     }
 #endif
@@ -434,7 +464,7 @@ public class ApkEditorContext
 
     private static void ReplaceAllDirectoryNames(string baseDirectory, ApkNameData nameData)
     {
-        IEnumerable<string> ienDirs = Directory.GetDirectories(baseDirectory, nameData.OriginalCompanyName, SearchOption.AllDirectories)
+        IEnumerable<string> ienDirs = Directory.GetDirectories(baseDirectory, $"*{nameData.OriginalCompanyName}*", SearchOption.AllDirectories)
             // Organize them to prevent "race conditions", which happens when a parent directory is renamed before a child directory, thereby throwing a DirectoryNotFoundException.
             .OrderByDescending(s => s.Length);
 
@@ -477,7 +507,7 @@ public class ApkEditorContext
         Directory.Move(originalDirectory, newFolderPath);
     }
 
-    private static async Task CopyDirectory(string sourceDir, string destinationDir, bool recursive = false)
+    private static async Task CopyDirectoryAsync(string sourceDir, string destinationDir, bool recursive = false)
     {
         DirectoryInfo dir = new(sourceDir);
 
@@ -501,7 +531,7 @@ public class ApkEditorContext
             foreach (DirectoryInfo subDir in dirs)
             {
                 string newDestinationDir = Path.Combine(destinationDir, subDir.Name);
-                await CopyDirectory(subDir.FullName, newDestinationDir, true);
+                await CopyDirectoryAsync(subDir.FullName, newDestinationDir, true);
             }
         }
     }
@@ -572,68 +602,67 @@ public class ApkEditorContext
     }
 
 #if DEBUG
-    private static void ReplaceBinaryStrings(string filePath, byte[] searchBytes, byte[] replaceBytes)
+    private static async Task ReplaceBinaryStringsAsync(string filePath, byte[] searchBytes, byte[] replaceBytes, LoggableObservableObject? logger)
     {
-        if (searchBytes.Length != replaceBytes.Length)
+        int searchLength = searchBytes.Length;
+
+        if (searchLength != replaceBytes.Length)
         {
             throw new ArgumentException("Search and replace byte arrays must have the same length.");
         }
 
-        replaceBytes = [.. "com."u8.ToArray().Concat(replaceBytes)];
-        searchBytes = [.. "com."u8.ToArray().Concat(searchBytes)];
+        const int BUFFER_SIZE = 1024 * 1024;
 
-        using FileStream fileStream = new(filePath, FileMode.Open, FileAccess.ReadWrite);
-        using BinaryReader reader = new(fileStream);
-        using BinaryWriter writer = new(fileStream);
-
-        const int BUFFER_SIZE = 500 * 1024;
+        using FileStream binaryStream = new(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, BUFFER_SIZE);
 
         byte[] buffer = new byte[BUFFER_SIZE];
-        int searchLength = searchBytes.Length;
-        long fileLength = fileStream.Length;
-        long position = 0;
+        long fileLength = binaryStream.Length;
+        long filePosition = 0;
 
-        while (position < fileLength)
+        while (filePosition < fileLength)
         {
-            int bytesRead = reader.Read(buffer, 0, BUFFER_SIZE);
+            int bytesRead = await binaryStream.ReadAsync(buffer.AsMemory(0, BUFFER_SIZE));
 
-            for (int i = 0; i <= bytesRead - searchLength; i++)
+            if (bytesRead == 0)
+            {
+                break;
+            }
+
+            int bufferInd = 0;
+            while (bufferInd <= bytesRead - searchLength)
             {
                 bool match = true;
-                for (int j = 0; j < searchLength; j++)
+                for (int sub = 0; sub < searchLength; ++sub)
                 {
-                    if (buffer[i + j] != searchBytes[j])
+                    if (buffer[bufferInd + sub] != searchBytes[sub])
                     {
                         match = false;
                         break;
                     }
                 }
 
-                if (!match)
+                if (match)
                 {
-                    continue;
+                    string found = Encoding.ASCII.GetString(buffer[(bufferInd - 40 > 0 ? bufferInd - 40 : bufferInd)..(bufferInd + searchLength + 40)]);
+                    found = $"Found: `{found}`, at bInd:{bufferInd}, fPos:{filePosition}, gPos:{filePosition + bufferInd}";
+                    Debug.WriteLine(found);
+                    logger?.LogDebug(found);
+
+                    binaryStream.Position = filePosition + bufferInd;
+                    await binaryStream.WriteAsync(replaceBytes);
+
+                    bufferInd += searchLength; // Move past the replaced section.
                 }
-
-                fileStream.Position = position + i; // Set file position for writing
-                writer.Write(replaceBytes);
-                i += searchLength - 1;
-                fileStream.Position = position + i + 1; // set file position back to read.
-                reader.BaseStream.Position = position + i + 1;
-
-                for (int j = 0; j < (bytesRead - (i + 1)); j++)
+                else
                 {
-                    buffer[j] = reader.ReadByte();
+                    bufferInd++; // Move to the next byte.
                 }
-
-                bytesRead -= i + 1;
-                i = -1; // reset the loop.
             }
 
-            position += bytesRead;
-            if (position < fileLength && bytesRead > 0)
+            filePosition += bytesRead;
+            if (filePosition < fileLength)
             {
-                fileStream.Position = position;
-                reader.BaseStream.Position = position;
+                binaryStream.Position = filePosition;
             }
         }
     }

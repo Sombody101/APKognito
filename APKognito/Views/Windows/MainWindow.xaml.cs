@@ -1,5 +1,6 @@
 ﻿using APKognito.ViewModels.Windows;
 using Wpf.Ui;
+using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -12,7 +13,7 @@ public partial class MainWindow : INavigationWindow
     public MainWindow(
         MainWindowViewModel viewModel,
         ISnackbarService snackbarService,
-        IPageService pageService,
+        INavigationViewPageProvider pageService,
         INavigationService navigationService,
         IContentDialogService contentDialogService
     )
@@ -73,9 +74,9 @@ public partial class MainWindow : INavigationWindow
         return RootNavigation.Navigate(pageType);
     }
 
-    public void SetPageService(IPageService pageService)
+    public void SetPageService(INavigationViewPageProvider pageService)
     {
-        RootNavigation.SetPageService(pageService);
+        RootNavigation.SetPageProviderService(pageService);
     }
 
     public void ShowWindow()

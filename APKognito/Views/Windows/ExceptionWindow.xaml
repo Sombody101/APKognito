@@ -7,8 +7,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="Unhandled Exception"
-    Width="800"
-    Height="450"
+    Width="1300"
+    Height="800"
     MinWidth="600"
     MinHeight="300"
     d:DataContext="{d:DesignInstance local:ExceptionWindow,
@@ -72,10 +72,19 @@
 
                 <StackPanel Orientation="Horizontal">
                     <ui:Button
-                        Margin="10"
+                        Margin="10,5,5,5"
                         Command="{Binding ViewModel.CreateLogpackCommand}"
                         Content="Create Logpack" />
-                    <ui:Button Command="{Binding ViewModel.OpenGithubIssueCommand}" Content="Create GitHub Issue" />
+
+                    <ui:Button
+                        Margin="5,10"
+                        Command="{Binding ViewModel.OpenGithubIssueCommand}"
+                        Content="Create GitHub Issue" />
+
+                    <ui:Button
+                        Margin="5,10"
+                        Command="{Binding ViewModel.JoinSupportDiscordCommand}"
+                        Content="Join Support Discord" />
                 </StackPanel>
 
                 <StackPanel

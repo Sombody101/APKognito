@@ -1,8 +1,7 @@
 ﻿using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using System.Windows.Data;
-using System.Windows.Interop;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 using TextBox = Wpf.Ui.Controls.TextBox;
 
 namespace APKognito.Views.Pages;

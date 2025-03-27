@@ -1,4 +1,4 @@
-﻿#define NO_EXCEPTION_HANDLING
+﻿// #define NO_EXCEPTION_HANDLING
 
 using APKognito.Configurations;
 using APKognito.Services;
@@ -15,6 +15,7 @@ using System.IO;
 using System.Reflection;
 using System.Windows.Data;
 using Wpf.Ui;
+using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
 
 namespace APKognito;
@@ -44,7 +45,7 @@ public partial class App
             _ = services.AddHostedService<ApplicationHostService>();
 
             _ = services.AddSingleton<ISnackbarService, SnackbarService>()
-                .AddSingleton<IPageService, PageService>()
+                .AddSingleton<INavigationViewPageProvider, PageService>()
                 .AddSingleton<IThemeService, ThemeService>()
                 .AddSingleton<ITaskBarService, TaskBarService>()
                 .AddSingleton<INavigationService, NavigationService>()
@@ -113,7 +114,7 @@ public partial class App
     /// <summary>
     /// Occurs when the application is closing.
     /// </summary>
-    private async void OnExit(object sender, ExitEventArgs e)
+    private async void OnExitAsync(object sender, ExitEventArgs e)
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
         HomeViewModel.Instance?.Log("Saving all settings...");

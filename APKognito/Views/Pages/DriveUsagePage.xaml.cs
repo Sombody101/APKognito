@@ -1,7 +1,7 @@
 ﻿using APKognito.Models;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 
 namespace APKognito.Views.Pages;
 
@@ -19,7 +19,7 @@ public partial class DriveUsagePage : INavigableView<DriveUsageViewModel>, IView
 
         Loaded += (sender, e) => Dispatcher.Invoke(async () =>
         {
-            await viewModel.StartSearch();
+            await viewModel.StartSearchAsync();
         });
     }
 

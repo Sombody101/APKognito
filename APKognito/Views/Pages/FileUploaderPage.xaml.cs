@@ -1,7 +1,7 @@
 ﻿using APKognito.Models;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 
 namespace APKognito.Views.Pages;
 

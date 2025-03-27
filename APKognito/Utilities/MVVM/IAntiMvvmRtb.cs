@@ -1,6 +1,4 @@
-﻿using Wpf.Ui.Controls;
-
-namespace APKognito.Utilities.MVVM;
+﻿namespace APKognito.Utilities.MVVM;
 
 /// <summary>
 /// Anti MVVM RichTextBox. Used when a rich text box is only appended to via one paragraph element, which requires a

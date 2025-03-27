@@ -28,7 +28,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
     [
         new NavigationViewItem()
         {
-            Content = "Rename APK",
+            Content = "Package Renamer",
             Icon = new SymbolIcon { Symbol = SymbolRegular.Box16 },
             TargetPageType = typeof(HomePage)
         },
@@ -120,7 +120,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
 
     [RelayCommand]
     [SuppressMessage("Critical Code Smell", "S1215:GC.Collect\" should not be called", Justification = "I don't care.")]
-    private async Task OnForceGarbageCollection()
+    private async Task OnForceGarbageCollectionAsync()
     {
         if (_cleanupDebounce)
         {
@@ -157,6 +157,8 @@ public partial class MainWindowViewModel : LoggableObservableObject
 #if DEBUG
         throw new DebugOnlyException();
 #endif
+
+        FileLogger.Log($"Artificial crash attempted on {App.Version.VersionIdentifier} build.");
     }
 
     #endregion Commands
@@ -172,7 +174,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
 
         return type is App.Version.VersionTypeValue.Release
             ? string.Empty
-            : $"[{type.ToString().ToUpper()}]";
+            : $"[{App.Version.VersionIdentifier.ToUpper()}]";
     }
 
     private static long GetMemSize()

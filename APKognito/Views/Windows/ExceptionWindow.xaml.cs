@@ -16,8 +16,8 @@ public partial class ExceptionWindow : FluentWindow
 
     public ExceptionWindow(ExceptionWindowViewModel exceptionViewModel)
     {
-        DataContext = this;
         ViewModel = exceptionViewModel;
+        DataContext = this;
 
         InitializeComponent();
 

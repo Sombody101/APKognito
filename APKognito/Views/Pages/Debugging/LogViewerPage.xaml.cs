@@ -1,6 +1,6 @@
 ﻿using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages.Debugging;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 
 namespace APKognito.Views.Pages.Debugging;
 

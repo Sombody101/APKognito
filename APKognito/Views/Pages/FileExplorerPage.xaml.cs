@@ -1,7 +1,7 @@
 ﻿using APKognito.Models;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 using ListViewItem = Wpf.Ui.Controls.ListViewItem;
 
 namespace APKognito.Views.Pages;
@@ -24,7 +24,7 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
         };
     }
 
-    private async void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private async void ListViewItem_MouseDoubleClickAsync(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Left)
         {
@@ -47,7 +47,7 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
         await ViewModel.NavigateToDirectoryCommand.ExecuteAsync(info);
     }
 
-    private async void This_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    private async void This_PreviewMouseUpAsync(object sender, MouseButtonEventArgs e)
     {
         switch (e.ChangedButton)
         {

@@ -9,9 +9,7 @@ public class GBConverter : IValueConverter
     {
         if (value is long totalUsedSpace)
         {
-            return totalUsedSpace >= (1024 * 1024 * 1024)
-                ? $"{totalUsedSpace / 1024f / 1024f / 1024f:0.00} GB"
-                : $"{totalUsedSpace / 1024f / 1024f:n0} MB";
+            return FormatSizeFromBytes(totalUsedSpace);
         }
 
         return value;

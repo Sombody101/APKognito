@@ -75,18 +75,18 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     #region Commands
 
     [RelayCommand]
-    private async Task OnUpdatePackageList()
+    private async Task OnUpdatePackageListAsync()
     {
-        await UpdatePackageList();
+        await UpdatePackageListAsync();
     }
 
     [RelayCommand]
-    private async Task OnUninstallPackages(ListView list)
+    private async Task OnUninstallPackagesAsync(ListView list)
     {
         try
         {
-            await UninstallPackages(list, false);
-            await UpdatePackageList();
+            await UninstallPackagesAsync(list, false);
+            await UpdatePackageListAsync();
         }
         catch (Exception ex)
         {
@@ -96,12 +96,12 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnSoftUninstallPackages(ListView list)
+    private async Task OnSoftUninstallPackagesAsync(ListView list)
     {
         try
         {
-            await UninstallPackages(list);
-            await UpdatePackageList();
+            await UninstallPackagesAsync(list);
+            await UpdatePackageListAsync();
         }
         catch (Exception ex)
         {
@@ -111,11 +111,11 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnPullPackages(ListView list)
+    private async Task OnPullPackagesAsync(ListView list)
     {
         try
         {
-            await PullPackages(list);
+            await PullPackagesAsync(list);
         }
         catch (Exception ex)
         {
@@ -131,7 +131,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         FilterPackages(value);
     }
 
-    private async Task UninstallPackages(ListView list, bool softUninstall = true)
+    private async Task UninstallPackagesAsync(ListView list, bool softUninstall = true)
     {
         EnableControls = false;
 
@@ -173,7 +173,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
 
         try
         {
-            await ImplementPackageRemoval(items, softUninstall);
+            await ImplementPackageRemovalAsync(items, softUninstall);
 
             SnackSuccess($"{selected} packages removed!", $"{selected} were {(softUninstall ? "soft" : string.Empty)} uninstalled successfully!");
         }
@@ -186,7 +186,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         EnableControls = true;
     }
 
-    public async Task UpdatePackageList(bool silent = false)
+    public async Task UpdatePackageListAsync(bool silent = false)
     {
         /*
          * Current format:
@@ -204,7 +204,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
         }
 
-        CommandOutput result = await AdbManager.InvokeScript($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true);
+        AdbCommandOutput result = await AdbManager.InvokeScript($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true);
 
         if (result.Errored)
         {
@@ -233,7 +233,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         DisplayPackages(cachedPackageList);
     }
 
-    private async Task PullPackages(ListView list)
+    private async Task PullPackagesAsync(ListView list)
     {
         EnableControls = false;
 
@@ -347,7 +347,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         });
     }
 
-    private async Task ImplementPackageRemoval(IEnumerable<PackageEntry> items, bool softUninstall)
+    private async Task ImplementPackageRemovalAsync(IEnumerable<PackageEntry> items, bool softUninstall)
     {
         string command = $"shell pm uninstall {(softUninstall ? "-k" : string.Empty)}";
         (string, bool)[] packages = [.. items.Select(p => (p.PackageName, p.AssetPath is not null))];

@@ -502,7 +502,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             ConfigurationFactory.Instance.SaveConfig(adbConfig);
 
             WriteGenericLogLine("Testing adb...");
-            CommandOutput output = (await AdbManager.QuickCommand("--version"));
+            AdbCommandOutput output = (await AdbManager.QuickCommand("--version"));
             WriteGenericLogLine(output.StdOut);
 
             if (output.Errored)

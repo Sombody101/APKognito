@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Documents;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
@@ -35,52 +35,74 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
     protected bool LogIconPrefixes = true;
     protected bool DisableFileLogging = true;
 
+    private string indent = string.Empty;
+
     private List<(string log, Brush? color, LogType? type)>? logBuffer = [];
-    public void WriteGenericLog(string text, [Optional] Brush color, LogType? logType = LogType.None)
+    public void WriteGenericLog(string text, [Optional] Brush color, LogType? logType = LogType.None, bool newline = true)
     {
+        WriteGenericLog(new StringBuilder(text), color, logType, newline);
+    }
+
+    public void WriteGenericLog(StringBuilder text, [Optional] Brush color, LogType? logType = LogType.None, bool newline = false)
+    {
+        if (newline)
+        {
+            text.AppendLine();
+        }
+
+        if (indent != string.Empty)
+        {
+            text.Insert(0, indent);
+        }
+
         if (richTextBox is null)
         {
-            logBuffer?.Add(new(text, color, logType));
+            logBuffer?.Add(new(text.ToString(), color, logType));
             return;
         }
 
         ClearBuffedLogs();
-        AppendRunToLogbox(text, color, logType);
+        AppendRunToLogbox(text.ToString(), color, logType);
     }
 
-    public void WriteGenericLogLine(string text, [Optional] Brush color)
+    public void WriteGenericLogLine(string text, [Optional] Brush color, LogType? logType = LogType.None)
     {
-        WriteGenericLog($"{text}\n", color);
+        WriteGenericLog(text, color, logType, newline: true);
+    }
+
+    public void WriteGenericLogLine(StringBuilder text, [Optional] Brush color, LogType? logType = LogType.None)
+    {
+        WriteGenericLog(text, color, logType, newline: true);
     }
 
     public void Log(string log)
     {
         FileLogger.Log(log, DisableFileLogging);
-        WriteGenericLog($"{log}\n", logType: LogType.Info);
+        WriteGenericLogLine(log, logType: LogType.Info);
     }
 
     public void LogSuccess(string log)
     {
         FileLogger.Log(log, DisableFileLogging);
-        WriteGenericLog($"{log}\n", Brushes.Green, logType: LogType.Success);
+        WriteGenericLogLine(log, Brushes.Green, logType: LogType.Success);
     }
 
     public void LogWarning(string log)
     {
         FileLogger.LogWarning(log, DisableFileLogging);
-        WriteGenericLog($"{log}\n", Brushes.Yellow, logType: LogType.Warning);
+        WriteGenericLogLine(log, Brushes.Yellow, logType: LogType.Warning);
     }
 
     public void LogError(string log)
     {
         FileLogger.LogError(log, DisableFileLogging);
-        WriteGenericLog($"{log}\n", Brushes.Red, logType: LogType.Error);
+        WriteGenericLogLine(log, Brushes.Red, logType: LogType.Error);
     }
 
     public void LogError(Exception ex)
     {
         FileLogger.LogException(ex, DisableFileLogging);
-        WriteGenericLog($"{ex}\n", Brushes.Red, logType: LogType.Error);
+        WriteGenericLog(ex.ToString(), Brushes.Red, logType: LogType.Error);
     }
 
     public void LogDebug(string log)
@@ -88,7 +110,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         FileLogger.LogDebug(log);
 
 #if DEBUG
-        WriteGenericLog($"{log}\n", Brushes.Cyan, logType: LogType.Debug);
+        WriteGenericLogLine(log, Brushes.Cyan, logType: LogType.Debug);
 #endif
     }
 
@@ -99,6 +121,21 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 #if DEBUG
         WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", Brushes.Cyan, logType: LogType.Debug);
 #endif
+    }
+
+    public void AddIndent()
+    {
+        indent = $"{indent}\t";
+    }
+
+    public void RemoveIndent()
+    {
+        indent = indent[..^1];
+    }
+
+    public void ResetIndent()
+    {
+        indent = string.Empty;
     }
 
     public void ClearLogs()

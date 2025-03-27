@@ -1,7 +1,7 @@
 ﻿using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using System.Windows.Data;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 
 using TextBox = System.Windows.Controls.TextBox;
 
@@ -22,7 +22,7 @@ public partial class PackageManagerPage : INavigableView<PackageManagerViewModel
 
         Loaded += async (sender, e) =>
         {
-            await viewModel.UpdatePackageList(true);
+            await viewModel.UpdatePackageListAsync(true);
         };
     }
 

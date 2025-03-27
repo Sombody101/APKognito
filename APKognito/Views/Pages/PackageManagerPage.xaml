@@ -121,6 +121,22 @@
                             </Grid>
                         </ui:MenuItem.Header>
                     </ui:MenuItem>
+                    <ui:MenuItem
+                        Command="{Binding PullPackagesCommand}"
+                        CommandParameter="{Binding ElementName=PackagesList}"
+                        ToolTip="Push an app to your ADB enabled device.">
+                        <ui:MenuItem.Header>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+
+                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowUpload24" />
+                                <ui:TextBlock Grid.Column="1" Text="Push" />
+                            </Grid>
+                        </ui:MenuItem.Header>
+                    </ui:MenuItem>
                 </Menu>
 
                 <ui:TextBox

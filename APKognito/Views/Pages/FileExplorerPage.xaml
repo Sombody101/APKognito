@@ -17,7 +17,7 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-    PreviewMouseUp="This_PreviewMouseUp"
+    PreviewMouseUp="This_PreviewMouseUpAsync"
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
@@ -73,7 +73,7 @@
 
             <ListView.ItemContainerStyle>
                 <Style BasedOn="{StaticResource {x:Type ui:ListViewItem}}" TargetType="{x:Type ui:ListViewItem}">
-                    <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClick" />
+                    <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClickAsync" />
                     <!--
                     <Setter Property="ContextMenu">
                         <Setter.Value>

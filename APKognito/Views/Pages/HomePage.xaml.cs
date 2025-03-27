@@ -3,7 +3,7 @@ using APKognito.Models.Settings;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using System.IO;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 using DataFormats = System.Windows.DataFormats;
 using DragEventArgs = System.Windows.DragEventArgs;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
@@ -42,7 +42,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
             viewModel.UpdateCanStart();
         }
 
-        Loaded += async (sender, e) => await ViewModel.Initialize();
+        Loaded += async (sender, e) => await ViewModel.InitializeAsync();
     }
 
     private void UpdateLogs(object sender, TextChangedEventArgs e)
@@ -55,9 +55,9 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         App.OpenHyperlink(sender, e);
     }
 
-    private async void CheckBox_Checked(object sender, RoutedEventArgs e)
+    private async void CheckBox_CheckedAsync(object sender, RoutedEventArgs e)
     {
-        await ViewModel.OnRenameCopyChecked();
+        await ViewModel.OnRenameCopyCheckedAsync();
     }
 
     private void TextBox_KeyUp(object sender, KeyEventArgs e)
@@ -74,12 +74,12 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         }
     }
 
-    private async void DragDropPresenter_Drop(object sender, DragEventArgs e)
+    private async void DragDropPresenter_DropAsync(object sender, DragEventArgs e)
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-            await ViewModel.AddManualFiles(files);
+            await ViewModel.AddManualFilesAsync(files);
             DragDropPresenter.Visibility = Visibility.Collapsed;
         }
     }

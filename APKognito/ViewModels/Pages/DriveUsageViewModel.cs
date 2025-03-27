@@ -85,7 +85,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     private CancellationTokenSource? _collectDataCancelationSource;
 
     [RelayCommand]
-    public async Task StartSearch()
+    public async Task StartSearchAsync()
     {
         if (IsRunning)
         {
@@ -105,7 +105,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
             try
             {
-                await CollectDiskUsage(_collectDataCancelationSource.Token);
+                await CollectDiskUsageAsync(_collectDataCancelationSource.Token);
                 UpdateItemsList();
             }
             catch (OperationCanceledException)
@@ -123,7 +123,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     }
 
     [RelayCommand]
-    private async Task DeleteSelectedItems(ListView folderList)
+    private async Task DeleteSelectedItemsAsync(ListView folderList)
     {
         CanDelete = false;
         IsRunning = true;
@@ -148,7 +148,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
         if (result is MessageBoxResult.Primary)
         {
-            await DeleteFileCollection(itemsToDelete);
+            await DeleteFileCollectionAsync(itemsToDelete);
             FoundFolders.Clear();
         }
 
@@ -156,11 +156,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         CanDelete = true;
         IsRunning = false;
 
-        await StartSearch();
+        await StartSearchAsync();
     }
 
     [RelayCommand]
-    private async Task DeleteAllItems()
+    private async Task DeleteAllItemsAsync()
     {
         CanDelete = false;
         IsRunning = true;
@@ -186,14 +186,14 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
             goto Exit;
         }
 
-        await DeleteFileCollection(FoundFolders);
+        await DeleteFileCollectionAsync(FoundFolders);
         FoundFolders.Clear();
 
     Exit:
         CanDelete = true;
         IsRunning = false;
 
-        await StartSearch();
+        await StartSearchAsync();
     }
 
     #endregion Commands
@@ -223,7 +223,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         });
     }
 
-    public async Task CollectDiskUsage(CancellationToken cancellation)
+    public async Task CollectDiskUsageAsync(CancellationToken cancellation)
     {
         List<string> folders = [];
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
@@ -363,7 +363,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         return string.Join("\n  ⚬  ", items.Select(item => item.FolderName));
     }
 
-    private static async ValueTask DeleteFileCollection(IEnumerable<FootprintInfo> files)
+    private static async ValueTask DeleteFileCollectionAsync(IEnumerable<FootprintInfo> files)
     {
         await Parallel.ForEachAsync(files, (item, token) =>
         {

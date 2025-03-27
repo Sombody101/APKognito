@@ -124,7 +124,7 @@ public class ConfigurationFactory
     }
 
     /// <summary>
-    /// Saves all configs in the config cache to their respective files. Should only be called by <see cref="App.OnExit"/>
+    /// Saves all configs in the config cache to their respective files. Should only be called by <see cref="App.OnExitAsync"/>
     /// </summary>
     public void SaveAllConfigs()
     {

@@ -131,6 +131,11 @@ public partial class HomeViewModel : LoggableObservableObject
         get => kognitoConfig.ApkNameReplacement;
         set
         {
+            if (value == kognitoConfig.ApkNameReplacement)
+            {
+                return;
+            }
+
             kognitoConfig.ApkNameReplacement = value;
             OnPropertyChanged(nameof(ApkReplacementName));
         }
@@ -149,7 +154,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
         try
         {
-            if (JavaVersionLocator.GetJavaPath(out string? path))
+            if (new JavaVersionLocator().GetJavaPath(out string? path))
             {
                 JavaExecutablePath = path!;
             }
@@ -171,16 +176,18 @@ public partial class HomeViewModel : LoggableObservableObject
         string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
 
         _ = Directory.CreateDirectory(appDataTools);
+
         ApkEditorToolPaths.ApktoolJarPath = Path.Combine(appDataTools, "apktool.jar");
         ApkEditorToolPaths.ApktoolBatPath = Path.Combine(appDataTools, "apktool.bat");
         ApkEditorToolPaths.ApksignerJarPath = Path.Combine(appDataTools, "uber-apk-signer.jar");
+        ApkEditorToolPaths.ZipalignPath = Path.Combine(appDataTools, "zipalign.exe");
     }
 
-    public async Task Initialize()
+    public async Task InitializeAsync()
     {
         if (FilePath.Length is not 0)
         {
-            await UpdateFootprintInfo();
+            await UpdateFootprintInfoAsync();
         }
     }
 
@@ -189,19 +196,19 @@ public partial class HomeViewModel : LoggableObservableObject
     private bool __handlingRenameExitDebounce = false;
 
     [RelayCommand]
-    private async Task OnStartApkRename()
+    private async Task OnStartApkRenameAsync()
     {
         using CancellationTokenSource renameApksCancelationSource = new();
         _renameApksCancelationSource = renameApksCancelationSource;
         CancellationToken cancellationToken = _renameApksCancelationSource.Token;
 
-        await StartPackageRenaming(cancellationToken);
+        await StartPackageRenamingAsync(cancellationToken);
 
         _renameApksCancelationSource = null;
     }
 
     [RelayCommand]
-    private async Task OnCancelApkRename()
+    private async Task OnCancelApkRenameAsync()
     {
         if (_renameApksCancelationSource is null || __handlingRenameExitDebounce)
         {
@@ -219,11 +226,11 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnLoadApk()
+    private async Task OnLoadApkAsync()
     {
         try
         {
-            await LoadApk();
+            await LoadApkAsync();
         }
         catch (Exception ex)
         {
@@ -280,11 +287,11 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnManualUnpackApk()
+    private async Task OnManualUnpackApkAsync()
     {
         try
         {
-            if (!JavaVersionLocator.GetJavaPath(out string? javaPath, this))
+            if (!new JavaVersionLocator().GetJavaPath(out string? javaPath, this))
             {
                 return;
             }
@@ -302,7 +309,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 string apkFileName = Path.GetFileName(filePath);
 
                 Log($"Unpacking {apkFileName}");
-                await context.UnpackApk(filePath, outputDirectory);
+                await context.UnpackApkAsync(filePath, outputDirectory);
 
                 Log($"Unpacked {Path.GetFileName(filePath)} into {outputDirectory}");
             }
@@ -359,9 +366,9 @@ public partial class HomeViewModel : LoggableObservableObject
         kognitoConfig.CopyFilesWhenRenaming = value;
     }
 
-    public async ValueTask OnRenameCopyChecked()
+    public async ValueTask OnRenameCopyCheckedAsync()
     {
-        await UpdateFootprintInfo();
+        await UpdateFootprintInfoAsync();
     }
 
     public void UpdateCanStart()
@@ -382,14 +389,14 @@ public partial class HomeViewModel : LoggableObservableObject
         return kognitoCache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
     }
 
-    private async Task StartPackageRenaming(CancellationToken cancellationToken)
+    private async Task StartPackageRenamingAsync(CancellationToken cancellationToken)
     {
         RunningJobs = true;
         CanEdit = false;
 
         string[]? files = GetFilePaths();
 
-        string? javaPath = await PrepareForRenaming(files);
+        string? javaPath = await PrepareForRenamingAsync(files);
         if (javaPath is null)
         {
             goto ChecksFailed;
@@ -438,7 +445,7 @@ public partial class HomeViewModel : LoggableObservableObject
             sharedRenameSettings.SourceApkPath = sourceApkPath;
 
             // Rename the package
-            (string? errorReason, bool apkFailed) = await RunPackageRename(sharedRenameSettings, cancellationToken);
+            (string? errorReason, bool apkFailed) = await RunPackageRenameAsync(sharedRenameSettings, cancellationToken);
 
             if (!apkFailed)
             {
@@ -481,7 +488,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
         if (kognitoConfig.ClearTempFilesOnRename)
         {
-            await CleanTempFiles();
+            await CleanTempFilesAsync();
         }
 
         // Finalize session and write it to the history file
@@ -502,7 +509,7 @@ public partial class HomeViewModel : LoggableObservableObject
         CanEdit = true;
     }
 
-    private async Task<(string? error, bool success)> RunPackageRename(ApkRenameSettings renameSettings, CancellationToken cancellationToken)
+    private async Task<(string? error, bool success)> RunPackageRenameAsync(ApkRenameSettings renameSettings, CancellationToken cancellationToken)
     {
         string? errorReason;
         bool apkFailed = false;
@@ -512,12 +519,12 @@ public partial class HomeViewModel : LoggableObservableObject
             FinalName = "Unpacking...";
 
             ApkEditorContext editorContext = new(renameSettings, this);
-            errorReason = await editorContext.RenameApk(cancellationToken);
+            errorReason = await editorContext.RenameLoadedPackageAsync(cancellationToken);
             apkFailed = errorReason is not null;
 
             if (!apkFailed && PushAfterRename)
             {
-                await PushRenamedApk(editorContext, cancellationToken);
+                await PushRenamedApkAsync(editorContext, cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -536,7 +543,7 @@ public partial class HomeViewModel : LoggableObservableObject
         return (errorReason, apkFailed);
     }
 
-    private async Task<string?> PrepareForRenaming(string[] files)
+    private async Task<string?> PrepareForRenamingAsync(string[] files)
     {
         if (files is null || files.Length is 0)
         {
@@ -544,7 +551,7 @@ public partial class HomeViewModel : LoggableObservableObject
             return null;
         }
 
-        string? javaPath = await RenameConditionsMet();
+        string? javaPath = await RenameConditionsMetAsync();
         if (javaPath is null)
         {
             return null;
@@ -574,7 +581,7 @@ public partial class HomeViewModel : LoggableObservableObject
         return javaPath;
     }
 
-    private async Task PushRenamedApk(ApkEditorContext context, CancellationToken cancellationToken)
+    private async Task PushRenamedApkAsync(ApkEditorContext context, CancellationToken cancellationToken)
     {
         var currentDevice = adbConfig.GetCurrentDevice();
 
@@ -611,7 +618,7 @@ public partial class HomeViewModel : LoggableObservableObject
         }
     }
 
-    private async Task<string?> RenameConditionsMet()
+    private async Task<string?> RenameConditionsMetAsync()
     {
         if (string.IsNullOrWhiteSpace(ApkReplacementName))
         {
@@ -626,14 +633,14 @@ public partial class HomeViewModel : LoggableObservableObject
             return null;
         }
 
-        if (PushAfterRename && !await VerifyAdbDevice())
+        if (PushAfterRename && !await VerifyAdbDeviceAsync())
         {
             return null;
         }
 
         Log("Verifying that Java 8+ and APK tools are installed...");
 
-        if (JavaVersionLocator.GetJavaPath(out string? javaPath, this) && await VerifyToolInstallation())
+        if (new JavaVersionLocator().GetJavaPath(out string? javaPath, this) && await VerifyToolInstallationAsync())
         {
             return javaPath;
         }
@@ -641,7 +648,7 @@ public partial class HomeViewModel : LoggableObservableObject
         return null;
     }
 
-    private async Task<bool> VerifyToolInstallation()
+    private async Task<bool> VerifyToolInstallationAsync()
     {
         CancellationToken cToken = CancellationToken.None;
 
@@ -651,7 +658,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             if (!File.Exists(ApkEditorToolPaths.ApktoolJarPath))
             {
-                Log("Installing Apktool.jar...");
+                Log("Installing Apktool (JAR)...");
                 if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APKTOOL_JAR_URL_LTST, ApkEditorToolPaths.ApktoolJarPath, this, cToken))
                 {
                     allSuccess = false;
@@ -660,7 +667,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             if (!File.Exists(ApkEditorToolPaths.ApktoolBatPath))
             {
-                Log("Installing Apktool.bat...");
+                Log("Installing Apktool (BAT)...");
                 if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, ApkEditorToolPaths.ApktoolBatPath, this, cToken))
                 {
                     allSuccess = false;
@@ -669,8 +676,17 @@ public partial class HomeViewModel : LoggableObservableObject
 
             if (!File.Exists(ApkEditorToolPaths.ApksignerJarPath))
             {
-                Log("Installing ApkSigner.jar");
+                Log("Installing ApkSigner...");
                 if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APL_SIGNER_URL_LTST, ApkEditorToolPaths.ApksignerJarPath, this, cToken, 1))
+                {
+                    allSuccess = false;
+                }
+            }
+
+            if (!File.Exists(ApkEditorToolPaths.ZipalignPath))
+            {
+                Log("Installing ZipAlign...");
+                if (!await WebGet.DownloadAsync(Constants.ZIPALIGN_URL, ApkEditorToolPaths.ZipalignPath, this, cToken))
                 {
                     allSuccess = false;
                 }
@@ -687,7 +703,7 @@ public partial class HomeViewModel : LoggableObservableObject
         }
     }
 
-    private async Task LoadApk()
+    private async Task LoadApkAsync()
     {
         string openDirectory = Directory.Exists(kognitoCache.LastDialogDirectory)
             ? kognitoCache.LastDialogDirectory
@@ -710,8 +726,8 @@ public partial class HomeViewModel : LoggableObservableObject
 
         if ((bool)result)
         {
-            await AddManualFiles(openFileDialog.FileNames);
-            await UpdateFootprintInfo();
+            await AddManualFilesAsync(openFileDialog.FileNames);
+            await UpdateFootprintInfoAsync();
         }
         else
         {
@@ -721,7 +737,7 @@ public partial class HomeViewModel : LoggableObservableObject
         UpdateCanStart();
     }
 
-    public async Task AddManualFiles(string[] files, bool verifyTypes = false)
+    public async Task AddManualFilesAsync(string[] files, bool verifyTypes = false)
     {
         if (files.Length is 1)
         {
@@ -755,7 +771,7 @@ public partial class HomeViewModel : LoggableObservableObject
             Log(sb.ToString());
         }
 
-        await UpdateFootprintInfo();
+        await UpdateFootprintInfoAsync();
 
         bool VerifyFileType(string file)
         {
@@ -769,7 +785,7 @@ public partial class HomeViewModel : LoggableObservableObject
         }
     }
 
-    private async ValueTask UpdateFootprintInfo()
+    private async ValueTask UpdateFootprintInfoAsync()
     {
         FootprintSizeBytes = 0;
 
@@ -809,7 +825,7 @@ public partial class HomeViewModel : LoggableObservableObject
         }
     }
 
-    private async Task<bool> VerifyAdbDevice()
+    private async Task<bool> VerifyAdbDeviceAsync()
     {
         switch (await AdbConfigurationViewModel.TryConnectDevice(adbConfig))
         {
@@ -833,7 +849,7 @@ public partial class HomeViewModel : LoggableObservableObject
         return false;
     }
 
-    private async Task CleanTempFiles()
+    private async Task CleanTempFilesAsync()
     {
         try
         {

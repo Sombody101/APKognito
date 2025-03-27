@@ -5,7 +5,7 @@ using APKognito.Controls.ViewModel;
 using APKognito.Models;
 using APKognito.Utilities;
 using System.Windows.Threading;
-using Wpf.Ui.Controls;
+using Wpf.Ui.Abstractions.Controls;
 
 namespace APKognito.Controls;
 
@@ -112,7 +112,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
             try
             {
-                AndroidDevice? device = await UpdateDeviceInfo(cts.Token);
+                AndroidDevice? device = await UpdateDeviceInfoAsync(cts.Token);
                 _ = await instance.Dispatcher.InvokeAsync(() => instance.AndroidDevice = device ?? AndroidDevice.Empty);
             }
             catch (OperationCanceledException)
@@ -144,7 +144,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         _ = _deviceUpdateTimer.Change(0, UPDATE_DELAY_MS);
     }
 
-    private static async Task<AndroidDevice?> UpdateDeviceInfo(CancellationToken token = default)
+    private static async Task<AndroidDevice?> UpdateDeviceInfoAsync(CancellationToken token = default)
     {
         AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
 
@@ -154,7 +154,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         }
 
         // Get battery charge
-        CommandOutput result = await AdbManager.QuickDeviceCommand("shell dumpsys battery | grep 'level' | cut -d ':' -f 2", token: token, noThrow: true);
+        AdbCommandOutput result = await AdbManager.QuickDeviceCommand("shell dumpsys battery | grep 'level' | cut -d ':' -f 2", token: token, noThrow: true);
 
         if (result.Errored)
         {

@@ -48,6 +48,12 @@ public partial class ExceptionWindowViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
+    private void OnJoinSupportDiscord()
+    {
+        App.OpenHyperlink(this, new(new Uri("https://discord.gg/rNR2VHySgF"), string.Empty));
+    }
+
+    [RelayCommand]
     private void OnExitApkognito()
     {
         Environment.Exit(ExceptionCode);

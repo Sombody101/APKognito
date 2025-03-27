@@ -14,7 +14,7 @@ using Wpf.Ui.Extensions;
 
 namespace APKognito.ViewModels.Pages;
 
-public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
+public partial class SettingsViewModel : ViewModel, IViewable
 {
     private readonly IContentDialogService contentDialogService;
     private readonly UpdateConfig updateConfig;
@@ -112,11 +112,11 @@ public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
     }
 
     [RelayCommand]
-    private static async Task OnTransferConfigs()
+    private static async Task OnTransferConfigsAsync()
     {
         try
         {
-            ConfigurationFactory.Instance.TransferAppStartConfigurations();
+            _ = ConfigurationFactory.Instance.TransferAppStartConfigurations();
         }
         catch (Exception ex)
         {
@@ -135,7 +135,7 @@ public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
     }
 
     [RelayCommand]
-    private async Task OnUninstallAppCommand(object content)
+    private async Task OnUninstallAppCommandAsync(object content)
     {
         ContentDialogResult result = await contentDialogService.ShowSimpleDialogAsync(
             new SimpleContentDialogCreateOptions()
@@ -156,12 +156,12 @@ public partial class SettingsViewModel : ViewModel, IViewable, INavigationAware
     [RelayCommand]
     private static void OnNavigateToLogViewer()
     {
-        ((MainWindow)App.Current.MainWindow).Navigate(typeof(LogViewerPage));
+        _ = ((MainWindow)App.Current.MainWindow).Navigate(typeof(LogViewerPage));
     }
 
     #endregion Commands
 
-    new public void OnNavigatedTo()
+    public new void OnNavigatedTo()
     {
         if (!_isInitialized)
         {

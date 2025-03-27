@@ -2,30 +2,19 @@
 
 namespace APKognito.AdbTools;
 
-/// <summary>
-/// Holds references to the STDOUT and STDERR output of an ADB command.
-/// </summary>
-public readonly struct CommandOutput
+public readonly struct CommandOutput : ICommandOutput
 {
-    /// <summary>
-    /// All text data from STDOUT of an ADB command.
-    /// </summary>
     public readonly string StdOut { get; }
 
-    /// <summary>
-    /// All text data from STDERR of an ADB command.
-    /// </summary>
     public readonly string StdErr { get; }
 
     public readonly bool Errored => !string.IsNullOrWhiteSpace(StdErr);
 
-    public readonly bool DeviceNotAuthorized => StdErr.StartsWith("adb.exe: device unauthorized.");
-
     public readonly void ThrowIfError(bool noThrow = false, int? exitCode = null)
     {
-        if (!noThrow && Errored && exitCode is not null && exitCode.Value != 0)
+        if (!noThrow && Errored && exitCode is not null && exitCode.Value is not 0)
         {
-            throw new AdbCommandException(StdErr);
+            throw new CommandException(StdErr);
         }
     }
 
@@ -43,9 +32,9 @@ public readonly struct CommandOutput
         );
     }
 
-    public class AdbCommandException : Exception
+    public class CommandException : Exception
     {
-        public AdbCommandException(string error)
+        public CommandException(string error)
             : base(error)
         { }
     }

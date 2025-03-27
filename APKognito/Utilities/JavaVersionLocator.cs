@@ -5,11 +5,11 @@ using System.Text;
 
 namespace APKognito.Utilities;
 
-internal static class JavaVersionLocator
+internal class JavaVersionLocator
 {
-    private static string rawJavaVersion = string.Empty;
-    private static LoggableObservableObject? logger = null;
+    private LoggableObservableObject? logger = null;
 
+    public static string RawJavaVersion { get; set; } = string.Empty;
     public static string? JavaExecutablePath { get; private set; } = null;
     public static bool JavaIsUpToDate { get; private set; } = false;
 
@@ -19,16 +19,19 @@ internal static class JavaVersionLocator
     /// </summary>
     /// <param name="javaPath"></param>
     /// <param name="_logger"></param>
-    /// <param name="skipIfSet"></param>
+    /// <param name="forceSearch"></param>
     /// <returns></returns>
-    public static bool GetJavaPath(out string? javaPath, LoggableObservableObject? _logger = null, bool skipIfSet = true)
+    public bool GetJavaPath(out string? javaPath, LoggableObservableObject? _logger = null, bool forceSearch = false)
     {
-        logger = _logger;
+        if (_logger is not null)
+        {
+            logger = _logger;
+        }
 
-        if (skipIfSet && JavaIsUpToDate && File.Exists(JavaExecutablePath))
+        if (!forceSearch && JavaIsUpToDate && File.Exists(JavaExecutablePath))
         {
             // Java already found
-            _logger?.Log($"Using cached Java version '{rawJavaVersion}'");
+            _logger?.Log($"Using cached Java version '{RawJavaVersion}'.");
 
             javaPath = JavaExecutablePath;
             return true;
@@ -38,19 +41,26 @@ internal static class JavaVersionLocator
         JavaIsUpToDate = VerifyJavaInstallation(out javaPath);
         JavaExecutablePath = javaPath;
 
-        FileLogger.Log($"Using Java version '{rawJavaVersion}'");
+        if (JavaIsUpToDate && !string.IsNullOrWhiteSpace(RawJavaVersion))
+        {
+            FileLogger.Log($"Using found Java version '{RawJavaVersion}'");
+        }
+        else
+        {
+            FileLogger.LogWarning("Failed to find any valid Java installations.");
+        }
 
         return JavaIsUpToDate;
     }
 
-    private static bool VerifyJavaInstallation(out string? javaPath)
+    private bool VerifyJavaInstallation(out string? javaPath)
     {
         javaPath = null;
 
         // Check for JDK via registry (there's likely not a Java install if these don't exist)
         try
         {
-            FileLogger.Log("Checking Registry for JRE installation.");
+            FileLogger.Log("Checking Registry for JDK/JRE installation.");
             if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
                 || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath, "JDK"))
             {
@@ -65,7 +75,7 @@ internal static class JavaVersionLocator
         // Checks C:\Program Files\Java\latest
         try
         {
-            FileLogger.Log("Checking Registry for JDK installation.");
+            FileLogger.Log("Checking for Java LTS directory.");
             if (CheckLtsDirectory(out javaPath))
             {
                 return true;
@@ -90,7 +100,7 @@ internal static class JavaVersionLocator
             FileLogger.LogException(ex);
         }
 
-        // Nothing found, tell user and yeet false
+        // Nothing found, inform user and yeet false
         logger?.LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows\n" +
             "If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
 
@@ -105,6 +115,7 @@ internal static class JavaVersionLocator
 
         if (!Directory.Exists(JAVA_LTS_DIRECTORY))
         {
+            FileLogger.Log($"No Java LTS directory found: {JAVA_LTS_DIRECTORY}");
             return false;
         }
 
@@ -184,30 +195,33 @@ internal static class JavaVersionLocator
         return false;
     }
 
-    private static bool GetKey(RegistryKey? javaJdkKey, out string? javaPath, string javaType)
+    private bool GetKey(RegistryKey? javaRegKey, out string? javaPath, string javaType)
     {
         javaPath = null;
 
-        if (javaJdkKey is null)
+        if (javaRegKey is null)
         {
+            FileLogger.LogWarning($"Registry key for {javaType} doesn't exist.");
             return false;
         }
 
-        if (javaJdkKey.GetValue("CurrentVersion") is not string _rawJavaVersion)
+        FileLogger.Log($"Checking Registry key '{javaRegKey.Name}'.");
+
+        if (javaRegKey.GetValue("CurrentVersion") is not string _rawJavaVersion)
         {
             logger?.LogWarning($"A {javaType} installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
             return false;
         }
 
-        rawJavaVersion = _rawJavaVersion;
+        RawJavaVersion = _rawJavaVersion;
 
         if (!VerifyRawJavaVersion(_rawJavaVersion))
         {
-            logger?.LogWarning($"{javaType} installation found with the version {_rawJavaVersion}, but it's not Java 8+");
+            logger?.LogWarning($"{javaType} installation found with the version {_rawJavaVersion}, but it's not Java 8+.");
             return false;
         }
 
-        string keyPath = (string)javaJdkKey.OpenSubKey(_rawJavaVersion)!.GetValue("JavaHome")!;
+        string keyPath = (string)javaRegKey.OpenSubKey(_rawJavaVersion)!.GetValue("JavaHome")!;
         string subJavaPath = Path.Combine(keyPath, "bin\\java.exe");
 
         // This is a VERY rare case
@@ -224,7 +238,7 @@ internal static class JavaVersionLocator
 
     private static bool VerifyRawJavaVersion(string versionStr)
     {
-        bool supportedVersion = 
+        bool supportedVersion =
             // Java versions 8-22
             (Version.TryParse(versionStr, out Version? jdkVersion)
                 && jdkVersion.Major == 1
@@ -235,7 +249,7 @@ internal static class JavaVersionLocator
         if (supportedVersion)
         {
             // Keep the successful version
-            rawJavaVersion = versionStr;
+            RawJavaVersion = versionStr;
         }
 
         return supportedVersion;
