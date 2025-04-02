@@ -1,4 +1,5 @@
 ﻿using APKognito.AdbTools;
+using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
@@ -93,6 +94,16 @@ public partial class HomeViewModel : LoggableObservableObject
         {
             kognitoConfig.PushAfterRename = value;
             OnPropertyChanged(nameof(PushAfterRename));
+        }
+    }
+
+    public bool ShowAdvancedSettings
+    {
+        get => kognitoConfig.ShowAdvancedSettings;
+        set
+        {
+            kognitoConfig.ShowAdvancedSettings = value;
+            OnPropertyChanged(nameof(ShowAdvancedSettings));
         }
     }
 
@@ -302,10 +313,12 @@ public partial class HomeViewModel : LoggableObservableObject
                 {
                     JavaPath = javaPath!,
                     SourceApkPath = filePath,
-                    TempDirectory = TempData.FullName,
+                    TempDirectory = TempData?.FullName 
+                        ?? Environment.GetEnvironmentVariable("TEMP") 
+                        ?? "./",
                 }, this, true);
   
-                string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetFileNameWithoutExtension(filePath));
+                string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
                 string apkFileName = Path.GetFileName(filePath);
 
                 Log($"Unpacking {apkFileName}");

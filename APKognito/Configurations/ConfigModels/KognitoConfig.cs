@@ -36,4 +36,12 @@ public class KognitoConfig : IKognitoConfig
 
     [JsonProperty("push_after_rename")]
     public bool PushAfterRename { get; set; } = false;
+
+    [JsonProperty("advanced_settings")]
+    public bool ShowAdvancedSettings { get; set; } =
+#if DEBUG || PUBLIC_DEBUG
+            true;
+#else
+            false;
+#endif
 }

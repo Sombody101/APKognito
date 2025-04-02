@@ -5,17 +5,14 @@
     xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:APKognito.Helpers"
-    xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
-    xmlns:sys="clr-namespace:System;assembly=netstandard"
-    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="Rename APK"
     d:DataContext="{d:DesignInstance pages:HomeViewModel,
                                      IsDesignTimeCreatable=True}"
-    d:DesignHeight="600"
-    d:DesignWidth="800"
+    d:DesignHeight="1000"
+    d:DesignWidth="1200"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     AllowDrop="True"
@@ -42,6 +39,13 @@
             <RowDefinition Height="auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+
+        <!--
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        -->
 
         <ui:CardExpander
             Grid.Row="1"
@@ -173,6 +177,30 @@
                         Unchecked="CheckBox_CheckedAsync" />
                 </Grid>
 
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock
+                        Grid.Row="4"
+                        Height="36"
+                        Margin="15,10,0,0"
+                        FontWeight="Bold"
+                        ToolTip="Toggles the Advanced Settings menu.">
+                        <Run Text="Advanced Settings" />
+                        <ui:SymbolIcon Symbol="QuestionCircle24" />
+                    </ui:TextBlock>
+                    <ui:ToggleSwitch
+                        Grid.Row="4"
+                        Grid.Column="2"
+                        Checked="CheckBox_CheckedAsync"
+                        IsChecked="{Binding PushAfterRename}"
+                        IsEnabled="{Binding CanEdit}"
+                        Unchecked="CheckBox_CheckedAsync" />
+                </Grid>
+
                 <ui:Button
                     Grid.Row="10"
                     Width="150"
@@ -182,6 +210,14 @@
                     ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
             </StackPanel>
         </ui:CardExpander>
+
+        <!--
+        <ui:Card
+            Grid.RowSpan="10"
+            Grid.Column="1"
+            VerticalAlignment="Stretch"
+            Visibility="{Binding ShowAdvancedSettings, Converter={StaticResource BoolToVisibility}}" />
+        -->
 
         <ui:Card
             Grid.Row="2"
