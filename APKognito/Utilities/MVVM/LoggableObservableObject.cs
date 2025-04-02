@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Documents;
+using System.Windows.Threading;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
@@ -284,7 +285,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
             p.Inlines.Add(log);
             richTextBox.ScrollToEnd();
-        });
+        }, DispatcherPriority.Background);
     }
 
     private void ClearBuffedLogs()
