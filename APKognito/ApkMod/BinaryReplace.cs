@@ -32,7 +32,6 @@ internal class BinaryReplace
         {
             File.Copy(binaryFilePath, elfReadPath, true);
 
-
             try
             {
                 elfFile = ELFReader.Load(elfReadPath);
@@ -71,12 +70,17 @@ internal class BinaryReplace
         }
     }
 
-    public async Task ModifyArchiveStringsAsync(Regex pattern, string replacement)
+    public async Task ModifyArchiveStringsAsync(Regex pattern, string replacement, string[] extraFiles)
     {
+        FileLogger.Log($"Renaming OBB file '{Path.GetFileName(binaryFilePath)}'");
+
         using ZipFile zip = new(binaryFilePath);
 
-        foreach (ZipEntry entry in zip.Entries.Where(e => e.FileName.Contains("catalog")).ToList())
+        var selectedFiles = zip.Entries.Where(e => e.FileName.Contains("catalog") || extraFiles.Contains(e.FileName));
+
+        foreach (ZipEntry entry in selectedFiles)
         {
+            FileLogger.Log($"Renaming OBB entry '{entry.FileName}'");
             await ProcessTextEntryAsync(zip, entry, pattern, replacement);
         }
 

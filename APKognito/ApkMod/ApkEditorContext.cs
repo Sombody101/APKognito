@@ -1,14 +1,13 @@
 ﻿#if DEBUG
 // Only used for debugging (multiple threads running will disrupt stepthrough-debugging by triggering breakpoints)
 // #define SINGLE_THREAD_INSTANCE_REPLACING
-
-#define CHANGE_BINARY_NAMES
 #endif
 
 using APKognito.AdbTools;
 using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
-using APKognito.Models.Settings;
+using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
@@ -36,12 +35,14 @@ public class ApkEditorContext
     private readonly ApkNameData nameData;
 
     private readonly ApkRenameSettings renameSettings;
+    private readonly AdvancedApkRenameSettings advancedRenameSettings;
 
     public string? AssetPath { get; private set; }
     public string OutputApkPath { get; private set; } = string.Empty;
 
     public ApkEditorContext(
         ApkRenameSettings renameSettings,
+        AdvancedApkRenameSettings advancedRenameSettings,
         LoggableObservableObject logger,
         bool limited = false
     )
@@ -49,6 +50,7 @@ public class ApkEditorContext
         kognitoConfig = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
 
         this.renameSettings = renameSettings;
+        this.advancedRenameSettings = advancedRenameSettings;
         this.logger = logger;
 
         string sourceApkName = Path.GetFileName(renameSettings.SourceApkPath);
@@ -121,7 +123,7 @@ public class ApkEditorContext
 
             // Replace all instances in the APK and any OBBs
             logger.Log($"Changing '{nameData.OriginalPackageName}'  |>  '{nameData.NewPackageName}'");
-            lineReplaceRegex = CreateNameReplacementRegex(nameData.OriginalCompanyName);
+            lineReplaceRegex = advancedRenameSettings.BuildRegex(nameData.OriginalCompanyName);
 
             await ReplaceAllNameInstancesAsync(cancellationToken);
 
@@ -300,10 +302,16 @@ public class ApkEditorContext
         logger.LogDebug("Renaming smali directories.");
         ReplaceAllDirectoryNames(nameData.ApkAssemblyDirectory);
 
-#if CHANGE_BINARY_NAMES
         await ReplaceLibInstancesAsync();
-#endif
 
+        await RenameSmaliFilesAsync(cToken);
+
+        // This will take the most disk space, so do it only if the smali renaming was successful
+        await RenameObbFilesAsync();
+    }
+
+    private async Task RenameSmaliFilesAsync(CancellationToken cToken)
+    {
         string smaliDirectory = Path.Combine(nameData.ApkAssemblyDirectory, "smali");
         IEnumerable<string> files = Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories)
             .Append($"{nameData.ApkAssemblyDirectory}\\AndroidManifest.xml")
@@ -342,13 +350,9 @@ public class ApkEditorContext
             }
         );
 #endif
-
-        // This will take the most disk space, so do it only if the actual renaming
-        // was successful
-        await ReplaceObbFilesAsync();
     }
 
-    private async Task ReplaceObbFilesAsync()
+    private async Task RenameObbFilesAsync()
     {
         string originalCompanyName = nameData.OriginalCompanyName;
         string? sourceDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath);
@@ -384,8 +388,11 @@ public class ApkEditorContext
 
             logger.Log($"Renaming asset file: {Path.GetFileName(filePath)}  |>  {newAssetName}");
 
-            await new BinaryReplace(filePath, logger)
-                .ModifyArchiveStringsAsync(lineReplaceRegex, nameData.NewCompanyName);
+            if (advancedRenameSettings.RenameObbsInternal)
+            {
+                await new BinaryReplace(filePath, logger)
+                    .ModifyArchiveStringsAsync(lineReplaceRegex, nameData.NewCompanyName, [.. advancedRenameSettings.RenameObbsInternalExtras]);
+            }
 
             File.Move(filePath, Path.Combine(newObbDirectory, newAssetName));
         }
@@ -436,13 +443,12 @@ public class ApkEditorContext
         }
     }
 
-#if CHANGE_BINARY_NAMES
     private async Task ReplaceLibInstancesAsync()
     {
         string libs = Path.Combine(nameData.ApkAssemblyDirectory, "lib");
         if (!Directory.Exists(libs))
         {
-            logger.LogDebug("No libs found. Not renaming binaries.");
+            logger.Log("No libs found. Not renaming binaries.");
             return;
         }
 
@@ -454,28 +460,32 @@ public class ApkEditorContext
             }
 
             string originalName = Path.GetFileName(originalFilePath);
-            string newFileName = lineReplaceRegex.Replace(originalName, nameData.NewCompanyName);
+            string newFileName = advancedRenameSettings.RenameLibs
+                ? lineReplaceRegex.Replace(originalName, nameData.NewCompanyName)
+                : originalName;
 
             string newFilePath = Path.Combine(Path.GetDirectoryName(originalFilePath), newFileName);
 
             // The actual rename action has to be deferred to prevent access exceptions :p
-            logger.Log($"Renaming lib file: {Path.GetFileName(originalFilePath)} |> {newFileName}");
-            logger.AddIndent();
+            logger.Log($"Renaming lib file: {originalName}{(originalName != newFileName ? $" |> {newFileName}" : string.Empty)}");
 
-            // await ReplaceBinaryStringsAsync(originalFilePath,
-            //     Encoding.ASCII.GetBytes(nameData.OriginalCompanyName),
-            //     Encoding.ASCII.GetBytes(nameData.NewCompanyName),
-            //     logger);
+            if (advancedRenameSettings.RenameLibsInternal)
+            {
+                logger.AddIndent();
 
-            await new BinaryReplace(originalFilePath, logger)
-                .ModifyElfStringsAsync(lineReplaceRegex, nameData.NewCompanyName);
+                await new BinaryReplace(originalFilePath, logger)
+                    .ModifyElfStringsAsync(lineReplaceRegex, nameData.NewCompanyName);
 
-            logger.ResetIndent();
+                logger.ResetIndent();
+            }
 
-            File.Move(originalFilePath, newFilePath);
+
+            if (advancedRenameSettings.RenameLibs)
+            {
+                File.Move(originalFilePath, newFilePath);
+            }
         }
     }
-#endif
 
     private Process CreateJavaProcess(string arguments)
     {
@@ -556,11 +566,10 @@ public class ApkEditorContext
         var copyTasks = files.Select(async file =>
         {
             string targetFilePath = Path.Combine(destinationDir, file.Name);
-            using (var sourceStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true))
-            using (var destinationStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true))
-            {
-                await sourceStream.CopyToAsync(destinationStream);
-            }
+            using var sourceStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
+            using var destinationStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true);
+
+            await sourceStream.CopyToAsync(destinationStream);
         });
 
         await Task.WhenAll(copyTasks);
@@ -636,83 +645,6 @@ public class ApkEditorContext
         }
     }
 
-    private static Regex CreateNameReplacementRegex(string searchValue)
-    {
-        string pattern = $"(?<=[./_])({Regex.Escape(searchValue)})(?=[./_])";
-
-        return new Regex(pattern,
-            RegexOptions.Compiled,
-            TimeSpan.FromMilliseconds(60_000)
-        );
-    }
-
-#if CHANGE_BINARY_NAMESd
-    private static async Task MReplaceBinaryStringsAsync(string filePath, byte[] searchBytes, byte[] replaceBytes, LoggableObservableObject? logger)
-    {
-        int searchLength = searchBytes.Length;
-
-        if (searchLength != replaceBytes.Length)
-        {
-            throw new ArgumentException("Search and replace byte arrays must have the same length.");
-        }
-
-        const int BUFFER_SIZE = 1024 * 1024;
-
-        using FileStream binaryStream = new(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, BUFFER_SIZE);
-
-        byte[] buffer = new byte[BUFFER_SIZE];
-        long fileLength = binaryStream.Length;
-        long filePosition = 0;
-
-        while (filePosition < fileLength)
-        {
-            int bytesRead = await binaryStream.ReadAsync(buffer.AsMemory(0, BUFFER_SIZE));
-
-            if (bytesRead == 0)
-            {
-                break;
-            }
-
-            int bufferInd = 0;
-            while (bufferInd <= bytesRead - searchLength)
-            {
-                bool match = true;
-                for (int sub = 0; sub < searchLength; ++sub)
-                {
-                    if (buffer[bufferInd + sub] != searchBytes[sub])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-
-                if (match)
-                {
-                    // string found = Encoding.ASCII.GetString(buffer[(bufferInd - 40 > 0 ? bufferInd - 40 : bufferInd)..(bufferInd + searchLength + 40)]);
-                    // found = $"Found: `{found}`, at bInd:{bufferInd}, fPos:{filePosition}, gPos:{filePosition + bufferInd}";
-                    // Debug.WriteLine(found);
-                    // logger?.LogDebug(found);
-
-                    binaryStream.Position = filePosition + bufferInd;
-                    await binaryStream.WriteAsync(replaceBytes);
-
-                    bufferInd += searchLength; // Move past the replaced section.
-                }
-                else
-                {
-                    bufferInd++; // Move to the next byte.
-                }
-            }
-
-            filePosition += bytesRead;
-            if (filePosition < fileLength)
-            {
-                binaryStream.Position = filePosition;
-            }
-        }
-    }
-#endif
-
     /// <summary>
     /// This is to give the illusion of organization.
     /// </summary>
@@ -764,16 +696,4 @@ public class ApkEditorContext
         /// </summary>
         public string ApkSmaliTempDirectory { get; init; } = string.Empty;
     }
-}
-
-public sealed class ApkRenameSettings
-{
-    public string SourceApkPath { get; set; } = string.Empty;
-
-    public string OutputDirectory { get; init; } = string.Empty;
-    public string JavaPath { get; init; } = string.Empty;
-    public string TempDirectory { get; init; } = string.Empty;
-    public string ApkReplacementName { get; init; } = string.Empty;
-
-    public Action<string>? OnPackageNameFound { get; init; }
 }
