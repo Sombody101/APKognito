@@ -21,16 +21,19 @@ public partial class MainWindowViewModel : LoggableObservableObject
     #region Properties
 
     [ObservableProperty]
-    private string _applicationTitle = $"APKognito{(LaunchedAsAdministrator ? " [ADMIN]" : string.Empty)} {GetBuildTypeString()}";
+    public partial string ApplicationTitle { get; set; } = $"APKognito{(LaunchedAsAdministrator ? " [ADMIN]" : string.Empty)} {GetBuildTypeString()}";
 
     [ObservableProperty]
-    private ObservableCollection<object> _menuItems =
+    public partial ObservableCollection<object> MenuItems { get; set; } =
     [
         new NavigationViewItem()
         {
             Content = "Package Renamer",
             Icon = new SymbolIcon { Symbol = SymbolRegular.Box16 },
-            TargetPageType = typeof(HomePage)
+            TargetPageType = typeof(HomePage),
+            MenuItemsSource = new NavigationViewItem[] {
+                new("Advanced Settings", SymbolRegular.BuildingLighthouse20, typeof(AdvancedRenameConfigurationPage)),
+            },
         },
         new NavigationViewItem()
         {
@@ -50,17 +53,17 @@ public partial class MainWindowViewModel : LoggableObservableObject
             Icon = new SymbolIcon { Symbol = SymbolRegular.Code16 },
             TargetPageType = typeof(AdbConsolePage),
             MenuItemsSource = new NavigationViewItem[] {
-                new("ADB Configuration",    typeof(AdbConfigurationPage)),
-                new("Console",              typeof(AdbConsolePage)),
-                new("File Explorer",        typeof(FileExplorerPage)),
-                new("File Uploader",        typeof(FileUploaderPage)),
-                new("Package Manager",      typeof(PackageManagerPage)),
+                new("ADB Configuration", SymbolRegular.PlaySettings20, typeof(AdbConfigurationPage)),
+                new("Console", SymbolRegular.WindowConsole20, typeof(AdbConsolePage)),
+                new("File Explorer", SymbolRegular.DocumentSearch20, typeof(FileExplorerPage)),
+                new("File Uploader", SymbolRegular.ArchiveArrowBack20, typeof(FileUploaderPage)),
+                new("Package Manager", SymbolRegular.DeveloperBoard20, typeof(PackageManagerPage)),
             },
         },
     ];
 
     [ObservableProperty]
-    private ObservableCollection<object> _footerMenuItems =
+    public partial ObservableCollection<object> FooterMenuItems { get; set; } =
     [
 #if DEBUG
         new NavigationViewItem()
@@ -77,9 +80,8 @@ public partial class MainWindowViewModel : LoggableObservableObject
             TargetPageType = typeof(SettingsPage)
         },
     ];
-
     [ObservableProperty]
-    private ObservableCollection<MenuItem> _trayMenuItems =
+    public partial ObservableCollection<MenuItem> TrayMenuItems { get; set; } =
     [
         new MenuItem { Header = "Rename APK", Tag = "tray_home" },
         new MenuItem { Header = "Close", Tag = "tray_close" },
@@ -95,6 +97,11 @@ public partial class MainWindowViewModel : LoggableObservableObject
     public MainWindowViewModel(ISnackbarService snack)
     {
         SetSnackbarProvider(snack);
+    }
+
+    public MainWindowViewModel(ObservableCollection<object> footerMenuItems)
+    {
+        FooterMenuItems = footerMenuItems;
     }
 
     #region Commands
