@@ -1,11 +1,9 @@
-﻿using APKognito.Configurations;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System.IO;
 
-namespace APKognito.Models.Settings;
+namespace APKognito.Configurations.ConfigModels;
 
-[ConfigFile(
-    "settings.json",
+[ConfigFile("settings.json",
     ConfigType.Json,
     ConfigModifiers.JsonIndented | ConfigModifiers.JsonIgnoreMissing)]
 public class KognitoConfig : IKognitoConfig
