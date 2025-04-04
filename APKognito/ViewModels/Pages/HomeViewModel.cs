@@ -4,9 +4,9 @@ using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
 using APKognito.Models;
-using APKognito.Models.Settings;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
+using APKognito.Views.Pages;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
@@ -45,47 +45,47 @@ public partial class HomeViewModel : LoggableObservableObject
     #region Properties
 
     [ObservableProperty]
-    private bool _runningJobs = false;
+    public partial bool RunningJobs { get; set; } = false;
 
     [ObservableProperty]
-    private bool _canEdit = true;
+    public partial bool CanEdit { get; set; } = true;
 
     [ObservableProperty]
-    private bool _canStart = false;
+    public partial bool CanStart { get; set; } = false;
 
     [ObservableProperty]
-    private string _apkName = DEFAULT_PROP_MESSAGE;
+    public partial string ApkName { get; set; } = DEFAULT_PROP_MESSAGE;
 
     [ObservableProperty]
-    private string _originalPackageName = DEFAULT_PROP_MESSAGE;
+    public partial string OriginalPackageName { get; set; } = DEFAULT_PROP_MESSAGE;
 
     [ObservableProperty]
-    private string _finalName = DEFAULT_PROP_MESSAGE;
+    public partial string FinalName { get; set; } = DEFAULT_PROP_MESSAGE;
 
     [ObservableProperty]
-    private string _jobbedApk = DEFAULT_JOB_MESSAGE;
+    public partial string JobbedApk { get; set; } = DEFAULT_JOB_MESSAGE;
 
     [ObservableProperty]
-    private string _elapsedTime = DEFAULT_JOB_MESSAGE;
+    public partial string ElapsedTime { get; set; } = DEFAULT_JOB_MESSAGE;
 
     [ObservableProperty]
-    private string _cantStartReason = string.Empty;
+    public partial string CantStartReason { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private bool _startButtonVisible = true;
+    public partial bool StartButtonVisible { get; set; } = true;
 
     [ObservableProperty]
-    private long _footprintSizeBytes = 0;
+    public partial long FootprintSizeBytes { get; set; } = 0;
 
     [ObservableProperty]
-    private string _javaExecutablePath = string.Empty;
+    public partial string JavaExecutablePath { get; set; } = string.Empty;
 
     /// <summary>
     /// Creates a copy of the source files rather than moving them.
     /// Can help with data protection when a renaming session fails as APKognito cannot reverse the changes.
     /// </summary>
     [ObservableProperty]
-    private bool _copyWhenRenaming;
+    public partial bool CopyWhenRenaming { get; set; }
 
     public bool PushAfterRename
     {
@@ -181,8 +181,7 @@ public partial class HomeViewModel : LoggableObservableObject
         kognitoConfig = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
         kognitoCache = ConfigurationFactory.Instance.GetConfig<CacheStorage>();
         adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
-
-        _copyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming;
+        CopyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming;
 
         string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
 
@@ -298,6 +297,12 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
+    private static void OnNavigateToAdvancedSettingsPage()
+    {
+        App.NavigateTo<AdvancedRenameConfigurationPage>();
+    }
+
+    [RelayCommand]
     private async Task OnManualUnpackApkAsync()
     {
         try
@@ -313,11 +318,11 @@ public partial class HomeViewModel : LoggableObservableObject
                 {
                     JavaPath = javaPath!,
                     SourceApkPath = filePath,
-                    TempDirectory = TempData?.FullName 
-                        ?? Environment.GetEnvironmentVariable("TEMP") 
+                    TempDirectory = TempData?.FullName
+                        ?? Environment.GetEnvironmentVariable("TEMP")
                         ?? "./",
-                }, this, true);
-  
+                }, null!, this, true);
+
                 string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
                 string apkFileName = Path.GetFileName(filePath);
 
@@ -368,9 +373,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             if (result is not MessageBoxResult.Primary)
             {
-                // The user decided to heed my warning.
-                _copyWhenRenaming
-                    = kognitoConfig.CopyFilesWhenRenaming
+                CopyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming
                     = true;
                 return;
             }
@@ -531,7 +534,7 @@ public partial class HomeViewModel : LoggableObservableObject
         {
             FinalName = "Unpacking...";
 
-            ApkEditorContext editorContext = new(renameSettings, this);
+            ApkEditorContext editorContext = new(renameSettings, ConfigurationFactory.Instance.GetConfig<AdvancedApkRenameSettings>(), this);
             errorReason = await editorContext.RenameLoadedPackageAsync(cancellationToken);
             apkFailed = errorReason is not null;
 

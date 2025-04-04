@@ -1,6 +1,6 @@
 ﻿using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
-using APKognito.Models.Settings;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;

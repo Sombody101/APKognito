@@ -1,10 +1,8 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
-using APKognito.Models.Settings;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages.Debugging;
-using APKognito.Views.Windows;
 using System.IO;
 using System.Reflection;
 using Wpf.Ui;
@@ -25,19 +23,19 @@ public partial class SettingsViewModel : ViewModel, IViewable
     #region Properties
 
     [ObservableProperty]
-    private string _fullAppVersion = string.Empty;
+    public partial string FullAppVersion { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _appVersion = string.Empty;
+    public partial string AppVersion { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private ApplicationTheme _currentTheme = ApplicationTheme.Unknown;
+    public partial ApplicationTheme CurrentTheme { get; set; } = ApplicationTheme.Unknown;
 
     [ObservableProperty]
-    private string _clearedSize = string.Empty;
+    public partial string ClearedSize { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _appDataPath = string.Empty;
+    public partial string AppDataPath { get; set; } = string.Empty;
 
     public bool ClearTempFilesOnRename
     {
@@ -156,7 +154,7 @@ public partial class SettingsViewModel : ViewModel, IViewable
     [RelayCommand]
     private static void OnNavigateToLogViewer()
     {
-        _ = ((MainWindow)App.Current.MainWindow).Navigate(typeof(LogViewerPage));
+        App.NavigateTo<LogViewerPage>();
     }
 
     #endregion Commands

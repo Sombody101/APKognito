@@ -2,14 +2,12 @@
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;
-using APKognito.Controls.ViewModel;
+using APKognito.Controls.ViewModels;
 using APKognito.Models;
-using APKognito.Models.Settings;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.IO.Packaging;
 using System.Windows.Threading;
 using Wpf.Ui;
 
