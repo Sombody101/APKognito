@@ -1,4 +1,4 @@
-﻿using APKognito.Controls.ViewModel;
+﻿using APKognito.Controls.ViewModels;
 using System.IO;
 using Wpf.Ui.Controls;
 

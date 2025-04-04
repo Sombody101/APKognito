@@ -1,7 +1,7 @@
 ﻿using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
-using APKognito.Controls.ViewModel;
+using APKognito.Controls.ViewModels;
 using APKognito.Models;
 using APKognito.Utilities;
 using System.Windows.Threading;
@@ -63,7 +63,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
         InitializeComponent();
 
-        Loaded += async (sender, e) => await viewModel.RefreshDevicesList(true);
+        Loaded += async (sender, e) => await viewModel.RefreshDevicesListAsync(true);
 
         StartDeviceTimer(this);
     }
@@ -79,7 +79,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         _dropdownDebounce = true;
         _ = Dispatcher.Invoke(async () =>
         {
-            await viewModel.RefreshDevicesList();
+            await viewModel.RefreshDevicesListAsync();
             _dropdownDebounce = false;
         });
     }
