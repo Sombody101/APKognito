@@ -145,6 +145,11 @@ public partial class App
         e.Handled = true;
     }
 
+    public static void NavigateTo<NavType>()
+    {
+        _ = ((MainWindow)Current.MainWindow).Navigate(typeof(NavType));
+    }
+
     /// <summary>
     /// Opens a directory in File Explorer. If the directory does not exist and <paramref name="notifyMissing"/> is 
     /// <see langword="true"/>, then a <see cref="MessageBox"/> is presented with a "not found" message.
