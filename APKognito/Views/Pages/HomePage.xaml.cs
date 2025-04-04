@@ -1,5 +1,5 @@
 ﻿using APKognito.Configurations;
-using APKognito.Models.Settings;
+using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using System.IO;

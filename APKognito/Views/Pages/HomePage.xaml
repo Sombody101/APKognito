@@ -17,7 +17,7 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     AllowDrop="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-    ScrollViewer.CanContentScroll="False"
+    ScrollViewer.CanContentScroll="True"
     mc:Ignorable="d">
 
     <Page.Resources>
@@ -40,16 +40,10 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!--
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        -->
-
         <ui:CardExpander
             Grid.Row="1"
             Margin="0,5,0,0"
+            ContentPadding="0"
             Icon="{ui:SymbolIcon DocumentSettings20}">
             <ui:CardExpander.Header>
                 <Grid>
@@ -69,15 +63,14 @@
             </ui:CardExpander.Header>
 
             <StackPanel>
-                <Grid>
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <ui:TextBlock
-                        Height="36"
-                        Margin="15,10,0,0"
+                        VerticalAlignment="Center"
                         FontWeight="Bold"
                         Text="Java Executable" />
 
@@ -88,48 +81,41 @@
                         DirectoryPath="{Binding JavaExecutablePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         SelectingDirectory="False" />
                 </Grid>
-
-                <Grid>
+                <Separator />
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <ui:TextBlock
-                        Height="36"
-                        Margin="15,10,0,0"
+                        VerticalAlignment="Center"
                         FontWeight="Bold"
                         Text="Output Directory" />
 
-                    <ctrls:DirectorySelector
-                        Grid.Column="1"
-                        Margin="0,5"
-                        DirectoryPath="{Binding OutputDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <ctrls:DirectorySelector Grid.Column="1" DirectoryPath="{Binding OutputDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
-
-                <Grid>
+                <Separator />
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="493*" />
-                        <ColumnDefinition Width="107*" />
+                        <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <ui:TextBlock
-                        Height="36"
-                        Margin="15,10,0,0"
+                        VerticalAlignment="Center"
                         FontWeight="Bold"
                         Text="Output APK Name" />
                     <ui:TextBox
                         Grid.Column="1"
                         Grid.ColumnSpan="2"
-                        Margin="0,5,0,5"
                         IsEnabled="{Binding CanEdit}"
                         KeyUp="TextBox_KeyUp"
                         PlaceholderText="Replacement name. (e.g.: new-company)"
                         Text="{Binding ApkReplacementName, Mode=TwoWay}" />
                 </Grid>
-
-                <Grid>
+                <Separator />
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="*" />
@@ -137,8 +123,6 @@
 
                     <ui:TextBlock
                         Grid.Row="3"
-                        Height="36"
-                        Margin="15,10,0,0"
                         FontWeight="Bold"
                         ToolTip="Copy APK and OBB files when renaming rather than moving them (Takes double the storage space as moving them, but removes the risk of data loss if an error occurs while renaming)">
                         <Run Text="Copy App Files" />
@@ -147,13 +131,16 @@
                     <ui:ToggleSwitch
                         Grid.Row="3"
                         Grid.Column="2"
+                        HorizontalAlignment="Right"
                         Checked="CheckBox_CheckedAsync"
                         IsChecked="{Binding CopyWhenRenaming}"
                         IsEnabled="{Binding CanEdit}"
+                        OffContent="Move Files"
+                        OnContent="Copy Files"
                         Unchecked="CheckBox_CheckedAsync" />
                 </Grid>
-
-                <Grid>
+                <Separator />
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="*" />
@@ -161,8 +148,6 @@
 
                     <ui:TextBlock
                         Grid.Row="4"
-                        Height="36"
-                        Margin="15,10,0,0"
                         FontWeight="Bold"
                         ToolTip="Each APK and its assets will be pushed to a device once renamed. You can select which device to upload to in the 'ADB Configuration' page.">
                         <Run Text="Push After Rename" />
@@ -171,53 +156,49 @@
                     <ui:ToggleSwitch
                         Grid.Row="4"
                         Grid.Column="2"
+                        HorizontalAlignment="Right"
                         Checked="CheckBox_CheckedAsync"
                         IsChecked="{Binding PushAfterRename}"
                         IsEnabled="{Binding CanEdit}"
+                        OffContent="Don't Push"
+                        OnContent="Push After"
                         Unchecked="CheckBox_CheckedAsync" />
                 </Grid>
-
-                <Grid>
+                <Separator />
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="200" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <ui:TextBlock
-                        Grid.Row="4"
-                        Height="36"
-                        Margin="15,10,0,0"
+                        VerticalAlignment="Center"
                         FontWeight="Bold"
-                        ToolTip="Toggles the Advanced Settings menu.">
-                        <Run Text="Advanced Settings" />
-                        <ui:SymbolIcon Symbol="QuestionCircle24" />
-                    </ui:TextBlock>
-                    <ui:ToggleSwitch
-                        Grid.Row="4"
-                        Grid.Column="2"
-                        Checked="CheckBox_CheckedAsync"
-                        IsChecked="{Binding PushAfterRename}"
-                        IsEnabled="{Binding CanEdit}"
-                        Unchecked="CheckBox_CheckedAsync" />
+                        Text="Save Rename Configuration" />
+                    <ui:Button
+                        Grid.Column="1"
+                        Width="150"
+                        HorizontalAlignment="Right"
+                        Command="{Binding SaveSettingsCommand}"
+                        Content="Save Settings"
+                        ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
                 </Grid>
-
-                <ui:Button
-                    Grid.Row="10"
-                    Width="150"
-                    Margin="0,12"
-                    Command="{Binding SaveSettingsCommand}"
-                    Content="Save APK Settings"
-                    ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
+                <Separator />
+                <ui:CardAction
+                    Margin="16"
+                    Command="{Binding NavigateToAdvancedSettingsPageCommand}"
+                    Icon="{ui:SymbolIcon Symbol=BuildingLighthouse20}">
+                    <StackPanel>
+                        <ui:TextBlock Text="Open Advanced Settings" />
+                        <ui:TextBlock
+                            Appearance="Secondary"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="Configure advanced package renaming settings."
+                            TextWrapping="WrapWithOverflow" />
+                    </StackPanel>
+                </ui:CardAction>
             </StackPanel>
         </ui:CardExpander>
-
-        <!--
-        <ui:Card
-            Grid.RowSpan="10"
-            Grid.Column="1"
-            VerticalAlignment="Stretch"
-            Visibility="{Binding ShowAdvancedSettings, Converter={StaticResource BoolToVisibility}}" />
-        -->
 
         <ui:Card
             Grid.Row="2"
@@ -457,6 +438,8 @@
 
             <ui:RichTextBox
                 x:Name="APKLogs"
+                MinHeight="100"
+                MaxHeight="700"
                 Margin="0,5"
                 VerticalAlignment="Stretch"
                 FontFamily="{StaticResource FiraRegular}"
