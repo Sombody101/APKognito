@@ -9,8 +9,8 @@
     Title="{Binding ViewModel.ApplicationTitle, Mode=OneWay}"
     Width="1345"
     Height="835"
-    MinWidth="600"
-    MinHeight="300"
+    MinWidth="1000"
+    MinHeight="320"
     d:DataContext="{d:DesignInstance local:MainWindow,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="700"
@@ -31,7 +31,6 @@
     <Window.InputBindings>
         <KeyBinding Command="{Binding ViewModel.SaveAllConfigsCommand}" Gesture="CTRL+S" />
         <KeyBinding Command="{Binding ViewModel.ForceGarbageCollectionCommand}" Gesture="CTRL+SHIFT+G" />
-
         <KeyBinding Command="{Binding ViewModel.SimulateCrashCommand}" Gesture="CTRL+SHIFT+ALT+Q" />
     </Window.InputBindings>
 
@@ -61,7 +60,7 @@
             IsBackButtonVisible="Visible"
             IsPaneToggleVisible="True"
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
-            OpenPaneLength="200"
+            OpenPaneLength="210"
             PaneDisplayMode="Left"
             TitleBar="{Binding ElementName=TitleBar, Mode=OneWay}">
 
