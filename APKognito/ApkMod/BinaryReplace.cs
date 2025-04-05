@@ -76,7 +76,9 @@ internal class BinaryReplace
 
         using ZipFile zip = new(binaryFilePath);
 
-        var selectedFiles = zip.Entries.Where(e => e.FileName.Contains("catalog") || extraFiles.Contains(e.FileName));
+        var selectedFiles = zip.Entries
+            .Where(e => e.FileName.Contains("catalog") || extraFiles.Contains(e.FileName))
+            .ToList();
 
         foreach (ZipEntry entry in selectedFiles)
         {
