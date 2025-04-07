@@ -57,7 +57,7 @@ scb() {
     }
 }
 
-publish_profile="FolderProfile.pubxml"
+publish_profile="ReleaseProfile.pubxml"
 
 case "$3" in
 
