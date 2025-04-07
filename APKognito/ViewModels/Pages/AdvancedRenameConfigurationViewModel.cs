@@ -6,7 +6,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class AdvancedRenameConfigurationViewModel : ViewModel, IViewable
 {
-    private AdvancedApkRenameSettings advancedSettings;
+    private readonly AdvancedApkRenameSettings advancedSettings;
 
     #region Properties
 

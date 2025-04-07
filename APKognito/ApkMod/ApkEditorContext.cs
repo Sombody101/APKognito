@@ -452,6 +452,11 @@ public class ApkEditorContext
             return;
         }
 
+        if (!advancedRenameSettings.RenameLibs)
+        {
+            return;
+        }
+
         foreach (string originalFilePath in Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories))
         {
             if (originalFilePath.EndsWith(".config.so"))
@@ -479,11 +484,7 @@ public class ApkEditorContext
                 logger.ResetIndent();
             }
 
-
-            if (advancedRenameSettings.RenameLibs)
-            {
-                File.Move(originalFilePath, newFilePath);
-            }
+            File.Move(originalFilePath, newFilePath);
         }
     }
 

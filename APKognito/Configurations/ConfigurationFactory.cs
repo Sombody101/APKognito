@@ -20,6 +20,16 @@ public class ConfigurationFactory
 
     public static ConfigurationFactory Instance => _instance;
 
+    private ConfigurationFactory()
+    {
+        (int success, int total) = TransferAppStartConfigurations();
+
+        if (total is not 0)
+        {
+            FileLogger.Log($"Transferred {success} of {total} configuration files to %APPDATA%.");
+        }
+    }
+
     /// <summary>
     /// Loads the given config type from file. If the file doesn't exist, a default config is returned and no file is created, edited, or destroyed.
     /// </summary>

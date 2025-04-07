@@ -110,29 +110,6 @@ public partial class SettingsViewModel : ViewModel, IViewable
     }
 
     [RelayCommand]
-    private static async Task OnTransferConfigsAsync()
-    {
-        try
-        {
-            _ = ConfigurationFactory.Instance.TransferAppStartConfigurations();
-        }
-        catch (Exception ex)
-        {
-            _ = await new MessageBox()
-            {
-                Title = "Transfer Failed",
-                Content = $"Failed to transfer configurations found in application startup directory.\n\n{ex.Message}"
-            }.ShowDialogAsync();
-        }
-
-        _ = await new MessageBox()
-        {
-            Title = "Transfer Success",
-            Content = "All valid configuration files found within the application startup directory were transfered to %APPDATA%\\configs successfully."
-        }.ShowDialogAsync();
-    }
-
-    [RelayCommand]
     private async Task OnUninstallAppCommandAsync(object content)
     {
         ContentDialogResult result = await contentDialogService.ShowSimpleDialogAsync(

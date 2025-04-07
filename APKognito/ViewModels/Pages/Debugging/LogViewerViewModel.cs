@@ -17,42 +17,40 @@ public partial class LogViewerViewModel : LoggableObservableObject
     private readonly LogViewerConfig viewerConfig = ConfigurationFactory.Instance.GetConfig<LogViewerConfig>();
 
     // These aren't really being "cached", but it sounds weirder to say "realLogs"
-    private List<LogViewerLine> _cachedLogs = [];
+    private readonly List<LogViewerLine> _cachedLogs = [];
 
     #region Properties
 
     [ObservableProperty]
-    private ObservableCollection<string> _recentPacks = [];
+    public partial ObservableCollection<string> RecentPacks { get; set; } = [];
 
     [ObservableProperty]
-    private string _logpackCreatorVersion = "Unkown";
+    public partial string LogpackCreatorVersion { get; set; } = "Unkown";
 
     [ObservableProperty]
-    private string _searchFilterText = string.Empty;
+    public partial string SearchFilterText { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private bool _caseSensitiveSearch = false;
+    public partial bool CaseSensitiveSearch { get; set; } = false;
 
     [ObservableProperty]
-    private string _logpackPath = "None selected.";
+    public partial string LogpackPath { get; set; } = "None selected.";
 
     [ObservableProperty]
-    private ObservableCollection<LogViewerLine> _logLines = [];
+    public partial ObservableCollection<LogViewerLine> LogLines { get; set; } = [];
 
     [ObservableProperty]
-    private LogLevel[] _logLevelCombo = [.. Enum.GetValues(typeof(LogLevel)).Cast<LogLevel>()];
+    public partial LogLevel[] LogLevelCombo { get; set; } = [.. Enum.GetValues(typeof(LogLevel)).Cast<LogLevel>()];
 
     [ObservableProperty]
-    private LogLevel _selectedLogFilter = LogLevel.ANY;
+    public partial LogLevel SelectedLogFilter { get; set; } = LogLevel.ANY;
 
     #endregion Properties
 
     public LogViewerViewModel()
     {
         DisableFileLogging = true;
-
-        // For designer
-        _logLines = [
+        LogLines = [
 #if DEBUG
         new("[10:12:55.999 PM: INFO] \t[App.OnStartup] App start. v1.8.9150.29065, Release", false),
         new("[10:12:55.999 AM: INFO] \t[AutoUpdaterService.LogNextUpdate] Next update check will be at x/xx/xxxx x:xx:xx FM", false),
@@ -85,7 +83,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
     #region Commands
 
     [RelayCommand]
-    private async Task OnLoadLogpack()
+    private async Task OnLoadLogpackAsync()
     {
         OpenFileDialog openFileDialog = new()
         {
@@ -108,7 +106,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
         try
         {
-            await OpenAndDeployLogpack(LogpackPath);
+            await OpenAndDeployLogpackAsync(LogpackPath);
 
             AddOrMoveRecent(LogpackPath);
 
@@ -123,7 +121,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnReloadPack()
+    private async Task OnReloadPackAsync()
     {
         if (LogpackPath is null)
         {
@@ -131,7 +129,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
             return;
         }
 
-        await OpenLogpack(LogpackPath);
+        await OpenLogpackAsync(LogpackPath);
     }
 
     [RelayCommand]
@@ -168,11 +166,11 @@ public partial class LogViewerViewModel : LoggableObservableObject
         OnSearchFilterTextChanged(SearchFilterText);
     }
 
-    public async Task OpenLogpack(string packPath)
+    public async Task OpenLogpackAsync(string packPath)
     {
         try
         {
-            await OpenAndDeployLogpack(packPath);
+            await OpenAndDeployLogpackAsync(packPath);
             AddOrMoveRecent(packPath);
         }
         catch (Exception ex)
@@ -205,7 +203,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
         }
     }
 
-    private async Task OpenAndDeployLogpack(string packPath)
+    private async Task OpenAndDeployLogpackAsync(string packPath)
     {
         if (packPath is null)
         {
@@ -252,10 +250,10 @@ public partial class LogViewerViewModel : LoggableObservableObject
             Log("No exceptions log file found in logpack. Proceeding with app logs.");
         }
 
-        await ParseOutLogFiles(appLogs, exLogs);
+        await ParseOutLogFilesAsync(appLogs, exLogs);
     }
 
-    private async Task ParseOutLogFiles(ZipArchiveEntry logs, ZipArchiveEntry? exLogs)
+    private async Task ParseOutLogFilesAsync(ZipArchiveEntry logs, ZipArchiveEntry? exLogs)
     {
         _cachedLogs.Clear();
 
@@ -290,7 +288,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
             if (exceptionLogsAvailable && line.StartsWith("Exception: "))
             {
-                logBuilder.AppendLine(await GetNextException(exLogReader));
+                logBuilder.AppendLine(await GetNextExceptionAsync(exLogReader));
                 isException = true;
                 continue;
             }
@@ -322,7 +320,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
         MoveCacheLogsToView(SearchFilterText);
     }
 
-    private static async Task<string?> GetNextException(StreamReader? exReader)
+    private static async Task<string?> GetNextExceptionAsync(StreamReader? exReader)
     {
         if (exReader is null)
         {

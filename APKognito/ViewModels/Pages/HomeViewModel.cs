@@ -877,6 +877,8 @@ public partial class HomeViewModel : LoggableObservableObject
             await Task.Factory.StartNew(
                 path => Directory.Delete((string)path!, true),
                 TempData.FullName, cts.Token);
+
+            Log("Temp files cleaned.");
         }
         catch (OperationCanceledException)
         {

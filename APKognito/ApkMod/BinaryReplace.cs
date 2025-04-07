@@ -15,6 +15,7 @@ internal class BinaryReplace
 
     private readonly string binaryFilePath;
     private readonly LoggableObservableObject? logger;
+    private readonly Encoding encoding = Encoding.UTF8;
 
     public BinaryReplace(string filePath, LoggableObservableObject? _logger)
     {
@@ -41,8 +42,6 @@ internal class BinaryReplace
                 logger?.LogWarning($"Object file '{Path.GetFileName(binaryFilePath)}' is not an ELF.");
                 return;
             }
-
-            IReadOnlyList<ELFSharp.ELF.Segments.ISegment> t = elfFile.Segments;
 
             IEnumerable<StringTable<ulong>> stringTableSections = elfFile.GetSections<StringTable<ulong>>()
                 .Where(t => t.Name is not ".shstrtab");
@@ -76,7 +75,7 @@ internal class BinaryReplace
 
         using ZipFile zip = new(binaryFilePath);
 
-        var selectedFiles = zip.Entries
+        List<ZipEntry> selectedFiles = zip.Entries
             .Where(e => e.FileName.Contains("catalog") || extraFiles.Contains(e.FileName))
             .ToList();
 
@@ -97,7 +96,7 @@ internal class BinaryReplace
         string replacement
     )
     {
-        long originalPosition = elfStream.Position; // Store the original stream position
+        long originalPosition = elfStream.Position;
         _ = elfStream.Seek(sectionOffset, SeekOrigin.Begin);
         byte[] sectionData = new byte[sectionSize];
         int bytesRead = await elfStream.ReadAsync(sectionData.AsMemory(0, (int)sectionSize));
@@ -105,11 +104,10 @@ internal class BinaryReplace
         if (bytesRead != sectionSize)
         {
             logger?.LogWarning($"Could only read {bytesRead} bytes from section at offset {sectionOffset} (expected {sectionSize}).");
-            _ = elfStream.Seek(originalPosition, SeekOrigin.Begin); // Restore original position
+            _ = elfStream.Seek(originalPosition, SeekOrigin.Begin);
             return;
         }
 
-        Encoding encoding = Encoding.UTF8;
 
         int currentOffsetInSection = 0;
         while (currentOffsetInSection < sectionData.Length)
@@ -122,44 +120,44 @@ internal class BinaryReplace
 
             if (currentOffsetInSection > stringStart)
             {
-                int stringLength = currentOffsetInSection - stringStart;
-                string originalString = encoding.GetString(sectionData, stringStart, stringLength);
-
-                if (!originalString.Contains("V4PlayerViewOp"))
-                {
-                    string newString = searchPattern.Replace(originalString, replacement);
-
-                    if (newString.Length == originalString.Length)
-                    {
-                        byte[] newStringBytes = encoding.GetBytes(newString);
-                        Array.Copy(newStringBytes, 0, sectionData, stringStart, newStringBytes.Length);
-                    }
-                    else if (newString.Length < originalString.Length)
-                    {
-                        byte[] newStringBytes = encoding.GetBytes(newString);
-                        Array.Copy(newStringBytes, 0, sectionData, stringStart, newStringBytes.Length);
-
-                        // Pad with nulls
-                        for (int i = newStringBytes.Length; i < originalString.Length; i++)
-                        {
-                            sectionData[stringStart + i] = 0;
-                        }
-                    }
-                    else
-                    {
-                        logger?.LogWarning($"Replacement string '{newString}' is longer than the original '{originalString}'. Skipping.");
-                    }
-                }
+                ReplaceBinarySubstring(searchPattern, replacement, sectionData, encoding, currentOffsetInSection, stringStart);
             }
 
-            currentOffsetInSection++; // Move past the null terminator
+            currentOffsetInSection++;
         }
 
-        // Write the modified section data back to the stream
         _ = elfStream.Seek(sectionOffset, SeekOrigin.Begin);
         await elfStream.WriteAsync(sectionData.AsMemory(0, (int)sectionSize));
 
-        _ = elfStream.Seek(originalPosition, SeekOrigin.Begin); // Restore original position
+        _ = elfStream.Seek(originalPosition, SeekOrigin.Begin);
+    }
+
+    private void ReplaceBinarySubstring(Regex searchPattern, string replacement, byte[] sectionData, Encoding encoding, int currentOffsetInSection, int stringStart)
+    {
+        int stringLength = currentOffsetInSection - stringStart;
+        string originalString = encoding.GetString(sectionData, stringStart, stringLength);
+
+        string newString = searchPattern.Replace(originalString, replacement);
+
+        if (newString.Length == originalString.Length)
+        {
+            byte[] newStringBytes = encoding.GetBytes(newString);
+            Array.Copy(newStringBytes, 0, sectionData, stringStart, newStringBytes.Length);
+        }
+        else if (newString.Length < originalString.Length)
+        {
+            byte[] newStringBytes = encoding.GetBytes(newString);
+            Array.Copy(newStringBytes, 0, sectionData, stringStart, newStringBytes.Length);
+
+            for (int i = newStringBytes.Length; i < originalString.Length; i++)
+            {
+                sectionData[stringStart + i] = 0;
+            }
+        }
+        else
+        {
+            logger?.LogWarning($"Replacement string '{newString}' is longer than the original '{originalString}'. Skipping.");
+        }
     }
 
     private static async Task ProcessTextEntryAsync(ZipFile zip, ZipEntry entry, Regex pattern, string replacement)

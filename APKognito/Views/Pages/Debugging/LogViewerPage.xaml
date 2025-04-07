@@ -182,11 +182,6 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.ColumnSpan="3" Orientation="Horizontal">
-                                            <ui:TextBlock
-                                                Margin="0,0,5,0"
-                                                FontWeight="Bold"
-                                                Text="{Binding LogLevel}" />
-
                                             <ui:SymbolIcon
                                                 Margin="0,0,5,0"
                                                 Filled="True"
@@ -195,6 +190,11 @@
                                                 Symbol="ShieldError24"
                                                 ToolTip="App was launched as administrator when this occured."
                                                 Visibility="{Binding IsAdmin, Converter={StaticResource BoolToVisibility}}" />
+
+                                            <ui:TextBlock
+                                                Margin="0,0,5,0"
+                                                FontWeight="Bold"
+                                                Text="{Binding LogLevel}" />
 
                                             <ui:TextBlock Text="{Binding CallSite}" />
                                         </StackPanel>

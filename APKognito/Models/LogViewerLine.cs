@@ -47,26 +47,25 @@ public partial class LogViewerLine
             throw new FormatException($"Log format does not match expected pattern: {RawLog}");
         }
 
+        if (match.Groups[2].Success)
+        {
+            IsAdmin = true;
+        }
+
         string timeString = match.Groups[1].Value;
         int lastSpace = timeString[..timeString.LastIndexOf(' ')].LastIndexOf(' ') + 1;
 
         string rawLogLevel = timeString[lastSpace..];
 
-        if (rawLogLevel.EndsWith("ADMIN"))
-        {
-            IsAdmin = true;
-            rawLogLevel = rawLogLevel[..^6];
-        }
-
         _ = Enum.TryParse(rawLogLevel, out LogLevel level);
         LogLevel = level;
         timeString = timeString[..lastSpace];
-        CallSite = match.Groups[2].Value.Replace(".", " → ");
-        LogMessage = match.Groups[3].Value;
+        CallSite = match.Groups[3].Value.Replace(".", " → ");
+        LogMessage = match.Groups[4].Value;
 
         if (HasException)
         {
-            ExceptionLog = ParseExceptionLog(match.Groups[4].Value);
+            ExceptionLog = ParseExceptionLog(match.Groups[5].Value);
         }
 
         LogTime = timeString;
@@ -114,6 +113,6 @@ public partial class LogViewerLine
             : LogMessage;
     }
 
-    [GeneratedRegex(@"\[(.*?)\]\s*\[(.*?)\]\s*(.*)\s*([\s\S]*)")]
+    [GeneratedRegex(@"\[(.*?)( ADMIN)?\]\s*\[(.*?)\]\s*(.*)\s*([\s\S]*)")]
     private static partial Regex LogParseRegex();
 }
