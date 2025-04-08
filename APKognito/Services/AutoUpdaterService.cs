@@ -1,6 +1,6 @@
 ﻿// Makes the auto updater fetch a public release rather than a debug or bugfix release (if those are ever used)
 // It's setup so that even if left defined will not break release builds.
-// #define EMULATE_RELEASE_ON_DEBUG
+#define EMULATE_RELEASE_ON_DEBUG
 
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
@@ -98,8 +98,8 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             return;
         }
 
-        string tagName = jsonData[0];
-        string downloadUrl = jsonData[1];
+        string tagName = jsonData[0]!;
+        string downloadUrl = jsonData[1]!;
 
         // Only accept debug releases for debug builds, public releases for release builds
 #if DEBUG && EMULATE_RELEASE_ON_DEBUG
@@ -115,14 +115,14 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         // Check that the release tag is valid (for the current build)
-        if (!Version.TryParse( /* Remove the prefix letter (v1.5.1.1) */ tagName[App.Version.VersionPrefix.Length..], out _))
+        if (!Version.TryParse( /* Remove the prefix letter (v1.5.1.1) */ tagName[App.Version.VersionPrefix.Length..], out Version? newVersion))
         {
             // The version isn't viable
             FileLogger.LogError($"Aborting update, invalid release tag: {tagName}");
             return;
         }
 
-        switch (await ValidatePackageVersion(currentVersion, jsonData))
+        switch (await ValidatePackageVersionAsync(newVersion, jsonData))
         {
             case ValidationResult.UpdateComplete:
             case ValidationResult.CancelUpdate:
@@ -145,15 +145,15 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
         // A cheap way to encode the update info in a way that the user won't dick around easily (they still can if they try hard enough, but a binary file should scare them away)
         cache.UpdateSourceLocation = $"{downloadZip}\0{tagName}";
-        await ImplementUpdate(downloadZip, tagName!);
+        await ImplementUpdateAsync(downloadZip, tagName!);
     }
 
-    private async Task<ValidationResult> ValidatePackageVersion(Version newVersion, string?[] jsonData)
+    private async Task<ValidationResult> ValidatePackageVersionAsync(Version newVersion, string?[] jsonData)
     {
         // Already running the newest version
         if (newVersion == currentVersion)
         {
-            FileLogger.Log("Currently using newest release.");
+            FileLogger.Log($"Currently using newest release. ({newVersion} == {currentVersion})");
             return ValidationResult.CancelUpdate;
         }
         // New release is older than current (?)
@@ -182,7 +182,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
                 && lastVersion >= newVersion)
             {
                 FileLogger.Log($"Installing previous session update ({lastVersion} >= {newVersion})");
-                await ImplementUpdate(updatePath, updateVersion);
+                await ImplementUpdateAsync(updatePath, updateVersion);
                 return ValidationResult.UpdateComplete;
             }
             else
@@ -200,7 +200,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
     }
 
     private bool inUpdate = false;
-    private async Task ImplementUpdate(string updateFilePath, string newVersion)
+    private async Task ImplementUpdateAsync(string updateFilePath, string newVersion)
     {
         if (inUpdate)
         {
@@ -219,11 +219,15 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         // Never in my life did I think "Yes. I'll just 'await await, await' it".
         MessageBoxResult result = await await App.Current.Dispatcher.InvokeAsync(async () =>
         {
-            // The update should take about 5 or 6 seconds, but tell the user 10 so they think it's faster than anticipated
             return await new MessageBox()
             {
-                Title = "Update ready!",
-                Content = $"An update has been downloaded and is ready to install!\n{newVersion[0]}{currentVersion} -> {newVersion}\nWould you like to do it now?\nAPKognito will restart itself when the install is complete (~10 seconds).",
+                Title = "Update Ready!",
+                Content = $"An update has been downloaded and is ready to install.\n\n" +
+                          $"Current Version: {App.Version.VersionPrefix}{currentVersion}\n" +
+                          $"New Version:     {newVersion}\n\n" +
+                          "Would you like to install it now?\n\n" +
+                          "APKognito will restart automatically after the installation " +
+                          "(approximately 10 seconds).",
                 PrimaryButtonText = "Update",
                 SecondaryButtonText = "Stop Updates",
                 CloseButtonText = "Cancel",
@@ -254,13 +258,14 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
         ZipFile.ExtractToDirectory(updateFilePath, unpackedPath, true);
 
-        const string script = "-c Start-Sleep -Seconds 5; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; Start-Process -FilePath '{1}APKognito.exe' -Args '{2}'";
+        const string script = "-c Write-Host 'Waiting for APKognito to exit...'; Start-Sleep -Seconds 5; " +
+            "Write-Host 'Installing APKognito'; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; " +
+            "Write-Host 'Starting APKognito!'; Start-Process -FilePath '{1}APKognito.exe' -Args '{2}'";
         string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, Constants.UpdateInstalledArgument);
 
         _ = Process.Start(new ProcessStartInfo()
         {
             Arguments = command,
-            // CreateNoWindow = true,
             FileName = Constants.POWERSHELL_PATH,
         });
 
