@@ -154,7 +154,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         }
 
         // Get battery charge
-        AdbCommandOutput result = await AdbManager.QuickDeviceCommand("shell dumpsys battery | grep 'level' | cut -d ':' -f 2", token: token, noThrow: true);
+        AdbCommandOutput result = await AdbManager.QuickDeviceCommandAsync("shell dumpsys battery | grep 'level' | cut -d ':' -f 2", token: token, noThrow: true);
 
         if (result.Errored)
         {
@@ -167,7 +167,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             batteryPercentage = -1;
         }
 
-        string output = (await AdbManager.QuickDeviceCommand("shell df | grep -E '^(/dev/block|rootfs|tmp)'")).StdOut;
+        string output = (await AdbManager.QuickDeviceCommandAsync("shell df | grep -E '^(/dev/block|rootfs|tmp)'")).StdOut;
         (float total, float used, float free) = ParseDeviceStorage(output);
 
         return new()

@@ -7,6 +7,8 @@ using System.Diagnostics;
 using System.Security.Principal;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
+using APKognito.Helpers;
+
 
 #if DEBUG
 using APKognito.Views.Pages.Debugging;
@@ -153,7 +155,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
 
         long memoryAfterClean = GetMemSize();
 
-        SnackSuccess("GC Success!", $"Cleaned {(memoryUsage - memoryAfterClean) / 1024f / 1024f:n2} MB");
+        SnackSuccess("GC Success!", $"Cleaned {GBConverter.FormatSizeFromBytes(memoryUsage - memoryAfterClean)}");
 
         _cleanupDebounce = false;
     }

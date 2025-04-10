@@ -1,4 +1,5 @@
-﻿using APKognito.Utilities.MVVM;
+﻿using APKognito.AdbTools;
+using APKognito.Utilities.MVVM;
 using Microsoft.Win32;
 using System.IO;
 using System.Text;
@@ -101,8 +102,9 @@ internal class JavaVersionLocator
         }
 
         // Nothing found, inform user and yeet false
-        logger?.LogError("Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows\n" +
-            "If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation.");
+        logger?.LogError($"Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: {AdbManager.JDK_23_INSTALL_LINK}\n" +
+            "If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation. " +
+            "Alternatively, you can run the command `:install-java` in the Console page");
 
         return false;
     }

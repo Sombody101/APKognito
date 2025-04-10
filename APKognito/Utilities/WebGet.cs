@@ -40,7 +40,7 @@ public static partial class WebGet
     /// <returns></returns>
     public static async Task<string?> FetchGitHubReleaseAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, int num = 0)
     {
-        object? result = await FetchParseDocument(url, [["assets", num, "browser_download_url"]], logger, cToken);
+        object? result = await FetchParseDocumentAsync(url, [["assets", num, "browser_download_url"]], logger, cToken);
 
         return result is string[] strArray 
             ? strArray[0] 
@@ -55,12 +55,12 @@ public static partial class WebGet
     /// <returns></returns>
     public static async Task<string?[]> FetchAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, params object[][] indexes)
     {
-        return await FetchParseDocument(url, indexes, logger, cToken) as string?[] ?? [];
+        return await FetchParseDocumentAsync(url, indexes, logger, cToken) as string?[] ?? [];
     }
 
     public static async Task<bool> DownloadAsync(string url, string name, LoggableObservableObject? logger, CancellationToken cToken)
     {
-        if (!await VerifyConnection(logger))
+        if (!await VerifyConnectionAsync(logger))
         {
             return false;
         }
@@ -92,16 +92,16 @@ public static partial class WebGet
         return false;
     }
 
-    public static async Task<bool> FetchAndDownloadGitHubRelease(string url, string downloadPath, LoggableObservableObject? logger, CancellationToken cToken, int assetIndex = 0)
+    public static async Task<bool> FetchAndDownloadGitHubReleaseAsync(string url, string downloadPath, LoggableObservableObject? logger, CancellationToken cToken, int assetIndex = 0)
     {
         string? downloadUrl = await FetchGitHubReleaseAsync(url, logger, cToken, assetIndex);
 
         return downloadUrl is not null && await DownloadAsync(downloadUrl, downloadPath, logger, cToken);
     }
 
-    private static async Task<object?> FetchParseDocument(string url, object[][] indexes, LoggableObservableObject? logger, CancellationToken cToken)
+    private static async Task<object?> FetchParseDocumentAsync(string url, object[][] indexes, LoggableObservableObject? logger, CancellationToken cToken)
     {
-        if (!await VerifyConnection(logger))
+        if (!await VerifyConnectionAsync(logger))
         {
             return null;
         }
@@ -173,11 +173,11 @@ public static partial class WebGet
         return null;
     }
 
-    private static async Task<bool> VerifyConnection(LoggableObservableObject? logger)
+    private static async Task<bool> VerifyConnectionAsync(LoggableObservableObject? logger)
     {
         try
         {
-            (ConnectionStatus result, IPStatus? status) = await IsConnectedToInternet();
+            (ConnectionStatus result, IPStatus? status) = await IsConnectedToInternetAsync();
 
             if (result is 0)
             {
@@ -217,7 +217,7 @@ public static partial class WebGet
     /// </summary>
     /// <returns>
     /// </returns>
-    private static async Task<(ConnectionStatus, IPStatus?)> IsConnectedToInternet()
+    private static async Task<(ConnectionStatus, IPStatus?)> IsConnectedToInternetAsync()
     {
         // This was added as an attempt to resolve this issue: https://github.com/Sombody101/APKognito/issues/2
 

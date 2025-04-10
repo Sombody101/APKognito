@@ -202,7 +202,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
         }
 
-        AdbCommandOutput result = await AdbManager.InvokeScript($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true);
+        AdbCommandOutput result = await AdbManager.InvokeScriptAsync($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true);
 
         if (result.Errored)
         {
@@ -288,7 +288,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
 
             Directory.CreateDirectory(outputPackagePath);
 
-            await AdbManager.QuickDeviceCommand($"pull \"{package.PackagePath}\" \"{Path.Combine(outputPackagePath, $"{package.PackageName}.apk")}\"");
+            await AdbManager.QuickDeviceCommandAsync($"pull \"{package.PackagePath}\" \"{Path.Combine(outputPackagePath, $"{package.PackageName}.apk")}\"");
 
             if (package.AssetPath is null)
             {
@@ -298,7 +298,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             CurrentlyPulling = Path.GetFileName(package.AssetPath);
             string outputAssetPath = Path.Combine(outputPackagePath, package.PackageName);
             Directory.CreateDirectory(outputAssetPath);
-            await AdbManager.QuickDeviceCommand($"pull \"{AdbManager.ANDROID_OBB}\" \"{outputAssetPath}\"");
+            await AdbManager.QuickDeviceCommandAsync($"pull \"{AdbManager.ANDROID_OBB}\" \"{outputAssetPath}\"");
         }
 
         CurrentlyPulling = "None";
@@ -364,18 +364,18 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             FileLogger.Log($"Uninstalling package: {packageName} (soft = {softUninstall})");
 
             // Remove package
-            await AdbManager.QuickDeviceCommand($"{command} {packageName}");
+            await AdbManager.QuickDeviceCommandAsync($"{command} {packageName}");
 
             if (packagePair.Item2)
             {
                 // Assets
-                await AdbManager.QuickDeviceCommand($"shell rm -r \"{assetPath}\"");
+                await AdbManager.QuickDeviceCommandAsync($"shell rm -r \"{assetPath}\"");
             }
 
             if (!softUninstall)
             {
                 // Save data
-                await AdbManager.QuickDeviceCommand($"shell rm -r \"{AdbManager.ANDROID_DATA}/{packageName}\"", noThrow: true);
+                await AdbManager.QuickDeviceCommandAsync($"shell rm -r \"{AdbManager.ANDROID_DATA}/{packageName}\"", noThrow: true);
             }
 
             int itemInd = 0;

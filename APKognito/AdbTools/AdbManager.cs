@@ -23,6 +23,7 @@ internal class AdbManager
     public const string ANDROID_OBB = $"{ANDROID_EMULATED_BASE}/obb";
 
     public const string PLATFORM_TOOLS_INSTALL_LINK = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip";
+    public const string JDK_23_INSTALL_LINK = "https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows";
 
     public Process? AdbProcess { get; private set; }
 
@@ -56,7 +57,7 @@ internal class AdbManager
     /// <param name="arguments"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static async Task<AdbCommandOutput> QuickCommand(string arguments, CancellationToken token = default, bool noThrow = false)
+    public static async Task<AdbCommandOutput> QuickCommandAsync(string arguments, CancellationToken token = default, bool noThrow = false)
     {
         Process adbProcess = CreateAdbProcess(null, arguments);
         _ = adbProcess.Start();
@@ -66,10 +67,10 @@ internal class AdbManager
         if (!_noCommandRecurse && commandOutput.StdErr.StartsWith("adb.exe: device unauthorized."))
         {
             LoggableObservableObject.CurrentLoggableObject?.SnackWarning("Command failed!", "An ADB command failed to execute! Running an ADB server restart... (may take some time).");
-            await QuickCommand("kill-server");
+            await QuickCommandAsync("kill-server");
             _noCommandRecurse = true;
 
-            return await QuickCommand(arguments, token, noThrow);
+            return await QuickCommandAsync(arguments, token, noThrow);
         }
         else if (_noCommandRecurse && commandOutput.DeviceNotAuthorized)
         {
@@ -90,10 +91,10 @@ internal class AdbManager
     /// <param name="deviceId"></param>
     /// <param name="token"></param>
     /// <returns></returns>
-    public static async Task<AdbCommandOutput> QuickDeviceCommand(string arguments, string? deviceId = null, CancellationToken token = default, bool noThrow = false)
+    public static async Task<AdbCommandOutput> QuickDeviceCommandAsync(string arguments, string? deviceId = null, CancellationToken token = default, bool noThrow = false)
     {
         deviceId ??= adbConfig.CurrentDeviceId;
-        return await QuickCommand($"-s {deviceId} {arguments}", token, noThrow);
+        return await QuickCommandAsync($"-s {deviceId} {arguments}", token, noThrow);
     }
 
     /// <summary>
@@ -103,7 +104,7 @@ internal class AdbManager
     /// <param name="arguments"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static async Task<ICommandOutput> QuickGenericCommand(string command, string arguments, bool noThrow = false)
+    public static async Task<ICommandOutput> QuickGenericCommandAsync(string command, string arguments, bool noThrow = false)
     {
         Process proc = new()
         {
@@ -132,9 +133,9 @@ internal class AdbManager
     /// Gets a formatted list of all available ADB devices.
     /// </summary>
     /// <returns></returns>
-    public static async Task<AdbDeviceInfo[]> GetAllDevices(bool noThrow = false)
+    public static async Task<AdbDeviceInfo[]> GetAllDevicesAsync(bool noThrow = false)
     {
-        AdbCommandOutput response = await QuickCommand("devices -l", noThrow: noThrow);
+        AdbCommandOutput response = await QuickCommandAsync("devices -l", noThrow: noThrow);
 
         var enumeration = response.StdOut.Split("\r\n")
             // Trim empty lines
@@ -161,7 +162,7 @@ internal class AdbManager
                     default:
                         try
                         {
-                            AdbCommandOutput output = await QuickCommand($"-s {deviceId} shell getprop ro.product.model");
+                            AdbCommandOutput output = await QuickCommandAsync($"-s {deviceId} shell getprop ro.product.model");
 
                             if (!output.DeviceNotAuthorized)
                             {
@@ -187,9 +188,9 @@ internal class AdbManager
     /// Gets a standard list of all device IDs
     /// </summary>
     /// <returns></returns>
-    public static async Task<string[]> GetDeviceList(bool noThrow = false)
+    public static async Task<string[]> GetDeviceListAsync(bool noThrow = false)
     {
-        AdbCommandOutput response = await QuickCommand("devices", noThrow: noThrow);
+        AdbCommandOutput response = await QuickCommandAsync("devices", noThrow: noThrow);
 
         return [.. response.StdOut.Split("\r\n")
             .Where(str => !string.IsNullOrWhiteSpace(str))
@@ -197,9 +198,9 @@ internal class AdbManager
             .Select(str => str.Split()[0])];
     }
 
-    public static async Task<string> CreateApplicationCrashLog(bool noThrow = false)
+    public static async Task<string> CreateApplicationCrashLogAsync(bool noThrow = false)
     {
-        AdbCommandOutput response = await QuickCommand($"logcat -b crash -d", noThrow: noThrow);
+        AdbCommandOutput response = await QuickCommandAsync($"logcat -b crash -d", noThrow: noThrow);
 
         string outputFile = Path.Combine(App.AppDataDirectory.FullName, $"applog-{Random.Shared.Next():x4}");
 
@@ -214,9 +215,9 @@ internal class AdbManager
         return outputFile;
     }
 
-    public static async Task WakeDevice(string? deviceId = null, bool noThrow = false)
+    public static async Task WakeDeviceAsync(string? deviceId = null, bool noThrow = false)
     {
-        _ = await QuickDeviceCommand("shell input keyevent KEYCODE_WAKEUP", deviceId, noThrow: noThrow);
+        _ = await QuickDeviceCommandAsync("shell input keyevent KEYCODE_WAKEUP", deviceId, noThrow: noThrow);
     }
 
     /// <summary>
@@ -224,7 +225,7 @@ internal class AdbManager
     /// </summary>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static async Task RestartAdbServer(bool noThrow = false)
+    public static async Task RestartAdbServerAsync(bool noThrow = false)
     {
         Process adbRestartProcess = CreateAdbProcess(null, "restart-server");
         _ = adbRestartProcess.Start();
@@ -255,7 +256,7 @@ internal class AdbManager
     /// Used for gathering device or package information faster.
     /// </summary>
     /// <returns></returns>
-    public static async Task<(int successful, int total, ScriptPushResult result)> UploadAdbScripts(bool forceUpload = false)
+    public static async Task<(int successful, int total, ScriptPushResult result)> UploadAdbScriptsAsync(bool forceUpload = false)
     {
         if (!AdbWorks())
         {
@@ -269,7 +270,7 @@ internal class AdbManager
             return (0, 0, ScriptPushResult.NoScriptResources);
         }
 
-        string scriptVersion = (await QuickDeviceCommand($"shell sh {APKOGNITO_DIRECTORY}/version", noThrow: true)).StdOut;
+        string scriptVersion = (await QuickDeviceCommandAsync($"shell sh {APKOGNITO_DIRECTORY}/version", noThrow: true)).StdOut;
         if (scriptVersion == App.Version.GetFullVersion() || forceUpload)
         {
             FileLogger.Log("Skipping script update, version file matches current version.");
@@ -279,7 +280,7 @@ internal class AdbManager
 
         FileLogger.Log("Uploading ADB script files to device.");
 
-        _ = await QuickDeviceCommand($"shell [ -d {APKOGNITO_DIRECTORY} ] && rm -r {APKOGNITO_DIRECTORY}; mkdir {APKOGNITO_DIRECTORY}");
+        _ = await QuickDeviceCommandAsync($"shell [ -d {APKOGNITO_DIRECTORY} ] && rm -r {APKOGNITO_DIRECTORY}; mkdir {APKOGNITO_DIRECTORY}");
 
         int pushedCount = 0;
         int scriptCount = 0;
@@ -293,7 +294,7 @@ internal class AdbManager
                 FileLogger.Log($"Pushing {tempFile} to {APKOGNITO_DIRECTORY}");
 
                 await File.WriteAllBytesAsync(tempFile, (byte[])entry.Value!);
-                AdbCommandOutput output = await QuickDeviceCommand($"push \"{tempFile}\" \"{APKOGNITO_DIRECTORY}\"", noThrow: true);
+                AdbCommandOutput output = await QuickDeviceCommandAsync($"push \"{tempFile}\" \"{APKOGNITO_DIRECTORY}\"", noThrow: true);
 
                 // STDERR and STDOUT are being swapped for some reason.
                 if (!output.StdErr.Contains("1 file pushed"))
@@ -311,14 +312,14 @@ internal class AdbManager
             FileLogger.LogException(ex);
         }
 
-        _ = await QuickDeviceCommand($"shell echo '#!/bin/sh\n\necho \"{App.Version.GetFullVersion()}\"'");
+        _ = await QuickDeviceCommandAsync($"shell echo '#!/bin/sh\n\necho \"{App.Version.GetFullVersion()}\"'");
 
         return (pushedCount, scriptCount, ScriptPushResult.Success);
     }
 
-    public static async Task<AdbCommandOutput> InvokeScript(string scriptName, string scriptArguments, bool noThrow = false)
+    public static async Task<AdbCommandOutput> InvokeScriptAsync(string scriptName, string scriptArguments, bool noThrow = false)
     {
-        return await QuickDeviceCommand($"shell sh \"{APKOGNITO_DIRECTORY}/{scriptName}\" {scriptArguments}", noThrow: noThrow);
+        return await QuickDeviceCommandAsync($"shell sh \"{APKOGNITO_DIRECTORY}/{scriptName}\" {scriptArguments}", noThrow: noThrow);
     }
 
     private static Process CreateAdbProcess([Optional] string? overrideAdbPath, [Optional] string? arguments)

@@ -93,7 +93,7 @@ public partial class FileUploaderViewModel : LoggableObservableObject
         {
             try
             {
-                await AdbManager.QuickDeviceCommand(@$"install -g ""{path}""");
+                await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{path}""");
             }
             catch (Exception ex)
             {
@@ -108,7 +108,7 @@ public partial class FileUploaderViewModel : LoggableObservableObject
             {
                 try
                 {
-                    AdbCommandOutput result = await AdbManager.QuickDeviceCommand($"push {assets} /sdcard/Android/obb/");
+                    AdbCommandOutput result = await AdbManager.QuickDeviceCommandAsync($"push {assets} /sdcard/Android/obb/");
                     FileLogger.Log(result.StdOut);
                 }
                 catch (Exception ex)

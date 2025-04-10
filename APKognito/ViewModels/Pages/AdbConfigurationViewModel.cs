@@ -58,7 +58,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
             return AdbDevicesStatus.NoAdb;
         }
 
-        string[] foundDevices = [.. await AdbManager.GetDeviceList()];
+        string[] foundDevices = [.. await AdbManager.GetDeviceListAsync()];
 
         if (foundDevices.Length is 0)
         {

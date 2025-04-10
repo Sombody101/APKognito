@@ -1,6 +1,6 @@
 ﻿// Makes the auto updater fetch a public release rather than a debug or bugfix release (if those are ever used)
 // It's setup so that even if left defined will not break release builds.
-#define EMULATE_RELEASE_ON_DEBUG
+// #define EMULATE_RELEASE_ON_DEBUG
 
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;

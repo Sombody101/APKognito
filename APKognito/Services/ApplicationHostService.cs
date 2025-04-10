@@ -1,8 +1,5 @@
 ﻿using APKognito.Views.Windows;
 using Microsoft.Extensions.Hosting;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Wpf.Ui;
 
 namespace APKognito.Services
@@ -46,9 +43,7 @@ namespace APKognito.Services
 
             if (!Application.Current.Windows.OfType<MainWindow>().Any())
             {
-                _navigationWindow = (
-                    _serviceProvider.GetService(typeof(INavigationWindow)) as INavigationWindow
-                )!;
+                _navigationWindow = (_serviceProvider.GetService(typeof(INavigationWindow)) as INavigationWindow)!;
                 _navigationWindow!.ShowWindow();
 
                 _navigationWindow.Navigate(typeof(Views.Pages.HomePage));

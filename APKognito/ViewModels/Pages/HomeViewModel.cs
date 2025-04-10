@@ -611,8 +611,8 @@ public partial class HomeViewModel : LoggableObservableObject
         FileInfo apkInfo = new(context.OutputApkPath);
         Log($"Installing {FinalName} to {currentDevice.DeviceId} ({apkInfo.Length / 1024 / 1024} MB)");
 
-        await AdbManager.WakeDevice();
-        await AdbManager.QuickDeviceCommand(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
+        await AdbManager.WakeDeviceAsync();
+        await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(context.AssetPath) && Directory.Exists(context.AssetPath) && !cancellationToken.IsCancellationRequested)
         {
@@ -621,7 +621,7 @@ public partial class HomeViewModel : LoggableObservableObject
             string obbDirectory = $"{AdbManager.ANDROID_OBB}/{FinalName}";
             Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbDirectory}");
 
-            await AdbManager.QuickDeviceCommand(@$"shell mkdir ""{obbDirectory}""", token: cancellationToken);
+            await AdbManager.QuickDeviceCommandAsync(@$"shell mkdir ""{obbDirectory}""", token: cancellationToken);
 
             int assetIndex = 0;
             foreach (string file in assets)
@@ -629,7 +629,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 var assetInfo = new FileInfo(file);
                 Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
 
-                await AdbManager.QuickDeviceCommand(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
+                await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
             }
         }
     }
@@ -675,7 +675,7 @@ public partial class HomeViewModel : LoggableObservableObject
             if (!File.Exists(ApkEditorToolPaths.ApktoolJarPath))
             {
                 Log("Installing Apktool (JAR)...");
-                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APKTOOL_JAR_URL_LTST, ApkEditorToolPaths.ApktoolJarPath, this, cToken))
+                if (!await WebGet.FetchAndDownloadGitHubReleaseAsync(Constants.APKTOOL_JAR_URL_LTST, ApkEditorToolPaths.ApktoolJarPath, this, cToken))
                 {
                     allSuccess = false;
                 }
@@ -693,7 +693,7 @@ public partial class HomeViewModel : LoggableObservableObject
             if (!File.Exists(ApkEditorToolPaths.ApksignerJarPath))
             {
                 Log("Installing ApkSigner...");
-                if (!await WebGet.FetchAndDownloadGitHubRelease(Constants.APL_SIGNER_URL_LTST, ApkEditorToolPaths.ApksignerJarPath, this, cToken, 1))
+                if (!await WebGet.FetchAndDownloadGitHubReleaseAsync(Constants.APL_SIGNER_URL_LTST, ApkEditorToolPaths.ApksignerJarPath, this, cToken, 1))
                 {
                     allSuccess = false;
                 }

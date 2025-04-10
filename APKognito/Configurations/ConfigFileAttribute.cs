@@ -15,8 +15,6 @@ public class ConfigFileAttribute : Attribute
 
     public ConfigModifiers ConfigModifier { get; }
 
-    public bool LoadedFromCurrentDirectory { get; private set; }
-
     public ConfigFileAttribute(
         string fileName,
         ConfigType configType = ConfigType.Json,
@@ -25,22 +23,5 @@ public class ConfigFileAttribute : Attribute
         FileName = fileName;
         ConfigType = configType;
         ConfigModifier = configModifier;
-    }
-
-    public string GetCompletePath()
-    {
-        string configs = Path.Combine(App.AppDataDirectory!.FullName, "config");
-        _ = Directory.CreateDirectory(configs);
-        return Path.Combine(configs, FileName);
-    }
-
-    public void LoadedFromCurrent()
-    {
-        LoadedFromCurrentDirectory = true;
-    }
-
-    public void RevertSaveToCurrent()
-    {
-        LoadedFromCurrentDirectory = false;
     }
 }

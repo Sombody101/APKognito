@@ -176,7 +176,7 @@ public static class FileLogger
         string[] filesToPack = [
             logFilePath,
             exceptionLogFilePath,
-            ConfigurationFactory.Instance.GetConfigInfo<RenameSessionList>().GetCompletePath()
+            Path.Combine(ConfigurationFactory.Instance.ConfigurationDirectory, ConfigurationFactory.Instance.GetConfigInfo<RenameSessionList>().FileName)
         ];
 
         string packPath = Path.Combine(App.AppDataDirectory!.FullName, "logpack");

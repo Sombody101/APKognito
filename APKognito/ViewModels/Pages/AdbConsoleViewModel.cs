@@ -56,7 +56,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     #region Commands
 
     [RelayCommand]
-    private async Task OnExecute()
+    private async Task OnExecuteAsync()
     {
         try
         {
@@ -69,7 +69,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             if (!string.IsNullOrWhiteSpace(CommandBuffer))
             {
                 FileLogger.Log($"Running command: {CommandBuffer}");
-                await EnterCommand();
+                await EnterCommandAsync();
             }
         }
         catch (Exception ex)
@@ -105,7 +105,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
     #endregion Commands
 
-    public async Task EnterCommand(string? command = null)
+    public async Task EnterCommandAsync(string? command = null)
     {
         // Allows for the command to be overridden if passed
         command ??= CommandBuffer;
@@ -134,7 +134,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
 
         // If the command is internal, run it and return
-        if (await RunInternalCommand(command))
+        if (await RunInternalCommandAsync(command))
         {
             return;
         }
@@ -157,7 +157,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
     }
 
-    private async ValueTask<bool> RunInternalCommand(string rawCommand)
+    private async ValueTask<bool> RunInternalCommandAsync(string rawCommand)
     {
         rawCommand = rawCommand.Trim();
 
@@ -182,7 +182,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
                 return true;
             }
 
-            await EnterCommand($"{cmdletBody} {string.Join(' ', command.Args)}");
+            await EnterCommandAsync($"{cmdletBody} {string.Join(' ', command.Args)}");
             return true;
         }
 
@@ -352,7 +352,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             else
             {
                 output.AppendLine("(no parameters)")
-                    .Append(new string('\t', longestCommandName / 8));
+                    .Append('\t');
             }
 
             output.AppendLine(command.HelpInfo).AppendLine();
@@ -453,7 +453,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     {
         bool result = ThreadPool.QueueUserWorkItem(async (__) =>
         {
-            if (AdbManager.AdbWorks() 
+            if (AdbManager.AdbWorks()
                 && !ctx.Args.Contains("--force")
                 && !ctx.Args.Contains("-f"))
             {
@@ -502,7 +502,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             ConfigurationFactory.Instance.SaveConfig(adbConfig);
 
             WriteGenericLogLine("Testing adb...");
-            AdbCommandOutput output = (await AdbManager.QuickCommand("--version"));
+            AdbCommandOutput output = (await AdbManager.QuickCommandAsync("--version"));
             WriteGenericLogLine(output.StdOut);
 
             if (output.Errored)
@@ -518,6 +518,24 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         {
             LogError("Failed to queue download on the thread pool. Close some apps or try again later.");
         }
+    }
+
+    [Command("install-java", "Installs JDK 23", NO_USAGE)]
+    private void InstallJavaCommand(ParsedCommand _)
+    {
+        Log("Installing JDK 23...");
+
+        WebGet.DownloadAsync(AdbManager.JDK_23_INSTALL_LINK, Path.Combine(App.AppDataDirectory.FullName, "jdk.zip"), this, CancellationToken.None
+        ).ContinueWith(task =>
+        {
+            if (!task.Result)
+            {
+                LogError("Failed to install JDK 23.");
+            }
+
+            LogSuccess("JDK 23 installed successfully! Checking Java executable path...");
+            new JavaVersionLocator().GetJavaPath(out string? javaPath, this);
+        });
     }
 
     [Command("echo", "Prints all arguments to the console.", "[text ...]")]

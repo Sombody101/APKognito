@@ -56,7 +56,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
     {
         try
         {
-            _ = await AdbManager.QuickDeviceCommand("shell echo 'Hello, World!'");
+            _ = await AdbManager.QuickDeviceCommandAsync("shell echo 'Hello, World!'");
         }
         catch
         {
@@ -79,7 +79,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
     {
         try
         {
-            AdbDeviceInfo[] foundDevices = await AdbManager.GetAllDevices();
+            AdbDeviceInfo[] foundDevices = await AdbManager.GetAllDevicesAsync();
 
             if (foundDevices.Length is 0)
             {
@@ -174,7 +174,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
     {
         try
         {
-            (int pushedCount, int scriptCount, AdbManager.ScriptPushResult result) = await AdbManager.UploadAdbScripts();
+            (int pushedCount, int scriptCount, AdbManager.ScriptPushResult result) = await AdbManager.UploadAdbScriptsAsync();
 
             if (result == AdbManager.ScriptPushResult.Success)
             {

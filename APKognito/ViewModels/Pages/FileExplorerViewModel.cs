@@ -148,7 +148,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject
                 path = path.TrimEnd('/');
             }
 
-            string[] response = (await AdbManager.QuickDeviceCommand(
+            string[] response = (await AdbManager.QuickDeviceCommandAsync(
                 // Redirect STDERR to null so filter out 'Permission denied' errors
                 $"shell stat -c '{AdbFolderInfo.FormatString}' {path}/* 2>/dev/null")).StdOut
                 .Split("\r\n");

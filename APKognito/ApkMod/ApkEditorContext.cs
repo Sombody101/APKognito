@@ -107,6 +107,11 @@ public class ApkEditorContext
             ) = SplitPackageName(nameData);
             renameSettings.OnPackageNameFound?.Invoke(nameData.NewPackageName);
 
+            if (advancedRenameSettings.RenameLibsInternal && nameData.OriginalCompanyName.Length != nameData.NewCompanyName.Length)
+            {
+                throw new InvalidReplacementCompanyNameException(nameData.OriginalCompanyName, nameData.NewCompanyName);
+            }
+
             nameData.RenamedApkOutputDirectory = Path.Combine(renameSettings.OutputDirectory, GetFormattedTimeDirectory(nameData.NewPackageName));
 
             if (!kognitoConfig.ClearTempFilesOnRename)
@@ -262,7 +267,7 @@ public class ApkEditorContext
         string aligned = $"{apkPath}.aligned";
 
         string args = $"-f -p 4 \"{apkPath}\" \"{aligned}\"";
-        await AdbManager.QuickGenericCommand(ApkEditorToolPaths.ZipalignPath, args);
+        await AdbManager.QuickGenericCommandAsync(ApkEditorToolPaths.ZipalignPath, args);
 
         // c.z.a.apk.aligned -> c.z.a.apk
         File.Delete(apkPath);
@@ -696,5 +701,13 @@ public class ApkEditorContext
         /// (Only used when file is larger than <see cref="MAX_SMALI_LOAD_SIZE"/>)
         /// </summary>
         public string ApkSmaliTempDirectory { get; init; } = string.Empty;
+    }
+
+    public class InvalidReplacementCompanyNameException : Exception
+    {
+        public InvalidReplacementCompanyNameException(string original, string replacement)
+            : base($"The replacement company name '{replacement}' is {replacement.Length} characters long when it needs to be {original.Length} characters long.")
+        {
+        }
     }
 }
