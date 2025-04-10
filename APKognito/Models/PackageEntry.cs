@@ -29,33 +29,11 @@ public class PackageEntry
         SaveDataSizeBytes = saveDataSizeBytes;
     }
 
-    public string FormattedAssetsSize
-    {
-        get
-        {
-            if (AssetsSizeBytes < 0)
-            {
-                return "(no assets)";
-            }
-
-            return GBConverter.FormatSizeFromBytes(AssetsSizeBytes);
-        }
-    }
+    public string FormattedAssetsSize => AssetsSizeBytes < 0 ? "(no assets)" : GBConverter.FormatSizeFromBytes(AssetsSizeBytes);
 
     public string FormattedPackageSize => GBConverter.FormatSizeFromBytes(PackageSizeBytes);
 
-    public string FormattedSaveDataSize
-    {
-        get
-        {
-            if (SaveDataSizeBytes < 0)
-            {
-                return "(no save data)";
-            }
-
-            return GBConverter.FormatSizeFromBytes(SaveDataSizeBytes);
-        }
-    }
+    public string FormattedSaveDataSize => SaveDataSizeBytes < 0 ? "(no save data)" : GBConverter.FormatSizeFromBytes(SaveDataSizeBytes);
 
     public string FormattedTotalSize
     {
@@ -79,7 +57,7 @@ public class PackageEntry
 
         if (AssetPath is not null)
         {
-            sb.Append(" (assets ")
+            _ = sb.Append(" (assets ")
                 .Append(AssetsSizeBytes is 0
                     ? 0
                     : AssetsSizeBytes / 1024 / 1024)

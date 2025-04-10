@@ -98,12 +98,7 @@ public partial class LogViewerLine
 
         prefixTrim += 2;
 
-        if (prefixTrim > log.Length)
-        {
-            throw new ArgumentException("Invalid exception format.");
-        }
-
-        return log[prefixTrim..];
+        return prefixTrim > log.Length ? throw new ArgumentException("Invalid exception format.") : log[prefixTrim..];
     }
 
     public override string ToString()

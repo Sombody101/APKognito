@@ -8,7 +8,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 {
-    readonly RenameSessionList storedSessions = ConfigurationFactory.Instance.GetConfig<RenameSessionList>();
+    private readonly RenameSessionList storedSessions = ConfigurationFactory.Instance.GetConfig<RenameSessionList>();
 
     #region Properties
 
@@ -21,12 +21,12 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
     [ObservableProperty]
     private ObservableCollection<RenameSession> _renameSessions = [
 #if DEBUG
-        new([(false, "com.google.idk", "com.apkognito.idk"), 
+        new([(false, "com.google.idk", "com.apkognito.idk"),
             (false, "com.facebook.spooky", "com.apkognito.spooky")], 1098234423),
         new([(false, "com.clouds.someapp", "com.apkognito.someapp")], 10955824023),
-        new([(false, "com.fire.whatif", "com.apkognito.whatif"), 
-            (false, "com.amazon.somedumbapp", "com.apkognito.newcoolappidk"), 
-            (false, "com.notspyware.spyware", "com.apkognito.stillspyware"), 
+        new([(false, "com.fire.whatif", "com.apkognito.whatif"),
+            (false, "com.amazon.somedumbapp", "com.apkognito.newcoolappidk"),
+            (false, "com.notspyware.spyware", "com.apkognito.stillspyware"),
             (true, "com.oof.oof", "com.apkognito.oof")], 1098624023),
 #endif
         ];
@@ -36,7 +36,7 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
     #region Commands
 
     [RelayCommand]
-    public async Task RefreshRenameSessions()
+    public async Task RefreshRenameSessionsAsync()
     {
         List<RenameSession> sessions = new(storedSessions.RenameSessions);
         sessions.Reverse();

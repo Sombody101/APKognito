@@ -22,12 +22,9 @@ internal partial class AdbHistory : IKognitoConfig
 
     public string GetVariable(string variableName)
     {
-        if (Variables.TryGetValue(variableName, out string? value))
-        {
-            return value;
-        }
-
-        return string.Empty;
+        return Variables.TryGetValue(variableName, out string? value) 
+            ? value 
+            : string.Empty;
     }
 
     public void SetVariable(string variableName, string? variableValue)
@@ -39,7 +36,7 @@ internal partial class AdbHistory : IKognitoConfig
 
     private static Dictionary<string, string> GetDefaultVariables()
     {
-        return new() 
+        return new()
         {
             { "PS1", "> " }
         };

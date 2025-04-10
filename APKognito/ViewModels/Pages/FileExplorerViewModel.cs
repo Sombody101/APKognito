@@ -55,9 +55,9 @@ public partial class FileExplorerViewModel : LoggableObservableObject
     #region Commands
 
     [RelayCommand]
-    private async Task OnNavigateToDirectory(AdbFolderInfo info)
+    private async Task OnNavigateToDirectoryAsync(AdbFolderInfo info)
     {
-        if (await UpdateFolders(info))
+        if (await UpdateFoldersAsync(info))
         {
             directoryHistoryIndex++;
 
@@ -71,7 +71,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnNavigateBackwards()
+    private async Task OnNavigateBackwardsAsync()
     {
         if (directoryHistoryIndex - 1 < 0)
         {
@@ -79,11 +79,11 @@ public partial class FileExplorerViewModel : LoggableObservableObject
         }
 
         directoryHistoryIndex--;
-        await UpdateFolders(CurrentDirectory);
+        _ = await UpdateFoldersAsync(CurrentDirectory);
     }
 
     [RelayCommand]
-    private async Task OnNavigateForwards()
+    private async Task OnNavigateForwardsAsync()
     {
         if (directoryHistoryIndex + 1 >= directoryHistory.Count)
         {
@@ -91,18 +91,18 @@ public partial class FileExplorerViewModel : LoggableObservableObject
         }
 
         directoryHistoryIndex++;
-        await UpdateFolders(CurrentDirectory);
+        _ = await UpdateFoldersAsync(CurrentDirectory);
     }
 
     [RelayCommand]
-    private async Task OnNavigateOutOfDirectory()
+    private async Task OnNavigateOutOfDirectoryAsync()
     {
         string parentDirectoryPath = Path.GetDirectoryName(ItemPath)
             // Because god forbid someone want to do Unix path parsing while targeting Windows without
             // a pointless NuGet package or a custom class
             ?.Replace('\\', '/') ?? "/";
 
-        if (!await UpdateFolders(parentDirectoryPath))
+        if (!await UpdateFoldersAsync(parentDirectoryPath))
         {
             directoryHistory.Add(directoryHistory[^1]);
             directoryHistoryIndex++;
@@ -110,23 +110,23 @@ public partial class FileExplorerViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnTryRefreshDirectory()
+    private async Task OnTryRefreshDirectoryAsync()
     {
-        await UpdateFolders(directoryHistory[^1]);
+        _ = await UpdateFoldersAsync(directoryHistory[^1]);
     }
 
     #endregion Commands
 
-    private async Task<bool> UpdateFolders(AdbFolderInfo? openingDirectory, bool silent = false)
+    private async Task<bool> UpdateFoldersAsync(AdbFolderInfo? openingDirectory, bool silent = false)
     {
         // Start at the root device directory, change it to the parent directory
         // if openingDirectory isn't null
         string basePath = openingDirectory?.FullPath ?? string.Empty;
 
-        return await UpdateFolders(basePath, silent);
+        return await UpdateFoldersAsync(basePath, silent);
     }
 
-    private async Task<bool> UpdateFolders(string path, bool silent = false)
+    private async Task<bool> UpdateFoldersAsync(string path, bool silent = false)
     {
         if (string.IsNullOrWhiteSpace(adbConfig.CurrentDeviceId))
         {
@@ -153,7 +153,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject
                 $"shell stat -c '{AdbFolderInfo.FormatString}' {path}/* 2>/dev/null")).StdOut
                 .Split("\r\n");
 
-            var filtered = response
+            IEnumerable<AdbFolderInfo> filtered = response
                 .Where(str => !string.IsNullOrWhiteSpace(str))
                 .Select(str => new AdbFolderInfo(str, path));
 
@@ -173,7 +173,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject
 
                 DirectoryEmpty = false;
 
-                foreach (var item in newItems)
+                foreach (AdbFolderInfo item in newItems)
                 {
                     AdbItems.Add(item);
                 }

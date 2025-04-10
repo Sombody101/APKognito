@@ -12,7 +12,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class DriveUsageViewModel : ViewModel, IViewable
 {
-    const string CLAIM_FILE_NAME = ".apkognito";
+    private const string CLAIM_FILE_NAME = ".apkognito";
 
     private readonly KognitoConfig config;
 
@@ -304,12 +304,9 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
     public static bool IsDirectoryClaimed(string directory)
     {
-        if (!Directory.Exists(directory))
-        {
-            throw new ArgumentException($"Unable to check if directory is claimed '{directory}' as it doesn't exist.");
-        }
-
-        return File.Exists(Path.Combine(directory, CLAIM_FILE_NAME));
+        return !Directory.Exists(directory)
+            ? throw new ArgumentException($"Unable to check if directory is claimed '{directory}' as it doesn't exist.")
+            : File.Exists(Path.Combine(directory, CLAIM_FILE_NAME));
     }
 
     partial void OnFilterInRenamedApksChanged(bool value)

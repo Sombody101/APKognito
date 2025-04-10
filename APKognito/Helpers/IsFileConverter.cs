@@ -8,24 +8,26 @@ internal class IsFileConverter : IValueConverter
 {
     object? IValueConverter.Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is FootprintTypes fType)
-        {
-            return fType switch
-            {
-                FootprintTypes.RenamedApk => "Renamed APK",
-                FootprintTypes.Directory => "Directory",
-                FootprintTypes.TempDirectory => "Temporary Directory",
-                FootprintTypes.File => "File",
-                FootprintTypes.TempFile => "Temporary File",
-                _ => "[Unknown]"
-            };
-        }
-
-        return null;
+        return value is FootprintTypes fType
+            ? ParseType(fType)
+            : (object?)null;
     }
 
     object IValueConverter.ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
+    }
+
+    private static string ParseType(FootprintTypes fType)
+    {
+        return fType switch
+        {
+            FootprintTypes.RenamedApk => "Renamed APK",
+            FootprintTypes.Directory => "Directory",
+            FootprintTypes.TempDirectory => "Temporary Directory",
+            FootprintTypes.File => "File",
+            FootprintTypes.TempFile => "Temporary File",
+            _ => "[Unknown]"
+        };
     }
 }

@@ -10,9 +10,7 @@ namespace APKognito.Configurations;
 
 public class ConfigurationFactory
 {
-    public string ConfigurationDirectory => configDirectory;
-
-    private readonly string configDirectory = Path.Combine(App.AppDataDirectory.FullName, "config");
+    public string ConfigurationDirectory { get; } = Path.Combine(App.AppDataDirectory.FullName, "config");
 
     // Keeps the configs "secure" (classes will still have references to each instance, but this ensures there can only be one instance in use at a time)
     private readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
@@ -253,7 +251,7 @@ public class ConfigurationFactory
 
     private string GetCompletePath(string configName)
     {
-        return Path.Combine(configDirectory, configName);
+        return Path.Combine(ConfigurationDirectory, configName);
     }
 
     public void W_RemoveAllConfigurationFiles(bool security)
@@ -266,7 +264,7 @@ public class ConfigurationFactory
 
         try
         {
-            Directory.Delete(configDirectory, true);
+            Directory.Delete(ConfigurationDirectory, true);
         }
         catch (Exception ex)
         {

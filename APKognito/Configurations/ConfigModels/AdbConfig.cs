@@ -26,12 +26,9 @@ internal sealed class AdbConfig : IKognitoConfig
     {
         deviceId ??= CurrentDeviceId;
 
-        if (deviceId is null)
-        {
-            return null;
-        }
-
-        return AdbDevices.Find(device => device.DeviceId == deviceId);
+        return deviceId is null 
+            ? null 
+            : AdbDevices.Find(device => device.DeviceId == deviceId);
     }
 }
 

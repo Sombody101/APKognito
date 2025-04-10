@@ -135,7 +135,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
     [RelayCommand]
     private static void OnCreateLogpack()
     {
-        SettingsViewModel.CreateLogPack();
+        _ = SettingsViewModel.CreateLogPack();
     }
 
     [RelayCommand]
@@ -196,7 +196,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
         LogLines.Clear();
 
-        foreach (var log in _cachedLogs.Where(l => (noLevelFilter || l.LogLevel == SelectedLogFilter)
+        foreach (LogViewerLine? log in _cachedLogs.Where(l => (noLevelFilter || l.LogLevel == SelectedLogFilter)
             && (noTextFilter || l.Contains(filter, comparer))))
         {
             LogLines.Add(log);
@@ -213,13 +213,13 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
         Log($"Opening pack {packPath}");
 
-        using var zipStream = File.OpenRead(packPath);
+        using FileStream zipStream = File.OpenRead(packPath);
         using ZipArchive zip = new(zipStream);
 
         ZipArchiveEntry? appLogs = null, exLogs = null;
 
         WriteGenericLogLine($"Processing archive files ({GBConverter.FormatSizeFromBytes(zipStream.Length)}):");
-        foreach (var entry in zip.Entries)
+        foreach (ZipArchiveEntry entry in zip.Entries)
         {
             WriteGenericLogLine($"\t{entry.Name} ({GBConverter.FormatSizeFromBytes(entry.Length)})");
 
@@ -288,14 +288,14 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
             if (exceptionLogsAvailable && line.StartsWith("Exception: "))
             {
-                logBuilder.AppendLine(await GetNextExceptionAsync(exLogReader));
+                _ = logBuilder.AppendLine(await GetNextExceptionAsync(exLogReader));
                 isException = true;
                 continue;
             }
 
             if (!isException)
             {
-                logBuilder.AppendLine(line.Trim());
+                _ = logBuilder.AppendLine(line.Trim());
             }
 
             // The start of a log line.
@@ -313,7 +313,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
             LogViewerLine newLine = new(log, isException);
             _cachedLogs.Add(newLine);
 
-            logBuilder.Clear();
+            _ = logBuilder.Clear();
             isException = false;
         }
 
@@ -337,7 +337,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
                 continue;
             }
 
-            sb.AppendLine(line.TrimEnd());
+            _ = sb.AppendLine(line.TrimEnd());
         }
 
         return sb.ToString();
@@ -345,7 +345,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
     private void RefreshRecents()
     {
-        var recents = viewerConfig.RecentPacks.ToList();
+        List<string> recents = viewerConfig.RecentPacks.ToList();
         recents.Reverse();
 
         RecentPacks.Clear();

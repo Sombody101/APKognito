@@ -843,7 +843,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private async Task<bool> VerifyAdbDeviceAsync()
     {
-        switch (await AdbConfigurationViewModel.TryConnectDevice(adbConfig))
+        switch (await AdbConfigurationViewModel.TryConnectDeviceAsync(adbConfig))
         {
             case AdbDevicesStatus.NoAdb:
                 LogError("Platform tools are not installed. Either:\n\t1. Go to the ADB Console page and run the command ':install-adb'.\nOr:\n\t2. Install platform tools and manually set the path in the ADB Configuration page.");

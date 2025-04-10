@@ -19,7 +19,7 @@ public partial class RenamingHistoryPage : INavigableView<RenamingHistoryViewMod
 
         Application.Current.Dispatcher.Invoke((Action)async delegate
         {
-            await _viewModel.RefreshRenameSessions();
+            await _viewModel.RefreshRenameSessionsAsync();
         });
     }
 }

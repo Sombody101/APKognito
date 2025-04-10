@@ -7,12 +7,9 @@ public class GBConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is long totalUsedSpace)
-        {
-            return FormatSizeFromBytes(totalUsedSpace);
-        }
-
-        return value;
+        return value is long totalUsedSpace 
+            ? FormatSizeFromBytes(totalUsedSpace) 
+            : value;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -1,7 +1,6 @@
 ﻿using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
-using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using System.Runtime.InteropServices;
 using Wpf.Ui;
@@ -51,7 +50,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
 
     #endregion Commands
 
-    internal static async Task<AdbDevicesStatus> TryConnectDevice([Optional] AdbConfig? adbConfig)
+    internal static async Task<AdbDevicesStatus> TryConnectDeviceAsync([Optional] AdbConfig? adbConfig)
     {
         if (!AdbManager.AdbWorks())
         {

@@ -83,16 +83,16 @@ public static class FileLogger
     {
         StringBuilder log = new();
 
-        log.Append('[').Append(UtcTime).Append("]: EXCEPTION");
+        _ = log.Append('[').Append(UtcTime).Append("]: EXCEPTION");
 
         if (MainWindowViewModel.LaunchedAsAdministrator)
         {
-            log.Append(" [ADMIN]");
+            _ = log.Append(" [ADMIN]");
         }
 
         partnerLog = partnerLog.Trim('\n');
 
-        log.Append(string.IsNullOrWhiteSpace(partnerLog) ? "[No log]" : string.Empty).Append(": ")
+        _ = log.Append(string.IsNullOrWhiteSpace(partnerLog) ? "[No log]" : string.Empty).Append(": ")
             .AppendLine(GetFormattedException(ex)).AppendLine()
             .AppendLine("-- END LOG --")
             .AppendLine();
@@ -183,7 +183,7 @@ public static class FileLogger
         _ = Directory.CreateDirectory(packPath);
 
         StringBuilder errorFiles = new();
-        foreach (var file in filesToPack)
+        foreach (string file in filesToPack)
         {
             if (File.Exists(file))
             {
@@ -191,7 +191,7 @@ public static class FileLogger
             }
             else
             {
-                errorFiles.AppendLine($"Failed to locate file: {file}");
+                _ = errorFiles.AppendLine($"Failed to locate file: {file}");
             }
         }
 
@@ -202,7 +202,7 @@ public static class FileLogger
 
         // Items that need to be packed manually
         string logBoxPath = Path.Combine(packPath, "logbox.txt");
-        var hmv = HomePage.Instance;
+        HomePage? hmv = HomePage.Instance;
 
         if (hmv is null)
         {
@@ -210,7 +210,7 @@ public static class FileLogger
         }
         else
         {
-            var lines = ((Paragraph)hmv.APKLogs.Document.Blocks.LastBlock).Inlines
+            IEnumerable<string> lines = ((Paragraph)hmv.APKLogs.Document.Blocks.LastBlock).Inlines
                 .Select(line => line.ContentStart.GetTextInRun(LogicalDirection.Forward));
 
             File.WriteAllText(logBoxPath, string.Join("\r\n", lines));
@@ -237,12 +237,12 @@ public static class FileLogger
     {
         return level switch
         {
-            LogLevel.INFO       => LogLevelColors.Info,
-            LogLevel.WARNING    => LogLevelColors.Warning,
-            LogLevel.ERROR      => LogLevelColors.Error,
-            LogLevel.FATAL      => LogLevelColors.Fatal,
-            LogLevel.DEBUG      => Brushes.Cyan,
-            LogLevel.TRACE      => LogLevelColors.Trace,
+            LogLevel.INFO => LogLevelColors.Info,
+            LogLevel.WARNING => LogLevelColors.Warning,
+            LogLevel.ERROR => LogLevelColors.Error,
+            LogLevel.FATAL => LogLevelColors.Fatal,
+            LogLevel.DEBUG => Brushes.Cyan,
+            LogLevel.TRACE => LogLevelColors.Trace,
 
             _ => throw new ArgumentException($"No color mapping made for log level '{level}'")
         };
@@ -323,7 +323,7 @@ public static class FileLogger
     {
         StringBuilder exception = new();
 
-        exception.Append(ex.GetType().Name).Append(": ").AppendLine(ex.Message)
+        _ = exception.Append(ex.GetType().Name).Append(": ").AppendLine(ex.Message)
             .AppendLine(ex.StackTrace ?? "[NO STACK]");
 
         return exception.ToString();

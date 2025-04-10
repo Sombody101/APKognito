@@ -2,16 +2,10 @@
 
 namespace APKognito.Models;
 
-public class HumanComboBoxItem<T> where T : Enum
+public class HumanComboBoxItem<T>(T value) where T : Enum
 {
-    public string DisplayName { get; set; }
-    public T Value { get; set; }
-
-    public HumanComboBoxItem(T value)
-    {
-        Value = value;
-        DisplayName = value.Humanize(LetterCasing.Title);
-    }
+    public string DisplayName { get; set; } = value.Humanize(LetterCasing.Title);
+    public T Value { get; set; } = value;
 
     public override string ToString()
     {

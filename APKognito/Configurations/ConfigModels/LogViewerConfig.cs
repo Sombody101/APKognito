@@ -3,7 +3,7 @@
 namespace APKognito.Configurations.ConfigModels;
 
 [ConfigFile("logview.json", ConfigType.Json, ConfigModifiers.JsonIndented | ConfigModifiers.JsonIgnoreMissing)]
-class LogViewerConfig : IKognitoConfig
+internal class LogViewerConfig : IKognitoConfig
 {
     [JsonProperty("recents")]
     public List<string> RecentPacks { get; set; } = [];

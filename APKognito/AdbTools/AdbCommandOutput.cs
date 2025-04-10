@@ -35,7 +35,7 @@ public readonly struct AdbCommandOutput : ICommandOutput
         StdErr = stderr;
     }
 
-    public static async Task<AdbCommandOutput> GetCommandOutput(Process proc)
+    public static async Task<AdbCommandOutput> GetCommandOutputAsync(Process proc)
     {
         return new(
             await proc.StandardOutput.ReadToEndAsync(),

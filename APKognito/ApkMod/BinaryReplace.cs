@@ -108,7 +108,6 @@ internal class BinaryReplace
             return;
         }
 
-
         int currentOffsetInSection = 0;
         while (currentOffsetInSection < sectionData.Length)
         {

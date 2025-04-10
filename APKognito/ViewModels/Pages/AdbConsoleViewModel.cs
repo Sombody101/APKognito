@@ -11,10 +11,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Wpf.Ui;
 
+using ActionCommand = System.Action<APKognito.ViewModels.Pages.AdbConsoleViewModel.ParsedCommand>;
+
 namespace APKognito.ViewModels.Pages;
-
-using ActionCommand = Action<AdbConsoleViewModel.ParsedCommand>;
-
 public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 {
     private const string NO_USAGE = "";
@@ -223,18 +222,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
         public int ArgCount => Args.Length;
 
-        public string? this[int index]
-        {
-            get
-            {
-                if (ArgCount <= index || ArgCount is 0)
-                {
-                    return null;
-                }
-
-                return Args[index];
-            }
-        }
+        public string? this[int index] => ArgCount <= index || ArgCount is 0 ? null : Args[index];
 
         public string[] this[Range range]
         {
@@ -304,6 +292,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     private int longestCommandName = 0;
 
 #pragma warning disable S3011 // Reflection should not be used to increase accessibility of classes, methods, or fields
+#pragma warning disable IDE0051 // Remove unused private members
     private void CacheInternalCommands()
     {
         foreach (MethodInfo methodInfo in typeof(AdbConsoleViewModel).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance))
@@ -331,31 +320,24 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
     }
 
-#pragma warning disable IDE0051 // Remove unused private members
-
     [Command("help", "Prints this help information.", NO_USAGE)]
     private void GetHelpInfoCommand(ParsedCommand __)
     {
         StringBuilder output = new();
 
-        foreach (var command in commands.Select(p => p.Key).Where(p => p.Visible))
+        foreach (CommandAttribute? command in commands.Select(p => p.Key).Where(p => p.Visible))
         {
             _ = output.Append(':')
                 .Append(command.CommandName.PadRight(longestCommandName))
                 .Append(' ');
 
-            if (command.CommandUsage.Length is not 0)
-            {
-                output.AppendLine(command.CommandUsage)
+            _ = command.CommandUsage.Length is not 0
+                ? output.AppendLine(command.CommandUsage)
+                    .Append('\t')
+                : output.AppendLine("(no parameters)")
                     .Append('\t');
-            }
-            else
-            {
-                output.AppendLine("(no parameters)")
-                    .Append('\t');
-            }
 
-            output.AppendLine(command.HelpInfo).AppendLine();
+            _ = output.AppendLine(command.HelpInfo).AppendLine();
         }
 
         WriteGenericLogLine(output.ToString());
@@ -395,7 +377,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
                 return;
             }
 
-            foreach (var command in adbConfig.UserCmdlets)
+            foreach (KeyValuePair<string, string> command in adbConfig.UserCmdlets)
             {
                 Log($"{command.Key}: {command.Value}");
             }
@@ -502,7 +484,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             ConfigurationFactory.Instance.SaveConfig(adbConfig);
 
             WriteGenericLogLine("Testing adb...");
-            AdbCommandOutput output = (await AdbManager.QuickCommandAsync("--version"));
+            AdbCommandOutput output = await AdbManager.QuickCommandAsync("--version");
             WriteGenericLogLine(output.StdOut);
 
             if (output.Errored)
@@ -521,11 +503,11 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     }
 
     [Command("install-java", "Installs JDK 23", NO_USAGE)]
-    private void InstallJavaCommand(ParsedCommand _)
+    private void InstallJavaCommand(ParsedCommand __)
     {
         Log("Installing JDK 23...");
 
-        WebGet.DownloadAsync(AdbManager.JDK_23_INSTALL_LINK, Path.Combine(App.AppDataDirectory.FullName, "jdk.zip"), this, CancellationToken.None
+        _ = WebGet.DownloadAsync(AdbManager.JDK_23_INSTALL_LINK, Path.Combine(App.AppDataDirectory.FullName, "jdk.zip"), this, CancellationToken.None
         ).ContinueWith(task =>
         {
             if (!task.Result)
@@ -534,7 +516,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             }
 
             LogSuccess("JDK 23 installed successfully! Checking Java executable path...");
-            new JavaVersionLocator().GetJavaPath(out string? javaPath, this);
+            _ = new JavaVersionLocator().GetJavaPath(out string? javaPath, this);
         });
     }
 
@@ -545,7 +527,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     }
 
     [Command("vars", "Prints all set variables.", NO_USAGE)]
-    private void PrintAllVariablesCommand(ParsedCommand _)
+    private void PrintAllVariablesCommand(ParsedCommand __)
     {
         if (adbHistory.Variables.Count is 0)
         {
@@ -554,9 +536,9 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
 
         StringBuilder builder = new();
-        foreach (var pair in adbHistory.Variables)
+        foreach (KeyValuePair<string, string> pair in adbHistory.Variables)
         {
-            builder.Append(pair.Key).Append("=\'").Append(pair.Value).AppendLine("'");
+            _ = builder.Append(pair.Key).Append("=\'").Append(pair.Value).AppendLine("'");
         }
 
         Log(builder.ToString());
@@ -569,6 +551,8 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         // Args 1: Variable value
         adbHistory.SetVariable(ctx.Args[0], ctx.Args[1]);
     }
+
+#pragma warning restore IDE0051 // Remove unused private members
 
     [AttributeUsage(AttributeTargets.Method)]
     private sealed class CommandAttribute : Attribute
@@ -650,9 +634,14 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             }
 
             for (int i = 0; i <= n; d[i, 0] = i++)
+            {
                 ;
+            }
+
             for (int j = 0; j <= m; d[0, j] = j++)
+            {
                 ;
+            }
 
             for (int i = 1; i <= n; i++)
             {

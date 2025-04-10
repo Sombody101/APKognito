@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace APKognito.AdbTools;
+﻿namespace APKognito.AdbTools;
 
 internal interface ICommandOutput
 {

@@ -39,6 +39,7 @@ public class KognitoConfig : IKognitoConfig
     public bool ShowAdvancedSettings { get; set; } =
 #if DEBUG || PUBLIC_DEBUG
             true;
+
 #else
             false;
 #endif

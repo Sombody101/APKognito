@@ -1,6 +1,4 @@
 ﻿using System.Globalization;
-using System.IO;
-using Wpf.Ui.Abstractions.Controls;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Models;
@@ -154,12 +152,7 @@ public class AdbFolderInfo
         string fpath = path.TrimEnd('/');
         int sliceStart = fpath.LastIndexOf('/');
 
-        if (sliceStart == -1)
-        {
-            return path;
-        }
-
-        return fpath[(sliceStart + 1)..];
+        return sliceStart == -1 ? path : fpath[(sliceStart + 1)..];
     }
 
     public override string ToString()

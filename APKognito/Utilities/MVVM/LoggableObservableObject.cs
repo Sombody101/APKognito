@@ -22,15 +22,10 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         CurrentLoggableObject = this;
     }
 
-    /* Log box */
-    private RichTextBox richTextBox = null!;
+    public RichTextBox? RichTextBoxInUse { get; private set; } = null!;
+    public Block RichTextLastBlock => RichTextBoxInUse.Document.Blocks.LastBlock;
 
-    public RichTextBox? RichTextBoxInUse => richTextBox;
-    public Block RichTextLastBlock => richTextBox.Document.Blocks.LastBlock;
-
-    /* Snackbar */
-    private ISnackbarService snackbarService = null!;
-    public ISnackbarService? SnackbarService => snackbarService;
+    public ISnackbarService? SnackbarService { get; private set; } = null!;
 
     /* Configs */
     protected bool LogIconPrefixes = true;
@@ -48,15 +43,15 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
     {
         if (newline)
         {
-            text.AppendLine();
+            _ = text.AppendLine();
         }
 
         if (indent != string.Empty)
         {
-            text.Insert(0, indent);
+            _ = text.Insert(0, indent);
         }
 
-        if (richTextBox is null)
+        if (RichTextBoxInUse is null)
         {
             logBuffer?.Add(new(text.ToString(), color, logType));
             return;
@@ -141,36 +136,36 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     public void ClearLogs()
     {
-        richTextBox.Dispatcher.Invoke(() =>
+        RichTextBoxInUse.Dispatcher.Invoke(() =>
         {
-            richTextBox.Document.Blocks.Clear();
-            richTextBox.Document.Blocks.Add(new Paragraph());
+            RichTextBoxInUse.Document.Blocks.Clear();
+            RichTextBoxInUse.Document.Blocks.Add(new Paragraph());
         });
     }
 
     public async Task ClearLogsAsync()
     {
-        await richTextBox.Dispatcher.InvokeAsync(() =>
+        await RichTextBoxInUse.Dispatcher.InvokeAsync(() =>
         {
-            richTextBox.Document.Blocks.Clear();
-            richTextBox.Document.Blocks.Add(new Paragraph());
+            RichTextBoxInUse.Document.Blocks.Clear();
+            RichTextBoxInUse.Document.Blocks.Add(new Paragraph());
         });
     }
 
     public virtual void AntiMvvm_SetRichTextbox(RichTextBox rtb)
     {
-        richTextBox = rtb;
+        RichTextBoxInUse = rtb;
         ClearBuffedLogs();
     }
 
     protected void SetSnackbarProvider(ISnackbarService _snackbarService)
     {
-        snackbarService = _snackbarService;
+        SnackbarService = _snackbarService;
     }
 
     public void DisplaySnack(string header, string body, ControlAppearance appearance, int displayTimeMs = 10_000)
     {
-        if (snackbarService is null)
+        if (SnackbarService is null)
         {
             throw new InvalidOperationException("No Snackpresenter was set.");
         }
@@ -192,7 +187,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
             },
         };
 
-        snackbarService.Show(header, body, appearance, icon, TimeSpan.FromMilliseconds(displayTimeMs));
+        SnackbarService.Show(header, body, appearance, icon, TimeSpan.FromMilliseconds(displayTimeMs));
     }
 
     public void SnackInfo(string header, string body)
@@ -222,7 +217,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     private void AppendRunToLogbox(string text, [Optional] Brush? color, LogType? logType)
     {
-        richTextBox.Dispatcher.BeginInvoke(() =>
+        _ = RichTextBoxInUse.Dispatcher.BeginInvoke(() =>
         {
             Run log = new(text);
 
@@ -267,7 +262,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
                         break;
                 }
 
-                var icon = new SymbolIcon()
+                SymbolIcon icon = new()
                 {
                     Symbol = symbol,
                     VerticalAlignment = VerticalAlignment.Bottom,
@@ -284,7 +279,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
             }
 
             p.Inlines.Add(log);
-            richTextBox.ScrollToEnd();
+            RichTextBoxInUse.ScrollToEnd();
         }, DispatcherPriority.Background);
     }
 

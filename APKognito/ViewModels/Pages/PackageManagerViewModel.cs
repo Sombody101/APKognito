@@ -133,7 +133,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     {
         EnableControls = false;
 
-        var items = list.SelectedItems.Cast<PackageEntry>();
+        IEnumerable<PackageEntry> items = list.SelectedItems.Cast<PackageEntry>();
         int selected = items.Count();
 
         if (selected is 0)
@@ -143,7 +143,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             return;
         }
 
-        var result = await new MessageBox()
+        MessageBoxResult result = await new MessageBox()
         {
             Title = "Are you sure?",
             Content = $"This will {(softUninstall
@@ -160,7 +160,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             return;
         }
 
-        var device = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
 
         if (device is null)
         {
@@ -191,7 +191,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
          *  <package name>|<package path>|<package size>|<assets size>|<package save data size>
          */
 
-        var device = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
         if (device is null)
         {
             if (silent)
@@ -235,14 +235,14 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     {
         EnableControls = false;
 
-        var device = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
         if (device is null)
         {
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
             return;
         }
 
-        var items = list.SelectedItems.Cast<PackageEntry>();
+        IEnumerable<PackageEntry> items = list.SelectedItems.Cast<PackageEntry>();
         int selected = items.Count();
 
         if (selected is 0)
@@ -265,7 +265,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Success
         };
 
-        var result = await directoryDialog.ShowAsync();
+        Wpf.Ui.Controls.ContentDialogResult result = await directoryDialog.ShowAsync();
 
         if (result != Wpf.Ui.Controls.ContentDialogResult.Primary)
         {
@@ -286,9 +286,9 @@ public partial class PackageManagerViewModel : LoggableObservableObject
                 Directory.Delete(outputPackagePath, true);
             }
 
-            Directory.CreateDirectory(outputPackagePath);
+            _ = Directory.CreateDirectory(outputPackagePath);
 
-            await AdbManager.QuickDeviceCommandAsync($"pull \"{package.PackagePath}\" \"{Path.Combine(outputPackagePath, $"{package.PackageName}.apk")}\"");
+            _ = await AdbManager.QuickDeviceCommandAsync($"pull \"{package.PackagePath}\" \"{Path.Combine(outputPackagePath, $"{package.PackageName}.apk")}\"");
 
             if (package.AssetPath is null)
             {
@@ -297,8 +297,8 @@ public partial class PackageManagerViewModel : LoggableObservableObject
 
             CurrentlyPulling = Path.GetFileName(package.AssetPath);
             string outputAssetPath = Path.Combine(outputPackagePath, package.PackageName);
-            Directory.CreateDirectory(outputAssetPath);
-            await AdbManager.QuickDeviceCommandAsync($"pull \"{AdbManager.ANDROID_OBB}\" \"{outputAssetPath}\"");
+            _ = Directory.CreateDirectory(outputAssetPath);
+            _ = await AdbManager.QuickDeviceCommandAsync($"pull \"{AdbManager.ANDROID_OBB}\" \"{outputAssetPath}\"");
         }
 
         CurrentlyPulling = "None";
@@ -315,7 +315,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
 
         string[] filterParts = filter.Split();
 
-        var matchingPackages = cachedPackageList.Where(package =>
+        List<PackageEntry> matchingPackages = cachedPackageList.Where(package =>
         {
             string packageName = package.PackageName;
             foreach (string filterPart in filterParts)
@@ -338,7 +338,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         {
             PackageList.Clear();
 
-            foreach (var package in packageEntries)
+            foreach (PackageEntry package in packageEntries)
             {
                 PackageList.Add(package);
             }
@@ -350,7 +350,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         string command = $"shell pm uninstall {(softUninstall ? "-k" : string.Empty)}";
         (string, bool)[] packages = [.. items.Select(p => (p.PackageName, p.AssetPath is not null))];
 
-        foreach (var packagePair in packages)
+        foreach ((string, bool) packagePair in packages)
         {
             string packageName = packagePair.Item1;
             string assetPath = $"{AdbManager.ANDROID_OBB}/{packageName}";
@@ -364,18 +364,18 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             FileLogger.Log($"Uninstalling package: {packageName} (soft = {softUninstall})");
 
             // Remove package
-            await AdbManager.QuickDeviceCommandAsync($"{command} {packageName}");
+            _ = await AdbManager.QuickDeviceCommandAsync($"{command} {packageName}");
 
             if (packagePair.Item2)
             {
                 // Assets
-                await AdbManager.QuickDeviceCommandAsync($"shell rm -r \"{assetPath}\"");
+                _ = await AdbManager.QuickDeviceCommandAsync($"shell rm -r \"{assetPath}\"");
             }
 
             if (!softUninstall)
             {
                 // Save data
-                await AdbManager.QuickDeviceCommandAsync($"shell rm -r \"{AdbManager.ANDROID_DATA}/{packageName}\"", noThrow: true);
+                _ = await AdbManager.QuickDeviceCommandAsync($"shell rm -r \"{AdbManager.ANDROID_DATA}/{packageName}\"", noThrow: true);
             }
 
             int itemInd = 0;

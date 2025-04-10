@@ -6,14 +6,11 @@ namespace APKognito.Helpers;
 [ValueConversion(typeof(bool), typeof(bool))]
 public class BoolInterterConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is bool b)
-        {
-            return !b;
-        }
-
-        return null;
+        return value is bool b 
+            ? !b 
+            : (object?)null;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

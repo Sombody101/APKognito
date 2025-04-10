@@ -11,8 +11,6 @@ using System.Runtime.InteropServices;
 
 namespace APKognito.AdbTools;
 
-#pragma warning disable CA1068 // CancellationToken parameters must come last
-
 internal class AdbManager
 {
     private const string APKOGNITO_DIRECTORY = $"{ANDROID_EMULATED}/apkognito";
@@ -61,13 +59,13 @@ internal class AdbManager
     {
         Process adbProcess = CreateAdbProcess(null, arguments);
         _ = adbProcess.Start();
-        AdbCommandOutput commandOutput = await AdbCommandOutput.GetCommandOutput(adbProcess);
+        AdbCommandOutput commandOutput = await AdbCommandOutput.GetCommandOutputAsync(adbProcess);
         await adbProcess.WaitForExitAsync(token);
 
         if (!_noCommandRecurse && commandOutput.StdErr.StartsWith("adb.exe: device unauthorized."))
         {
             LoggableObservableObject.CurrentLoggableObject?.SnackWarning("Command failed!", "An ADB command failed to execute! Running an ADB server restart... (may take some time).");
-            await QuickCommandAsync("kill-server");
+            _ = await QuickCommandAsync("kill-server");
             _noCommandRecurse = true;
 
             return await QuickCommandAsync(arguments, token, noThrow);
@@ -120,7 +118,7 @@ internal class AdbManager
         };
 
         _ = proc.Start();
-        CommandOutput commandOutput = await CommandOutput.GetCommandOutput(proc);
+        CommandOutput commandOutput = await CommandOutput.GetCommandOutputAsync(proc);
 
         await proc.WaitForExitAsync();
 
@@ -137,7 +135,7 @@ internal class AdbManager
     {
         AdbCommandOutput response = await QuickCommandAsync("devices -l", noThrow: noThrow);
 
-        var enumeration = response.StdOut.Split("\r\n")
+        IEnumerable<Task<AdbDeviceInfo>> enumeration = response.StdOut.Split("\r\n")
             // Trim empty lines
             .Where(str => !string.IsNullOrWhiteSpace(str))
             // Skip ADB list header
@@ -229,7 +227,7 @@ internal class AdbManager
     {
         Process adbRestartProcess = CreateAdbProcess(null, "restart-server");
         _ = adbRestartProcess.Start();
-        AdbCommandOutput output = await AdbCommandOutput.GetCommandOutput(adbRestartProcess);
+        AdbCommandOutput output = await AdbCommandOutput.GetCommandOutputAsync(adbRestartProcess);
         await adbRestartProcess.WaitForExitAsync();
 
         output.ThrowIfError(noThrow, adbRestartProcess.ExitCode);

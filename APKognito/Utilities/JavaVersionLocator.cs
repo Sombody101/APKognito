@@ -262,22 +262,22 @@ internal class JavaVersionLocator
         StringBuilder logBuffer = new();
         bool binExists = Directory.Exists($"{javaPath}\\bin");
 
-        logBuffer.Append("JAVA_HOME is set to '")
+        _ = logBuffer.Append("JAVA_HOME is set to '")
             .Append(javaPath).Append("', but does not have java.exe. bin\\: does ");
 
         if (!binExists)
         {
-            logBuffer.Append("not ");
+            _ = logBuffer.Append("not ");
         }
 
-        logBuffer.Append("exist.");
+        _ = logBuffer.Append("exist.");
 
         if (binExists)
         {
-            logBuffer.AppendLine(" Files found in bin\\:");
-            foreach (var file in Directory.GetFiles(javaPath))
+            _ = logBuffer.AppendLine(" Files found in bin\\:");
+            foreach (string file in Directory.GetFiles(javaPath))
             {
-                logBuffer.Append('\t').AppendLine(Path.GetFileName(file));
+                _ = logBuffer.Append('\t').AppendLine(Path.GetFileName(file));
             }
         }
 

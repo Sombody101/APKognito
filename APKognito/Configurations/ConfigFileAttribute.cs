@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace APKognito.Configurations;
+﻿namespace APKognito.Configurations;
 
 /// <summary>
 /// The name of the file for a config. (e.g. <see langword="specific-config.json"/>).

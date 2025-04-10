@@ -24,7 +24,7 @@ public readonly struct CommandOutput : ICommandOutput
         StdErr = stderr;
     }
 
-    public static async Task<CommandOutput> GetCommandOutput(Process proc)
+    public static async Task<CommandOutput> GetCommandOutputAsync(Process proc)
     {
         return new(
             await proc.StandardOutput.ReadToEndAsync(),

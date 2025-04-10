@@ -12,16 +12,14 @@ public static partial class WebGet
 {
     private const string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6446.71 Safari/537.36";
 
-    private static readonly HttpClient _sharedHttpClient = new();
-
     /// <summary>
     /// An <see cref="HttpClient"/> instance that is shared throughout the application.
     /// </summary>
-    public static HttpClient SharedHttpClient => _sharedHttpClient;
+    public static HttpClient SharedHttpClient { get; } = new();
 
     static WebGet()
     {
-        _sharedHttpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
+        SharedHttpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
     }
 
     public class InvalidJsonIndexerException : Exception
@@ -42,8 +40,8 @@ public static partial class WebGet
     {
         object? result = await FetchParseDocumentAsync(url, [["assets", num, "browser_download_url"]], logger, cToken);
 
-        return result is string[] strArray 
-            ? strArray[0] 
+        return result is string[] strArray
+            ? strArray[0]
             : null;
     }
 
@@ -69,7 +67,7 @@ public static partial class WebGet
         {
             string fileName = Path.GetFileName(name);
             logger?.Log($"Fetching {fileName}");
-            using HttpResponseMessage response = await _sharedHttpClient.GetAsync(url, cToken);
+            using HttpResponseMessage response = await SharedHttpClient.GetAsync(url, cToken);
             _ = response.EnsureSuccessStatusCode();
 
             await using FileStream fileStream = File.Create(name);
@@ -116,7 +114,7 @@ public static partial class WebGet
 
         try
         {
-            HttpResponseMessage response = await _sharedHttpClient.GetAsync(url, cToken);
+            HttpResponseMessage response = await SharedHttpClient.GetAsync(url, cToken);
             _ = response.EnsureSuccessStatusCode();
 
             jsonResult = await response.Content.ReadAsStringAsync(cToken);

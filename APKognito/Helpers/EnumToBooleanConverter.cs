@@ -8,7 +8,7 @@ internal class EnumToBooleanConverter : IValueConverter
 {
     object IValueConverter.Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (parameter is not String enumString)
+        if (parameter is not string enumString)
         {
             throw new ArgumentException("ExceptionEnumToBooleanConverterParameterMustBeAnEnumName");
         }
@@ -18,18 +18,15 @@ internal class EnumToBooleanConverter : IValueConverter
             throw new ArgumentException("ExceptionEnumToBooleanConverterValueMustBeAnEnum");
         }
 
-        var enumValue = Enum.Parse(typeof(ApplicationTheme), enumString);
+        object enumValue = Enum.Parse(typeof(ApplicationTheme), enumString);
 
         return enumValue.Equals(value);
     }
 
     object IValueConverter.ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (parameter is not String enumString)
-        {
-            throw new ArgumentException("ExceptionEnumToBooleanConverterParameterMustBeAnEnumName");
-        }
-
-        return Enum.Parse(typeof(ApplicationTheme), enumString);
+        return parameter is not string enumString
+            ? throw new ArgumentException("ExceptionEnumToBooleanConverterParameterMustBeAnEnumName")
+            : Enum.Parse(typeof(ApplicationTheme), enumString);
     }
 }

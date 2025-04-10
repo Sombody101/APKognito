@@ -267,7 +267,7 @@ public class ApkEditorContext
         string aligned = $"{apkPath}.aligned";
 
         string args = $"-f -p 4 \"{apkPath}\" \"{aligned}\"";
-        await AdbManager.QuickGenericCommandAsync(ApkEditorToolPaths.ZipalignPath, args);
+        _ = await AdbManager.QuickGenericCommandAsync(ApkEditorToolPaths.ZipalignPath, args);
 
         // c.z.a.apk.aligned -> c.z.a.apk
         File.Delete(apkPath);
@@ -565,15 +565,15 @@ public class ApkEditorContext
             throw new DirectoryNotFoundException($"Source directory not found: {dir.FullName}");
         }
 
-        await Task.Run(() => Directory.CreateDirectory(destinationDir)); // Offload synchronous operation
+        _ = await Task.Run(() => Directory.CreateDirectory(destinationDir)); // Offload synchronous operation
 
-        var files = await Task.Run(() => dir.GetFiles().ToList()); // Offload synchronous operation
+        List<FileInfo> files = await Task.Run(() => dir.GetFiles().ToList()); // Offload synchronous operation
 
-        var copyTasks = files.Select(async file =>
+        IEnumerable<Task> copyTasks = files.Select(async file =>
         {
             string targetFilePath = Path.Combine(destinationDir, file.Name);
-            using var sourceStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
-            using var destinationStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true);
+            using FileStream sourceStream = new(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
+            using FileStream destinationStream = new(targetFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true);
 
             await sourceStream.CopyToAsync(destinationStream);
         });
@@ -582,7 +582,7 @@ public class ApkEditorContext
 
         if (recursive)
         {
-            var subDirectories = await Task.Run(() => dir.GetDirectories().ToList()); // Offload synchronous operation
+            List<DirectoryInfo> subDirectories = await Task.Run(() => dir.GetDirectories().ToList()); // Offload synchronous operation
             foreach (DirectoryInfo subDir in subDirectories)
             {
                 string newDestinationDir = Path.Combine(destinationDir, subDir.Name);

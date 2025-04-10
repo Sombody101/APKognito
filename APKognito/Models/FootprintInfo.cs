@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Reflection;
 
 namespace APKognito.Models;
 
@@ -52,13 +51,9 @@ public record FootprintInfo
         {
             ItemType = FootprintTypes.RenamedApk;
         }
-        else if (directory.FullName.StartsWith(Path.GetTempPath()))
-        {
-            ItemType = FootprintTypes.TempDirectory;
-        }
         else
         {
-            ItemType = FootprintTypes.Directory;
+            ItemType = directory.FullName.StartsWith(Path.GetTempPath()) ? FootprintTypes.TempDirectory : FootprintTypes.Directory;
         }
     }
 

@@ -1,11 +1,5 @@
-﻿using System;
-using System.ComponentModel;
-using System.Globalization;
+﻿using System.ComponentModel;
 using System.Reflection;
-using System.Security.Cryptography.Pkcs;
-using System.Security.Permissions;
-using System.Windows.Media.Animation;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace APKognito.Cli;
 
@@ -38,7 +32,7 @@ internal class ParsedArgs
 
     private void StartArgParse(string[] args)
     {
-        var argTypes = typeof(ParsedArgs).GetProperties()
+        Dictionary<PropertyInfo, CliArgAttribute> argTypes = typeof(ParsedArgs).GetProperties()
             .Where(field => Attribute.IsDefined(field, typeof(CliArgAttribute)))
             .ToDictionary(
                 prop => prop,

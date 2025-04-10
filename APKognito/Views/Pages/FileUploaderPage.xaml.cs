@@ -1,5 +1,4 @@
-﻿using APKognito.Models;
-using APKognito.Utilities.MVVM;
+﻿using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using Wpf.Ui.Abstractions.Controls;
 

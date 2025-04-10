@@ -13,12 +13,9 @@ internal sealed class ThemeToIndexConverter : IValueConverter
             return 1;
         }
 
-        if (value is ApplicationTheme.HighContrast)
-        {
-            return 2;
-        }
-
-        return 0;
+        return value is ApplicationTheme.HighContrast 
+            ? 2 
+            : 0;
     }
 
     object IValueConverter.ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -28,11 +25,8 @@ internal sealed class ThemeToIndexConverter : IValueConverter
             return ApplicationTheme.Dark;
         }
 
-        if (value is 2)
-        {
-            return ApplicationTheme.HighContrast;
-        }
-
-        return ApplicationTheme.Light;
+        return value is 2 
+            ? ApplicationTheme.HighContrast 
+            : ApplicationTheme.Light;
     }
 }

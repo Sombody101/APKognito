@@ -11,7 +11,6 @@ namespace APKognito.Controls;
 /// </summary>
 public partial class DirectorySelector
 {
-    [SuppressMessage("Major Code Smell", "S3264:Events should be invoked", Justification = "Used externally")]
     public new event KeyEventHandler? KeyUp;
 
     public static readonly DependencyProperty DirectoryPathProperty =

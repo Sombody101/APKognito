@@ -51,13 +51,13 @@ public partial class FileUploaderViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnAddRecurseItems()
+    private async Task OnAddRecurseItemsAsync()
     {
-        await PromptForRecurseFiles();
+        await PromptForRecurseFilesAsync();
     }
 
     [RelayCommand]
-    private async Task OnUploadItemsToDevice()
+    private async Task OnUploadItemsToDeviceAsync()
     {
         if (adbConfig.CurrentDeviceId is null)
         {
@@ -93,7 +93,7 @@ public partial class FileUploaderViewModel : LoggableObservableObject
         {
             try
             {
-                await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{path}""");
+                _ = await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{path}""");
             }
             catch (Exception ex)
             {
@@ -175,7 +175,7 @@ public partial class FileUploaderViewModel : LoggableObservableObject
         });
     }
 
-    private async Task PromptForRecurseFiles()
+    private async Task PromptForRecurseFilesAsync()
     {
         OpenFolderDialog openFolderDialog = new();
 
@@ -214,12 +214,7 @@ public partial class FileUploaderViewModel : LoggableObservableObject
     {
         string obbDirectory = Path.Combine(Path.GetDirectoryName(path) ?? path, Path.GetFileNameWithoutExtension(path));
 
-        if (Directory.Exists(obbDirectory))
-        {
-            return obbDirectory;
-        }
-
-        return null;
+        return Directory.Exists(obbDirectory) ? obbDirectory : null;
     }
 
     private static string FormatObbMessage(string path, string? obbPath)
