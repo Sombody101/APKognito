@@ -62,8 +62,8 @@ internal class JavaVersionLocator
         try
         {
             FileLogger.Log("Checking Registry for JDK/JRE installation.");
-            if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE")
-                || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath, "JDK"))
+            if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath, "JDK")
+                || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE"))
             {
                 return true;
             }
