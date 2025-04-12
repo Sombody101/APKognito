@@ -4,11 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:APKognito.Helpers"
-    xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:APKognito.Models"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
-    xmlns:sys="clr-namespace:System;assembly=netstandard"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="DriveUsage"
     d:DataContext="{d:DesignInstance pages:DriveUsageViewModel,
@@ -38,7 +36,7 @@
         <ui:Card
             Grid.Column="0"
             VerticalAlignment="Stretch"
-            VerticalContentAlignment="Top">
+            VerticalContentAlignment="Stretch">
             <StackPanel>
                 <StackPanel Margin="0,0,0,5">
                     <TextBlock
@@ -156,6 +154,15 @@
                 </Grid>
 
                 <ProgressBar Grid.Row="2" IsIndeterminate="{Binding IsRunning}" />
+
+                <ui:TextBlock
+                    HorizontalAlignment="Center"
+                    Text="{Binding CurrentlyDeleting}"
+                    TextTrimming="WordEllipsis" />
+                <ui:TextBlock
+                    HorizontalAlignment="Center"
+                    Text="{Binding CurrentlyDeletingLow}"
+                    TextTrimming="WordEllipsis" />
             </StackPanel>
         </ui:Card>
 
@@ -243,7 +250,6 @@
                                     </StackPanel>
                                 </Grid>
                             </ui:Card>
-
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ui:ListView>

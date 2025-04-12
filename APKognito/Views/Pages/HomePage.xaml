@@ -256,6 +256,7 @@
                             <RowDefinition />
                             <RowDefinition />
                             <RowDefinition />
+                            <RowDefinition />
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Column="0">
@@ -350,6 +351,9 @@
                         <StackPanel Grid.Row="6">
                             <TextBlock FontWeight="Bold" Text="Elapsed Time:" />
                             <TextBlock FontWeight="Bold" Text="Working On:" />
+                            <TextBlock FontWeight="Bold">
+                                <Run Text="{Binding CurrentActionTitle}" /><Run Text=":" />
+                            </TextBlock>
                         </StackPanel>
 
                         <!--  Job Time Values  -->
@@ -363,6 +367,11 @@
                             <TextBlock
                                 Margin="1"
                                 Text="{Binding JobbedApk}"
+                                TextTrimming="CharacterEllipsis" />
+
+                            <TextBlock
+                                Margin="1"
+                                Text="{Binding CurrentAction}"
                                 TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Grid>

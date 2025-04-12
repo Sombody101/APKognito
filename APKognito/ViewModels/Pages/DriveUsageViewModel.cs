@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Helpers;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
@@ -13,6 +14,7 @@ namespace APKognito.ViewModels.Pages;
 public partial class DriveUsageViewModel : ViewModel, IViewable
 {
     private const string CLAIM_FILE_NAME = ".apkognito";
+    private const string PACKAGE_LIST_JOIN_STRING = "\n  ⚬  ";
 
     private readonly KognitoConfig config;
 
@@ -23,10 +25,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     #region Properties
 
     [ObservableProperty]
-    private double _listHeight = 500;
-
-    [ObservableProperty]
-    private bool _isRunning =
+    public partial bool IsRunning { get; set; } =
 #if DEBUG
         true;
 #else
@@ -34,37 +33,43 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 #endif
 
     [ObservableProperty]
-    private bool _fileListVisibility = true;
+    public partial bool FileListVisibility { get; set; } = true;
 
     [ObservableProperty]
-    private string _startButtonText = "Refresh";
+    public partial string StartButtonText { get; set; } = "Refresh";
 
     [ObservableProperty]
-    private long _totalUsedSpace = 0;
+    public partial long TotalUsedSpace { get; set; } = 0;
 
     [ObservableProperty]
-    private long _totalFilteredSpace = 0;
+    public partial long TotalFilteredSpace { get; set; } = 0;
 
     [ObservableProperty]
-    private long _totalSelectedSpace = 0;
+    public partial long TotalSelectedSpace { get; set; } = 0;
 
     [ObservableProperty]
-    private bool _canDelete = false;
+    public partial bool CanDelete { get; set; } = false;
 
     [ObservableProperty]
-    private bool _canModifyFilter = false;
+    public partial bool CanModifyFilter { get; set; } = false;
 
     [ObservableProperty]
-    private bool _filterInRenamedApks;
+    public partial bool FilterInRenamedApks { get; set; }
 
     [ObservableProperty]
-    private bool _filterInDirectories;
+    public partial bool FilterInDirectories { get; set; }
 
     [ObservableProperty]
-    private bool _filterInFiles;
+    public partial bool FilterInFiles { get; set; }
 
     [ObservableProperty]
-    private ObservableCollection<FootprintInfo> _foundFolders = [];
+    public partial string CurrentlyDeleting { get; set; }
+
+    [ObservableProperty]
+    public partial string CurrentlyDeletingLow { get; set; }
+
+    [ObservableProperty]
+    public partial ObservableCollection<FootprintInfo> FoundFolders { get; set; } = [];
 
     #endregion Properties
 
@@ -138,10 +143,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         MessageBox confirmation = new()
         {
             Title = $"Delete {GetFormattedItems(itemsToDelete)}?",
-            Content = $"This will remove the following items:\n  ⚬  {GetFormattedSelectedPackages(itemsToDelete)}\n\nContinue?",
+            Content = $"This will remove the following items:{PACKAGE_LIST_JOIN_STRING}{GetFormattedSelectedPackages(itemsToDelete, PACKAGE_LIST_JOIN_STRING)}\n\nContinue?",
             PrimaryButtonText = "Delete",
             PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
             CloseButtonText = "Cancel",
+            MaxHeight = 600,
         };
 
         MessageBoxResult result = await confirmation.ShowDialogAsync();
@@ -155,6 +161,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     Exit:
         CanDelete = true;
         IsRunning = false;
+        CurrentlyDeleting = CurrentlyDeletingLow = string.Empty;
 
         await StartSearchAsync();
     }
@@ -173,10 +180,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         MessageBox confirmation = new()
         {
             Title = $"Delete {GetFormattedItems(FoundFolders)}?",
-            Content = $"This will remove the following items:\n  ⚬  {GetFormattedSelectedPackages(FoundFolders)}\n\nContinue?",
+            Content = $"This will remove the following items:{PACKAGE_LIST_JOIN_STRING}{GetFormattedSelectedPackages(FoundFolders, PACKAGE_LIST_JOIN_STRING)}\n\nContinue?",
             PrimaryButtonText = "Delete",
             PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
             CloseButtonText = "Cancel",
+            MaxHeight = 600
         };
 
         MessageBoxResult result = await confirmation.ShowDialogAsync();
@@ -192,6 +200,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     Exit:
         CanDelete = true;
         IsRunning = false;
+        CurrentlyDeleting = CurrentlyDeletingLow = string.Empty;
 
         await StartSearchAsync();
     }
@@ -297,6 +306,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
             throw new ArgumentException($"Unable to claim directory '{directory}' as it doesn't exist.");
         }
 
+        if (IsDirectoryClaimed(directory))
+        {
+            return;
+        }
+
         string hiddenFile = Path.Combine(directory, CLAIM_FILE_NAME);
         File.Create(hiddenFile).Close();
         File.SetAttributes(hiddenFile, File.GetAttributes(hiddenFile) | FileAttributes.Hidden);
@@ -355,26 +369,58 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         UpdateItemsList();
     }
 
-    private static string GetFormattedSelectedPackages(IEnumerable<FootprintInfo> items)
+    private static string GetFormattedSelectedPackages(IEnumerable<FootprintInfo> items, string joinStr)
     {
-        return string.Join("\n  ⚬  ", items.Select(item => item.FolderName));
+        return string.Join(joinStr, items.Select(item => item.FolderName));
     }
 
-    private static async ValueTask DeleteFileCollectionAsync(IEnumerable<FootprintInfo> files)
+    private async Task DeleteFileCollectionAsync(IEnumerable<FootprintInfo> files)
     {
-        await Parallel.ForEachAsync(files, (item, token) =>
+        // Horrible to the thread pool, but I'm not sure what else to do right now...
+        // We can only hope the user run a deletion while renaming a package.
+        await Task.Run(() =>
         {
-            if (item.ItemType is FootprintTypes.File)
+            foreach (var entry in files)
             {
-                File.Delete(item.FolderPath);
-            }
-            else
-            {
-                Directory.Delete(item.FolderPath, true);
-            }
+                CurrentlyDeleting = $"{Path.GetFileName(entry.FolderName)} ({GBConverter.FormatSizeFromBytes(entry.FolderSizeBytes)})";
 
-            return ValueTask.CompletedTask;
+                if (entry.ItemType is FootprintTypes.File)
+                {
+                    CurrentlyDeleting = Path.GetFileName(entry.FolderPath);
+                    File.Delete(entry.FolderPath);
+                }
+                else
+                {
+                    DeleteDirectory(entry.FolderPath);
+                    Directory.Delete(entry.FolderPath);
+                }
+            }
         });
+
+        void DeleteDirectory(string directory)
+        {
+            foreach (string file in Directory.EnumerateFileSystemEntries(directory).OrderByDescending(str => str.Length))
+            {
+                try
+                {
+                    CurrentlyDeletingLow = Path.GetFileName(file);
+                    if (File.Exists(file))
+                    {
+                        File.Delete(file);
+                    }
+                    else
+                    {
+                        DeleteDirectory(file);
+                        Directory.Delete(file);
+                    }
+                }
+                catch
+                {
+                    // Skip
+                    CurrentlyDeletingLow = "Failed to delete some files!";
+                }
+            }
+        }
     }
 
     private static string GetFormattedItems(IEnumerable<FootprintInfo> list)

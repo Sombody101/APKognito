@@ -25,6 +25,8 @@ public partial class HomeViewModel : LoggableObservableObject
 {
     private const string DEFAULT_PROP_MESSAGE = "No APK loaded";
     private const string DEFAULT_JOB_MESSAGE = "No jobs started";
+    private const string AWAITING_JOB = "Awaiting job";
+    private const string CURRENT_ACTION = "Current Action";
     public const char PATH_SEPARATOR = '\n';
 
     private static readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
@@ -64,6 +66,12 @@ public partial class HomeViewModel : LoggableObservableObject
 
     [ObservableProperty]
     public partial string JobbedApk { get; set; } = DEFAULT_JOB_MESSAGE;
+
+    [ObservableProperty]
+    public partial string CurrentActionTitle { get; set; } = CURRENT_ACTION;
+
+    [ObservableProperty]
+    public partial string CurrentAction { get; set; } = AWAITING_JOB;
 
     [ObservableProperty]
     public partial string ElapsedTime { get; set; } = DEFAULT_JOB_MESSAGE;
@@ -518,6 +526,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
         StartButtonVisible = true;
 
+        ResetViewFields();
         JobbedApk = FinalName = $"Finished {completeJobs}/{files.Length} APKs";
 
     ChecksFailed:
@@ -535,6 +544,21 @@ public partial class HomeViewModel : LoggableObservableObject
             FinalName = "Unpacking...";
 
             ApkEditorContext editorContext = new(renameSettings, ConfigurationFactory.Instance.GetConfig<AdvancedApkRenameSettings>(), this);
+
+            editorContext.ProgressChanged += (object? sender, ProgressUpdateEventArgs args) =>
+            {
+                switch (args.UpdateType)
+                {
+                    case UpdateType.Content:
+                        CurrentAction = args.UpdateValue;
+                        break;
+
+                    case UpdateType.Title:
+                        CurrentActionTitle = args.UpdateValue;
+                        break;
+                }
+            };
+
             errorReason = await editorContext.RenameLoadedPackageAsync(cancellationToken);
             apkFailed = errorReason is not null;
 
@@ -889,6 +913,14 @@ public partial class HomeViewModel : LoggableObservableObject
             // A file in the temp directory is still being used
             LogWarning($"Failed to cleanup temp files: {ex.Message}");
         }
+    }
+
+    private void ResetViewFields()
+    {
+        ApkName = DEFAULT_JOB_MESSAGE;
+        OriginalPackageName = DEFAULT_PROP_MESSAGE;
+        CurrentActionTitle = CURRENT_ACTION;
+        CurrentAction = AWAITING_JOB;
     }
 
     private static readonly List<Run> _runLogBuffer = [];
