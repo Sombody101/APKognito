@@ -3,6 +3,7 @@ using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -166,7 +167,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             return false;
         }
 
-        ParsedCommand command = new(rawCommand[1..], adbHistory);
+        ParsedCommand command = new(rawCommand[1..]);
 
         if (command.IsCmdlet)
         {
@@ -241,7 +242,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
         public bool IsCmdlet { get; }
 
-        public ParsedCommand(string command, AdbHistory adbHistory)
+        public ParsedCommand(string command)
         {
             if (command.StartsWith(':'))
             {
@@ -502,22 +503,75 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
     }
 
-    [Command("install-java", "Installs JDK 23", NO_USAGE)]
-    private void InstallJavaCommand(ParsedCommand __)
+    [Command("install-java", "Installs JDK 24 (guided install)", NO_USAGE)]
+    [SuppressMessage("Major Bug", "S3168:\"async\" methods should not return \"void\"", Justification = "No.")]
+    private async void InstallJavaCommandAsync(ParsedCommand __)
     {
-        Log("Installing JDK 23...");
+        Log("Installing JDK 24...");
 
-        _ = WebGet.DownloadAsync(AdbManager.JDK_23_INSTALL_LINK, Path.Combine(App.AppDataDirectory.FullName, "jdk.zip"), this, CancellationToken.None
-        ).ContinueWith(task =>
+        string tempDirectory = Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "APKognito-JavaTmp");
+        Directory.CreateDirectory(tempDirectory);
+        DriveUsageViewModel.ClaimDirectory(tempDirectory);
+
+        string javaDownload = Path.Combine(tempDirectory, "jdk-24.exe");
+
+        if (File.Exists(javaDownload))
         {
+            Log("Using previous install attempt executable.");
+            await FinishInstall();
+            return;
+        }
+
+        AddIndentString("+ ");
+        _ = WebGet.DownloadAsync(AdbManager.JDK_24_INSTALL_EXE_LINK, javaDownload, this, CancellationToken.None)
+            .ContinueWith(async task =>
+        {
+            ResetIndent();
+
             if (!task.Result)
             {
-                LogError("Failed to install JDK 23.");
+                LogError("Failed to install JDK 24.");
+                return;
             }
 
-            LogSuccess("JDK 23 installed successfully! Checking Java executable path...");
-            _ = new JavaVersionLocator().GetJavaPath(out string? javaPath, this);
+            await FinishInstall();
         });
+
+        async Task FinishInstall()
+        {
+            Process installer = new()
+            {
+                StartInfo = new()
+                {
+                    FileName = javaDownload,
+                    UseShellExecute = true,
+                    Verb = "runas",
+                }
+            };
+
+            try
+            {
+                Log("Waiting for installer to exit...");
+                installer.Start();
+                await installer.WaitForExitAsync();
+            }
+            catch (Win32Exception)
+            {
+                LogWarning("Installer canceled.");
+                return;
+            }
+
+            if (installer.ExitCode is not 0)
+            {
+                LogWarning("Java install aborted!");
+                return;
+            }
+
+            LogSuccess("JDK 24 installed successfully! Checking Java executable path...");
+            _ = new JavaVersionLocator().GetJavaPath(out _, this);
+
+            File.Delete(javaDownload);
+        }
     }
 
     [Command("echo", "Prints all arguments to the console.", "[text ...]")]
