@@ -1,6 +1,5 @@
 ﻿using APKognito.Utilities;
 using APKognito.ViewModels.Windows;
-using Microsoft.Extensions.Hosting;
 using System.Runtime.InteropServices;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -37,9 +36,8 @@ public partial class ExceptionWindow : FluentWindow
     }
 #endif
 
-    public static bool? CreateNewExceptionWindow(Exception exception, IHost host, [Optional] string exceptionSource)
+    public static bool? CreateNewExceptionWindow(Exception exception, ExceptionWindowViewModel evm, [Optional] string exceptionSource)
     {
-        ExceptionWindowViewModel evm = (ExceptionWindowViewModel)host.Services.GetService(typeof(ExceptionWindowViewModel))!;
         ExceptionWindow exceptionWindow = new(evm);
         evm.SetException(exception.InnerException ?? exception, exceptionSource);
 

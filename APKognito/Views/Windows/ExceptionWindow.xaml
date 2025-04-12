@@ -13,6 +13,8 @@
     MinHeight="300"
     d:DataContext="{d:DesignInstance local:ExceptionWindow,
                                      IsDesignTimeCreatable=True}"
+    d:DesignHeight="700"
+    d:DesignWidth="1200"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ExtendsContentIntoTitleBar="True"
@@ -25,6 +27,10 @@
     <Window.Resources />
 
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="322*" />
+            <ColumnDefinition Width="3*" />
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto" />
             <RowDefinition Height="*" />
@@ -33,7 +39,8 @@
         <ui:TitleBar
             x:Name="TitleBar"
             Title="Unhandled Exception"
-            Grid.Row="0"
+            Grid.ColumnSpan="2"
+            VerticalAlignment="Center"
             CloseWindowByDoubleClickOnIcon="True">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon
@@ -45,7 +52,7 @@
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="1" Grid.ColumnSpan="2">
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto" />

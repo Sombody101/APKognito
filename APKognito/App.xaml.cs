@@ -93,7 +93,10 @@ public partial class App
         {
             Dispatcher.Invoke(() =>
             {
-                _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: TaskScheduler]");
+                _ = ExceptionWindow.CreateNewExceptionWindow(
+                    e.Exception,
+                    (ExceptionWindowViewModel)_host.Services.GetService(typeof(ExceptionWindowViewModel))!,
+                    "AppMain [src: TaskScheduler]");
             });
         };
 
@@ -101,7 +104,10 @@ public partial class App
         {
             Dispatcher.Invoke(() =>
             {
-                _ = ExceptionWindow.CreateNewExceptionWindow(e.Exception, _host, "AppMain [src: Default Dispatcher]");
+                _ = ExceptionWindow.CreateNewExceptionWindow(
+                    e.Exception,
+                    (ExceptionWindowViewModel)_host.Services.GetService(typeof(ExceptionWindowViewModel))!,
+                    "AppMain [src: Default Dispatcher]");
             });
         };
 #endif
