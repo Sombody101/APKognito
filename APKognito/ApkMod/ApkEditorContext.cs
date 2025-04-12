@@ -11,6 +11,7 @@ using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
+using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -23,7 +24,7 @@ using System.Xml;
 
 namespace APKognito.ApkMod;
 
-public class ApkEditorContext
+public class ApkEditorContext : IProgressReporter
 {
     private const int MAX_SMALI_LOAD_SIZE = 1024 * 20; // 20KB
 
@@ -36,6 +37,8 @@ public class ApkEditorContext
 
     private readonly ApkRenameSettings renameSettings;
     private readonly AdvancedApkRenameSettings advancedRenameSettings;
+
+    public event EventHandler<ProgressUpdateEventArgs> ProgressChanged;
 
     public string? AssetPath { get; private set; }
     public string OutputApkPath { get; private set; } = string.Empty;
@@ -105,6 +108,7 @@ public class ApkEditorContext
                 nameData.OriginalCompanyName,
                 nameData.NewPackageName
             ) = SplitPackageName(nameData);
+
             renameSettings.OnPackageNameFound?.Invoke(nameData.NewPackageName);
 
             if (advancedRenameSettings.RenameLibsInternal && nameData.OriginalCompanyName.Length != nameData.NewCompanyName.Length)
@@ -222,6 +226,9 @@ public class ApkEditorContext
 
     private async Task UnpackApkAsync(CancellationToken cToken)
     {
+        ReportUpdate("Unpacking", UpdateType.Title);
+        ReportUpdate("Starting apktools...");
+
         // Output the unpacked APK in the temp folder
         string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f d \"{nameData.FullSourceApkPath}\" -o \"{nameData.ApkAssemblyDirectory}\"";
         using Process process = CreateJavaProcess(args);
@@ -307,12 +314,12 @@ public class ApkEditorContext
         logger.LogDebug("Renaming smali directories.");
         ReplaceAllDirectoryNames(nameData.ApkAssemblyDirectory);
 
-        await ReplaceLibInstancesAsync();
+        await ReplaceLibInstancesAsync(cToken);
 
         await RenameSmaliFilesAsync(cToken);
 
         // This will take the most disk space, so do it only if the smali renaming was successful
-        await RenameObbFilesAsync();
+        await RenameObbFilesAsync(cToken);
     }
 
     private async Task RenameSmaliFilesAsync(CancellationToken cToken)
@@ -338,6 +345,9 @@ public class ApkEditorContext
 
         Directory.CreateDirectory(nameData.ApkSmaliTempDirectory);
 
+        object updateLock = new();
+        int workingOnFile = 0;
+
 #if SINGLE_THREAD_INSTANCE_REPLACING
         string[] filesArr = [.. files];
         logger.LogDebug($"Beginning sequential rename on {filesArr.Length:n0} smali files.");
@@ -348,16 +358,23 @@ public class ApkEditorContext
         }
 #else
         logger.LogDebug($"Beginning threaded rename on {files.Count():n0} smali files.");
+        ReportUpdate("Renaming file", UpdateType.Title);
+
         await Parallel.ForEachAsync(files, cToken,
             async (filePath, subcToken) =>
             {
+                lock (updateLock)
+                {
+                    ReportUpdate(workingOnFile++.ToString());
+                }
+
                 await ReplaceTextInFileAsync(filePath, nameData, subcToken);
             }
         );
 #endif
     }
 
-    private async Task RenameObbFilesAsync()
+    private async Task RenameObbFilesAsync(CancellationToken token)
     {
         string originalCompanyName = nameData.OriginalCompanyName;
         string? sourceDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath);
@@ -375,13 +392,19 @@ public class ApkEditorContext
         }
 
         // Move/copy OBB files
+        ReportUpdate(sourceDirectory);
+
         string newObbDirectory = Path.Combine(nameData.RenamedApkOutputDirectory, Path.GetFileName(sourceObbDirectory));
         if (kognitoConfig.CopyFilesWhenRenaming)
         {
+            ReportUpdate("Copying OBBs", UpdateType.Title);
+
             await CopyDirectoryAsync(sourceObbDirectory, newObbDirectory, true);
         }
         else
         {
+            ReportUpdate("Moving OBBs", UpdateType.Title);
+
             _ = Directory.CreateDirectory(nameData.RenamedApkOutputDirectory);
             Directory.Move(sourceObbDirectory, newObbDirectory);
         }
@@ -395,8 +418,11 @@ public class ApkEditorContext
 
             if (advancedRenameSettings.RenameObbsInternal)
             {
-                await new BinaryReplace(filePath, logger)
-                    .ModifyArchiveStringsAsync(lineReplaceRegex, nameData.NewCompanyName, [.. advancedRenameSettings.RenameObbsInternalExtras]);
+                var binaryReplace = new BinaryReplace(filePath, logger);
+
+                binaryReplace.ProgressChanged += (object? sender, ProgressUpdateEventArgs args) => ForwardUpdate(args);
+
+                await binaryReplace.ModifyArchiveStringsAsync(lineReplaceRegex, nameData.NewCompanyName, [.. advancedRenameSettings.RenameObbsInternalExtras], token);
             }
 
             File.Move(filePath, Path.Combine(newObbDirectory, newAssetName));
@@ -448,7 +474,7 @@ public class ApkEditorContext
         }
     }
 
-    private async Task ReplaceLibInstancesAsync()
+    private async Task ReplaceLibInstancesAsync(CancellationToken token)
     {
         string libs = Path.Combine(nameData.ApkAssemblyDirectory, "lib");
         if (!Directory.Exists(libs))
@@ -461,6 +487,8 @@ public class ApkEditorContext
         {
             return;
         }
+
+        ReportUpdate("Renaming libraries", UpdateType.Title);
 
         foreach (string originalFilePath in Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories))
         {
@@ -483,12 +511,16 @@ public class ApkEditorContext
             {
                 logger.AddIndent();
 
-                await new BinaryReplace(originalFilePath, logger)
-                    .ModifyElfStringsAsync(lineReplaceRegex, nameData.NewCompanyName);
+                var binaryReplace = new BinaryReplace(originalFilePath, logger);
+
+                binaryReplace.ProgressChanged += (object? sender, ProgressUpdateEventArgs args) => ForwardUpdate(args);
+
+                await binaryReplace.ModifyElfStringsAsync(lineReplaceRegex, nameData.NewCompanyName, token);
 
                 logger.ResetIndent();
             }
 
+            ReportUpdate(newFilePath);
             File.Move(originalFilePath, newFilePath);
         }
     }
@@ -514,6 +546,8 @@ public class ApkEditorContext
             // Organize them to prevent "race conditions", which happens when a parent directory is renamed before a child directory, thereby throwing a DirectoryNotFoundException.
             .OrderByDescending(s => s.Length);
 
+        ReportUpdate("Renaming directory", UpdateType.Title);
+
 #if DEBUG
         // Not good for memory when dealing with a lot of directories.
         string[] dirs = [.. ienDirs];
@@ -527,6 +561,7 @@ public class ApkEditorContext
                 ? nameData.NewCompanyName
                 : lineReplaceRegex.Replace(directoryName, nameData.NewCompanyName);
 
+            ReportUpdate(directoryName);
             RenameDirectory(directory, adjustedDirectoryName, nameData);
         }
     }
@@ -649,6 +684,16 @@ public class ApkEditorContext
             FileLogger.LogException(ex);
             return 0;
         }
+    }
+
+    public void ReportUpdate(string update, UpdateType updateType = UpdateType.Content)
+    {
+        ProgressChanged?.Invoke(this, new(update, updateType));
+    }
+
+    public void ForwardUpdate(ProgressUpdateEventArgs args)
+    {
+        ProgressChanged?.Invoke(this, args);
     }
 
     /// <summary>
