@@ -119,9 +119,14 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 #endif
     }
 
-    public void AddIndent()
+    public void AddIndent(char indentor = '\t')
     {
-        indent = $"{indent}\t";
+        indent = $"{indent}{indentor}";
+    }
+
+    public void AddIndentString(string indentor = "\t")
+    {
+        indent = $"{indent}{indentor}";
     }
 
     public void RemoveIndent()
