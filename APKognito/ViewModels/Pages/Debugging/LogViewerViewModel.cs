@@ -345,7 +345,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
     private void RefreshRecents()
     {
-        List<string> recents = viewerConfig.RecentPacks.ToList();
+        List<string> recents = [.. viewerConfig.RecentPacks];
         recents.Reverse();
 
         RecentPacks.Clear();
@@ -373,5 +373,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
         {
             viewerConfig.RecentPacks.Insert(0, path);
         }
+
+        viewerConfig.RecentPacks = [.. viewerConfig.RecentPacks.Distinct()];
     }
 }
