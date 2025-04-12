@@ -22,6 +22,7 @@ internal class AdbManager
 
     public const string PLATFORM_TOOLS_INSTALL_LINK = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip";
     public const string JDK_23_INSTALL_LINK = "https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows";
+    public const string JDK_24_INSTALL_EXE_LINK = "https://download.oracle.com/java/24/latest/jdk-24_windows-x64_bin.exe";
 
     public Process? AdbProcess { get; private set; }
 
