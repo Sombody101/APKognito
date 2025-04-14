@@ -18,7 +18,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
     public HomeViewModel ViewModel { get; }
     public KognitoConfig Config { get; init; }
 
-    public HomePage(HomeViewModel viewModel)
+    public HomePage(HomeViewModel viewModel, ConfigurationFactory _configFactory)
     {
         Instance = this;
 
@@ -28,7 +28,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         InitializeComponent();
         viewModel.AntiMvvm_SetRichTextbox(APKLogs);
 
-        Config = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
+        Config = _configFactory.GetConfig<KognitoConfig>();
 
         string[]? loadedFiles = viewModel.GetFilePaths();
         if (loadedFiles is null || loadedFiles.Length is 0)

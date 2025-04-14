@@ -15,7 +15,8 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class PackageManagerViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+    private readonly ConfigurationFactory configFactory;
+    private readonly AdbConfig adbConfig;
 
     private readonly IContentDialogService dialogService;
 
@@ -64,8 +65,15 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         // For designer
     }
 
-    public PackageManagerViewModel(ISnackbarService snackService, IContentDialogService _dialogService)
+    public PackageManagerViewModel(
+        ISnackbarService snackService,
+        IContentDialogService _dialogService,
+        ConfigurationFactory _configFactory
+    )
     {
+        configFactory = _configFactory;
+        adbConfig = configFactory.GetConfig<AdbConfig>();
+
         dialogService = _dialogService;
         SetSnackbarProvider(snackService);
     }
@@ -274,7 +282,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         }
 
         string outputDirectory = dialogOutput.OutputDirectory;
-        ConfigurationFactory.Instance.SaveConfig<KognitoConfig>();
+        configFactory.SaveConfig<KognitoConfig>();
 
         foreach (PackageEntry package in items)
         {

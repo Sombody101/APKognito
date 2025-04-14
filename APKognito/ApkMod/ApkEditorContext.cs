@@ -38,7 +38,7 @@ public class ApkEditorContext : IProgressReporter
     private readonly ApkRenameSettings renameSettings;
     private readonly AdvancedApkRenameSettings advancedRenameSettings;
 
-    public event EventHandler<ProgressUpdateEventArgs> ProgressChanged;
+    public event EventHandler<ProgressUpdateEventArgs> ProgressChanged = null!;
 
     public string? AssetPath { get; private set; }
     public string OutputApkPath { get; private set; } = string.Empty;
@@ -47,10 +47,11 @@ public class ApkEditorContext : IProgressReporter
         ApkRenameSettings renameSettings,
         AdvancedApkRenameSettings advancedRenameSettings,
         LoggableObservableObject logger,
+        KognitoConfig _kognitoConfig,
         bool limited = false
     )
     {
-        kognitoConfig = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
+        kognitoConfig = _kognitoConfig;
 
         this.renameSettings = renameSettings;
         this.advancedRenameSettings = advancedRenameSettings;
@@ -325,23 +326,25 @@ public class ApkEditorContext : IProgressReporter
     private async Task RenameSmaliFilesAsync(CancellationToken cToken)
     {
         string smaliDirectory = Path.Combine(nameData.ApkAssemblyDirectory, "smali");
-        IEnumerable<string> files = Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories)
+        IEnumerable<string> renameFiles = Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories)
             .Append($"{nameData.ApkAssemblyDirectory}\\AndroidManifest.xml")
             .Append($"{nameData.ApkAssemblyDirectory}\\apktool.yml");
 
         foreach (string directory in Directory.GetDirectories(nameData.ApkAssemblyDirectory, "smali_*"))
         {
-            files = files.Concat(Directory.EnumerateFiles(directory, "*.smali", SearchOption.AllDirectories));
+            renameFiles = renameFiles.Concat(Directory.EnumerateFiles(directory, "*.smali", SearchOption.AllDirectories));
         }
 
         string libDirectory = Path.Combine(nameData.ApkAssemblyDirectory, "lib");
         if (Directory.Exists(libDirectory))
         {
-            foreach (string file in Directory.EnumerateFiles(libDirectory, "*.config.so", SearchOption.AllDirectories))
-            {
-                files = files.Prepend(file);
-            }
+            renameFiles = Directory.EnumerateFiles(libDirectory, "*.config.so", SearchOption.AllDirectories)
+                .Concat(renameFiles);
         }
+
+        renameFiles = renameFiles.Concat(advancedRenameSettings.ExtraInternalPackagePaths
+            .Where(p => p.FileType is FileType.RegularText)
+            .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)));
 
         Directory.CreateDirectory(nameData.ApkSmaliTempDirectory);
 
@@ -354,21 +357,23 @@ public class ApkEditorContext : IProgressReporter
 
         foreach (string filePath in filesArr)
         {
-            await ReplaceTextInFileAsync(filePath, nameData, cToken);
+            await ReplaceTextInFileAsync(filePath, cToken);
         }
 #else
-        logger.LogDebug($"Beginning threaded rename on {files.Count():n0} smali files.");
+        logger.LogDebug($"Beginning threaded rename on {renameFiles.Count():n0} smali files.");
         ReportUpdate("Renaming file", UpdateType.Title);
 
-        await Parallel.ForEachAsync(files, cToken,
+        await Parallel.ForEachAsync(renameFiles, cToken,
             async (filePath, subcToken) =>
             {
-                lock (updateLock)
+                Interlocked.Increment(ref workingOnFile);
+
+                if (Monitor.TryEnter(updateLock))
                 {
-                    ReportUpdate(workingOnFile++.ToString());
+                    ReportUpdate(workingOnFile.ToString());
                 }
 
-                await ReplaceTextInFileAsync(filePath, nameData, subcToken);
+                await ReplaceTextInFileAsync(filePath, subcToken);
             }
         );
 #endif
@@ -410,7 +415,12 @@ public class ApkEditorContext : IProgressReporter
         }
 
         // Rename the files
-        foreach (string filePath in Directory.GetFiles(newObbDirectory, $"*{nameData.FullSourceApkFileName}.obb"))
+        var obbArchives = Directory.EnumerateFiles(newObbDirectory, $"*{nameData.FullSourceApkFileName}.obb")
+            .Concat(advancedRenameSettings.ExtraInternalPackagePaths
+                .Where(p => p.FileType == FileType.Archive)
+                .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)));
+
+        foreach (string filePath in obbArchives)
         {
             string newAssetName = $"{Path.GetFileNameWithoutExtension(filePath).Replace(originalCompanyName, nameData.NewCompanyName)}.obb";
 
@@ -433,8 +443,14 @@ public class ApkEditorContext : IProgressReporter
         AssetPath = Path.Combine(newObbDirectory, newApkName);
     }
 
-    private async Task ReplaceTextInFileAsync(string filePath, ApkNameData nameData, CancellationToken cToken)
+    private async Task ReplaceTextInFileAsync(string filePath, CancellationToken cToken)
     {
+        if (!File.Exists(filePath))
+        {
+            logger.LogWarning($"Failed to find file {ApkNameData.SubtractPathFrom(nameData.ApkAssemblyDirectory, filePath)}");
+            return;
+        }
+
         FileInfo fileInfo = new(filePath);
 
         if (fileInfo.Length < MAX_SMALI_LOAD_SIZE)
@@ -490,7 +506,12 @@ public class ApkEditorContext : IProgressReporter
 
         ReportUpdate("Renaming libraries", UpdateType.Title);
 
-        foreach (string originalFilePath in Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories))
+        var elfBinaries = Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories)
+            .Concat(advancedRenameSettings.ExtraInternalPackagePaths
+                .Where(p => p.FileType is FileType.Elf)
+                .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)));
+
+        foreach (string originalFilePath in elfBinaries)
         {
             if (originalFilePath.EndsWith(".config.so"))
             {
@@ -502,7 +523,7 @@ public class ApkEditorContext : IProgressReporter
                 ? lineReplaceRegex.Replace(originalName, nameData.NewCompanyName)
                 : originalName;
 
-            string newFilePath = Path.Combine(Path.GetDirectoryName(originalFilePath), newFileName);
+            string newFilePath = Path.Combine(Path.GetDirectoryName(originalFilePath)!, newFileName);
 
             // The actual rename action has to be deferred to prevent access exceptions :p
             logger.Log($"Renaming lib file: {originalName}{(originalName != newFileName ? $" |> {newFileName}" : string.Empty)}");
@@ -746,6 +767,16 @@ public class ApkEditorContext : IProgressReporter
         /// (Only used when file is larger than <see cref="MAX_SMALI_LOAD_SIZE"/>)
         /// </summary>
         public string ApkSmaliTempDirectory { get; init; } = string.Empty;
+
+        public static string SubtractPathFrom(string path, string subtractor)
+        {
+            if (!path.StartsWith(subtractor))
+            {
+                return path;
+            }
+
+            return path[subtractor.Length..];
+        }
     }
 
     public class InvalidReplacementCompanyNameException : Exception

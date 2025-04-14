@@ -1,11 +1,14 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Models;
 using APKognito.Utilities.MVVM;
+using System.Collections.ObjectModel;
 
 namespace APKognito.ViewModels.Pages;
 
 public partial class AdvancedRenameConfigurationViewModel : ViewModel, IViewable
 {
+    private readonly ConfigurationFactory configFactory;
     private readonly AdvancedApkRenameSettings advancedSettings;
 
     #region Properties
@@ -53,19 +56,30 @@ public partial class AdvancedRenameConfigurationViewModel : ViewModel, IViewable
     [ObservableProperty]
     public partial string RenameObbsInternalExtras { get; set; }
 
+    [ObservableProperty]
+    public partial ObservableCollection<ExtraPackageFileViewModel> ExtraPackageItems { get; set; }
+
     #endregion Properties
 
-    public AdvancedRenameConfigurationViewModel()
+    public AdvancedRenameConfigurationViewModel(ConfigurationFactory configFactory)
     {
-        advancedSettings = ConfigurationFactory.Instance.GetConfig<AdvancedApkRenameSettings>();
+        this.configFactory = configFactory;
+        advancedSettings = configFactory.GetConfig<AdvancedApkRenameSettings>();
 
         RenameObbsInternalExtras = string.Join('\n', advancedSettings.RenameObbsInternalExtras);
+        ExtraPackageItems = [.. advancedSettings.ExtraInternalPackagePaths.Select(item => (ExtraPackageFileViewModel)item)];
     }
 
     #region Commands
 
     [RelayCommand]
-    private void OnUpdateRenameObbsInternalExtras()
+    private void OnSaveConfiguration()
+    {
+        configFactory.SaveConfig(advancedSettings);
+    }
+
+    [RelayCommand]
+    private void OnApplyRenameObbsInternalExtras()
     {
         advancedSettings.RenameObbsInternalExtras = [.. RenameObbsInternalExtras
             .Split(["\r\n", ","], StringSplitOptions.RemoveEmptyEntries)
@@ -78,5 +92,62 @@ public partial class AdvancedRenameConfigurationViewModel : ViewModel, IViewable
         PackageReplaceRegexString = AdvancedApkRenameSettings.DEFAULT_RENAME_REGEX;
     }
 
+    [RelayCommand]
+    private void OnAddExtraPathCard()
+    {
+        ExtraPackageFileViewModel newItem = new();
+        ExtraPackageItems.Add(newItem);
+    }
+
+    [RelayCommand]
+    private void OnApplyExtraPathChanges()
+    {
+        var formattedPaths = ExtraPackageItems.Select(item => (ExtraPackageFile)item);
+        advancedSettings.ExtraInternalPackagePaths = [.. formattedPaths];
+    }
+
+    [RelayCommand]
+    private void OnDeleteExtraPathCard(object _item)
+    {
+        if (_item is not ExtraPackageFileViewModel item)
+        {
+            return;
+        }
+
+        int itemIndex = ExtraPackageItems.IndexOf(item);
+
+        if (itemIndex is not -1)
+        {
+            ExtraPackageItems.RemoveAt(itemIndex);
+        }
+    }
+
     #endregion Commands
+
+    public sealed partial class ExtraPackageFileViewModel : ObservableObject
+    {
+        [ObservableProperty]
+        public partial string FilePath { get; set; } = string.Empty;
+
+        [ObservableProperty]
+        public partial FileType FileType { get; set; } = FileType.RegularText;
+
+        public static implicit operator ExtraPackageFile(ExtraPackageFileViewModel viewModel)
+        {
+            return new ExtraPackageFile
+            {
+                FilePath = viewModel.FilePath.TrimStart('/', '\\'),
+                FileType = viewModel.FileType
+            };
+        }
+
+        public static implicit operator ExtraPackageFileViewModel(ExtraPackageFile model)
+        {
+            return new ExtraPackageFileViewModel
+            {
+                FilePath = model.FilePath,
+                FileType = model.FileType
+            };
+        }
+    }
 }

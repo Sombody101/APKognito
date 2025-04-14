@@ -20,6 +20,8 @@ namespace APKognito.ViewModels.Windows;
 
 public partial class MainWindowViewModel : LoggableObservableObject
 {
+    private readonly ConfigurationFactory configFactory;
+
     #region Properties
 
     [ObservableProperty]
@@ -96,9 +98,10 @@ public partial class MainWindowViewModel : LoggableObservableObject
         // For designer
     }
 
-    public MainWindowViewModel(ISnackbarService snack)
+    public MainWindowViewModel(ISnackbarService snack, ConfigurationFactory _configFactory)
     {
         SetSnackbarProvider(snack);
+        configFactory = _configFactory;
     }
 
     public MainWindowViewModel(ObservableCollection<object> footerMenuItems)
@@ -113,7 +116,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
     {
         try
         {
-            ConfigurationFactory.Instance.SaveAllConfigs();
+            configFactory.SaveAllConfigs();
         }
         catch (Exception ex)
         {

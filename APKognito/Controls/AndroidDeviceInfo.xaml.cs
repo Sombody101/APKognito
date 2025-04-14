@@ -17,7 +17,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
     private const int UPDATE_DELAY_MS = 10_000;
     private const int GB_DIVIDER = 1024 * 1024;
 
-    private static readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+    private static readonly AdbConfig adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
     private static AndroidDeviceInfoViewModel viewModel = null!;
 

@@ -14,7 +14,8 @@ namespace APKognito.ViewModels.Pages.Debugging;
 
 public partial class LogViewerViewModel : LoggableObservableObject
 {
-    private readonly LogViewerConfig viewerConfig = ConfigurationFactory.Instance.GetConfig<LogViewerConfig>();
+    private readonly ConfigurationFactory configFactory;
+    private readonly LogViewerConfig viewerConfig;
 
     // These aren't really being "cached", but it sounds weirder to say "realLogs"
     private readonly List<LogViewerLine> _cachedLogs = [];
@@ -69,10 +70,13 @@ public partial class LogViewerViewModel : LoggableObservableObject
         RefreshRecents();
     }
 
-    public LogViewerViewModel(ISnackbarService _snackbarService)
+    public LogViewerViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
         DisableFileLogging = true;
         SetSnackbarProvider(_snackbarService);
+
+        configFactory = _configFactory;
+        viewerConfig = configFactory.GetConfig<LogViewerConfig>();
 
         Log($"Loading recent logs ({viewerConfig.RecentPacks.Count})");
         RefreshRecents();
@@ -111,7 +115,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
             AddOrMoveRecent(LogpackPath);
 
             RefreshRecents();
-            ConfigurationFactory.Instance.SaveConfig(viewerConfig);
+            configFactory.SaveConfig(viewerConfig);
         }
         catch (Exception ex)
         {

@@ -32,6 +32,7 @@ public partial class HomeViewModel : LoggableObservableObject
     private static readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
 
     // Configs
+    private readonly ConfigurationFactory configFactory;
     private readonly KognitoConfig kognitoConfig;
     private readonly CacheStorage kognitoCache;
     private readonly AdbConfig adbConfig;
@@ -167,7 +168,7 @@ public partial class HomeViewModel : LoggableObservableObject
         // For designer
     }
 
-    public HomeViewModel(ISnackbarService _snackbarService)
+    public HomeViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
         Instance = this;
 
@@ -186,9 +187,10 @@ public partial class HomeViewModel : LoggableObservableObject
         SetSnackbarProvider(_snackbarService);
         SetCurrentLogger();
 
-        kognitoConfig = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
-        kognitoCache = ConfigurationFactory.Instance.GetConfig<CacheStorage>();
-        adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+        configFactory = _configFactory;
+        kognitoConfig = configFactory.GetConfig<KognitoConfig>();
+        kognitoCache = configFactory.GetConfig<CacheStorage>();
+        adbConfig = configFactory.GetConfig<AdbConfig>();
         CopyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming;
 
         string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
@@ -299,8 +301,8 @@ public partial class HomeViewModel : LoggableObservableObject
     [RelayCommand]
     private void OnSaveSettings()
     {
-        ConfigurationFactory.Instance.SaveConfig(kognitoConfig);
-        ConfigurationFactory.Instance.SaveConfig(kognitoCache);
+        configFactory.SaveConfig(kognitoConfig);
+        configFactory.SaveConfig(kognitoCache);
         Log("Settings saved!");
     }
 
@@ -329,7 +331,7 @@ public partial class HomeViewModel : LoggableObservableObject
                     TempDirectory = TempData?.FullName
                         ?? Environment.GetEnvironmentVariable("TEMP")
                         ?? "./",
-                }, null!, this, true);
+                }, null!, this, kognitoConfig, true);
 
                 string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
                 string apkFileName = Path.GetFileName(filePath);
@@ -517,9 +519,9 @@ public partial class HomeViewModel : LoggableObservableObject
 
         // Finalize session and write it to the history file
         RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
-        RenameSessionList renameHistory = ConfigurationFactory.Instance.GetConfig<RenameSessionList>();
+        RenameSessionList renameHistory = configFactory.GetConfig<RenameSessionList>();
         renameHistory.RenameSessions.Add(currentSession);
-        ConfigurationFactory.Instance.SaveConfig(renameHistory);
+        configFactory.SaveConfig(renameHistory);
 
         elapsedTime.Stop();
         taskTimer.Stop();
@@ -543,7 +545,7 @@ public partial class HomeViewModel : LoggableObservableObject
         {
             FinalName = "Unpacking...";
 
-            ApkEditorContext editorContext = new(renameSettings, ConfigurationFactory.Instance.GetConfig<AdvancedApkRenameSettings>(), this);
+            ApkEditorContext editorContext = new(renameSettings, configFactory.GetConfig<AdvancedApkRenameSettings>(), this, kognitoConfig);
 
             editorContext.ProgressChanged += (object? sender, ProgressUpdateEventArgs args) =>
             {
@@ -638,7 +640,9 @@ public partial class HomeViewModel : LoggableObservableObject
         await AdbManager.WakeDeviceAsync();
         await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(context.AssetPath) && Directory.Exists(context.AssetPath) && !cancellationToken.IsCancellationRequested)
+        if (!string.IsNullOrWhiteSpace(context.AssetPath)
+            && Directory.Exists(context.AssetPath)
+            && !cancellationToken.IsCancellationRequested)
         {
             string[] assets = Directory.GetFiles(context.AssetPath);
 
@@ -650,6 +654,11 @@ public partial class HomeViewModel : LoggableObservableObject
             int assetIndex = 0;
             foreach (string file in assets)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
                 var assetInfo = new FileInfo(file);
                 Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
 

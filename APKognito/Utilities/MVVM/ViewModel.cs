@@ -17,7 +17,9 @@ public abstract class ViewModel : ObservableObject, INavigationAware
     /// <summary>
     /// Handles the event that is fired after the component is navigated to.
     /// </summary>
-    public virtual void OnNavigatedTo() { }
+    public virtual void OnNavigatedTo()
+    {
+    }
 
     public virtual async Task OnNavigatedFromAsync()
     {

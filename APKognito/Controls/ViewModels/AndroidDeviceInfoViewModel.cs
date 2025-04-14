@@ -11,7 +11,7 @@ namespace APKognito.Controls.ViewModels;
 
 public partial class AndroidDeviceInfoViewModel : ObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+    private readonly AdbConfig adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
     #region Properties
 

@@ -16,8 +16,6 @@ public class ConfigurationFactory
     private readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
     private readonly Dictionary<Type, ConfigFileAttribute> _cachedAttributes = [];
 
-    public static ConfigurationFactory Instance { get; } = new();
-
     /// <summary>
     /// Loads the given config type from file. If the file doesn't exist, a default config is returned and no file is created, edited, or destroyed.
     /// </summary>
@@ -124,6 +122,30 @@ public class ConfigurationFactory
         }
     }
 
+    /// <summary>
+    /// Loads an arbitrary config file without caching it. (no singleton config)
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public T LoadFile<T>() where T : IKognitoConfig, new()
+    {
+        Type configType = typeof(T);
+
+        ConfigFileAttribute? configAttribute = GetNoCacheConfigAttribute(configType);
+
+        if (configAttribute is null)
+        {
+            InvalidConfigModelException exception = new(configType);
+            FileLogger.LogException(exception);
+            throw exception;
+        }
+
+        FileLogger.Log($"'{configAttribute.FileName}' for {configType.Name}, caching");
+        T config = LoadConfig<T>(configAttribute);
+
+        return config;
+    }
+
     private T LoadConfig<T>(ConfigFileAttribute configAttribute) where T : IKognitoConfig, new()
     {
         string configPath = GetCompletePath(configAttribute.FileName);
@@ -223,6 +245,13 @@ public class ConfigurationFactory
         return attribute;
     }
 
+    private static ConfigFileAttribute GetNoCacheConfigAttribute(Type configType)
+    {
+        return configType.GetCustomAttributes(typeof(ConfigFileAttribute), true)
+            .Cast<ConfigFileAttribute>()
+            .First();
+    }
+
     /* Compression */
 
     private static byte[] Zip(byte[] bytes)
@@ -254,7 +283,12 @@ public class ConfigurationFactory
         return Path.Combine(ConfigurationDirectory, configName);
     }
 
-    public void W_RemoveAllConfigurationFiles(bool security)
+    /// <summary>
+    /// Removes all config files under the config directory.
+    /// Should only be called when the user wants to uninstall APKognito.
+    /// </summary>
+    /// <param name="security"></param>
+    public void W_RemoveAllConfigurationFiles(bool security = false)
     {
         // Cheap way to ensure it's not called by accident
         if (!security)

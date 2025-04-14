@@ -170,9 +170,9 @@
             Grid.Column="2"
             Margin="5,0,0,0"
             VerticalAlignment="Stretch"
-            VerticalContentAlignment="Top">
+            VerticalContentAlignment="Stretch">
 
-            <Grid>
+            <Grid VerticalAlignment="Stretch">
                 <ui:Card Visibility="{Binding FileListVisibility, Converter={StaticResource VisibilityInverter}}">
                     <ui:TextBlock
                         HorizontalAlignment="Center"
@@ -184,6 +184,7 @@
                     x:Name="FolderList"
                     Margin="0,0,0,10"
                     VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Stretch"
                     ItemsSource="{Binding FoundFolders}"
                     SelectionChanged="FolderList_SelectionChanged"
                     SelectionMode="Extended"
@@ -197,7 +198,7 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150" />
-                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="auto" />
                                     </Grid.ColumnDefinitions>
 
                                     <Grid.RowDefinitions>
@@ -225,7 +226,10 @@
                                             Opacity=".75"
                                             Text="{Binding ItemType, Converter={StaticResource IsFileConverter}}" />
 
-                                        <TextBlock FontWeight="Bold" Text="Path:" />
+                                        <TextBlock
+                                            FontWeight="Bold"
+                                            Text="Path:"
+                                            TextTrimming="WordEllipsis" />
                                         <TextBlock FontWeight="Bold" Text="Size:" />
                                         <TextBlock FontWeight="Bold" Text="Creation Date:" />
                                     </StackPanel>

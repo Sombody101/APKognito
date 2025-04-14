@@ -16,7 +16,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     private const string CLAIM_FILE_NAME = ".apkognito";
     private const string PACKAGE_LIST_JOIN_STRING = "\n  ⚬  ";
 
-    private readonly KognitoConfig config;
+    private readonly KognitoConfig kognitoConfig;
 
     private readonly List<FootprintInfo> cachedFootprints = [];
 
@@ -73,9 +73,9 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
     #endregion Properties
 
-    public DriveUsageViewModel()
+    public DriveUsageViewModel(ConfigurationFactory _configFactory)
     {
-        config = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
+        kognitoConfig = _configFactory.GetConfig<KognitoConfig>();
 
         FilterInRenamedApks = false;
         FilterInFiles = FilterInDirectories = true;
@@ -237,7 +237,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         List<string> folders = [];
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
 
-        string apkOutputPath = config.ApkOutputDirectory ?? string.Empty;
+        string apkOutputPath = kognitoConfig.ApkOutputDirectory ?? string.Empty;
         if (Directory.Exists(apkOutputPath))
         {
             apkOutputPath = Path.GetFullPath(apkOutputPath);

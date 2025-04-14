@@ -3,6 +3,7 @@ using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
+using System.Configuration;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -173,10 +174,14 @@ public static class FileLogger
 
     public static string CreateLogpack()
     {
+        ConfigurationFactory configFactory = App.GetService<ConfigurationFactory>();
+
+        ArgumentNullException.ThrowIfNull(configFactory);
+
         string[] filesToPack = [
             logFilePath,
             exceptionLogFilePath,
-            Path.Combine(ConfigurationFactory.Instance.ConfigurationDirectory, ConfigurationFactory.Instance.GetConfigInfo<RenameSessionList>().FileName)
+            Path.Combine(configFactory.ConfigurationDirectory, configFactory.GetConfigInfo<RenameSessionList>().FileName)
         ];
 
         string packPath = Path.Combine(App.AppDataDirectory!.FullName, "logpack");

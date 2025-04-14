@@ -15,6 +15,8 @@ namespace APKognito.ViewModels.Pages;
 public partial class SettingsViewModel : ViewModel, IViewable
 {
     private readonly IContentDialogService contentDialogService;
+
+    private readonly ConfigurationFactory configFactory;
     private readonly UpdateConfig updateConfig;
     private readonly KognitoConfig kognitoConfig;
 
@@ -80,11 +82,13 @@ public partial class SettingsViewModel : ViewModel, IViewable
         OnNavigatedTo();
     }
 
-    public SettingsViewModel(IContentDialogService _contentDialogService)
+    public SettingsViewModel(IContentDialogService _contentDialogService, ConfigurationFactory _configFactory)
     {
         contentDialogService = _contentDialogService;
-        updateConfig = ConfigurationFactory.Instance.GetConfig<UpdateConfig>();
-        kognitoConfig = ConfigurationFactory.Instance.GetConfig<KognitoConfig>();
+
+        configFactory = _configFactory;
+        updateConfig = configFactory.GetConfig<UpdateConfig>();
+        kognitoConfig = configFactory.GetConfig<KognitoConfig>();
 
         AppDataPath = App.AppDataDirectory.FullName;
     }
@@ -100,7 +104,7 @@ public partial class SettingsViewModel : ViewModel, IViewable
     [RelayCommand]
     private void OnSaveUpdatesSettings()
     {
-        ConfigurationFactory.Instance.SaveConfig(updateConfig);
+        configFactory.SaveConfig(updateConfig);
     }
 
     [RelayCommand]

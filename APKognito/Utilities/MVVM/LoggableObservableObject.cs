@@ -141,6 +141,11 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     public void ClearLogs()
     {
+        if (RichTextBoxInUse is null)
+        {
+            return;
+        }
+
         RichTextBoxInUse.Dispatcher.Invoke(() =>
         {
             RichTextBoxInUse.Document.Blocks.Clear();
@@ -150,6 +155,11 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     public async Task ClearLogsAsync()
     {
+        if (RichTextBoxInUse is null)
+        {
+            return;
+        }
+
         await RichTextBoxInUse.Dispatcher.InvokeAsync(() =>
         {
             RichTextBoxInUse.Document.Blocks.Clear();

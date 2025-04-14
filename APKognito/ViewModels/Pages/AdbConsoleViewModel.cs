@@ -21,29 +21,31 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     private const string VARIABLE_SETTER = "__VARIABLE_SETTER";
 
     private readonly AdbManager adbManager;
-    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
-    private readonly AdbHistory adbHistory = ConfigurationFactory.Instance.GetConfig<AdbHistory>();
+    private readonly ConfigurationFactory configFactory;
+    private readonly AdbConfig adbConfig;
+    private readonly AdbHistory adbHistory;
 
     private int historyIndex;
 
     #region Properties
 
     [ObservableProperty]
-    private double _maxHeight = 500;
+    public partial string CommandBuffer { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _commandBuffer = string.Empty;
-
-    [ObservableProperty]
-    private int _cursorPosition = 0;
+    public partial int CursorPosition { get; set; } = 0;
 
     #endregion Properties
 
-    public AdbConsoleViewModel(ISnackbarService _snackbarService)
+    public AdbConsoleViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
         SetSnackbarProvider(_snackbarService);
         LogIconPrefixes = false;
         adbManager = new();
+
+        configFactory = _configFactory;
+        adbConfig = configFactory.GetConfig<AdbConfig>();
+        adbHistory = configFactory.GetConfig<AdbHistory>();
 
         historyIndex = adbHistory.CommandHistory.Count;
 
@@ -64,7 +66,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
             adbHistory.CommandHistory.Add(CommandBuffer);
             historyIndex = adbHistory.CommandHistory.Count;
-            ConfigurationFactory.Instance.SaveConfig(adbHistory);
+            configFactory.SaveConfig(adbHistory);
 
             if (!string.IsNullOrWhiteSpace(CommandBuffer))
             {
@@ -401,7 +403,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         string cmdlet = ctx[0]!;
         adbConfig.UserCmdlets[cmdlet] = string.Join(' ', ctx[1..]);
         Log($"Cmdlet '::{cmdlet}' created.");
-        ConfigurationFactory.Instance.SaveConfig(adbConfig);
+        configFactory.SaveConfig(adbConfig);
     }
 
     [Command("unset", "Removes a custom cmdlet.", "<cmdlet name>")]
@@ -423,7 +425,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         if (adbConfig.UserCmdlets.Remove(cmdlet))
         {
             Log($"Removed cmdlet '{cmdlet}'");
-            ConfigurationFactory.Instance.SaveConfig(adbConfig);
+            configFactory.SaveConfig(adbConfig);
         }
         else
         {
@@ -482,7 +484,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
             WriteGenericLogLine("Updating ADB configuration.");
             adbConfig.PlatformToolsPath = $"{appDataPath}\\platform-tools";
-            ConfigurationFactory.Instance.SaveConfig(adbConfig);
+            configFactory.SaveConfig(adbConfig);
 
             WriteGenericLogLine("Testing adb...");
             AdbCommandOutput output = await AdbManager.QuickCommandAsync("--version");

@@ -18,16 +18,18 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 {
     public static readonly string UpdatesFolder = Path.Combine(App.AppDataDirectory!.FullName, "updates");
 
+    private readonly ConfigurationFactory configFactory;
     private readonly UpdateConfig config;
     private readonly CacheStorage cache;
     private readonly Version currentVersion;
 
     private Timer? _timer = null;
 
-    public AutoUpdaterService()
+    public AutoUpdaterService(ConfigurationFactory _configFactory)
     {
-        config = ConfigurationFactory.Instance.GetConfig<UpdateConfig>();
-        cache = ConfigurationFactory.Instance.GetConfig<CacheStorage>();
+        configFactory = _configFactory;
+        config = configFactory.GetConfig<UpdateConfig>();
+        cache = configFactory.GetConfig<CacheStorage>();
         currentVersion = Assembly.GetExecutingAssembly().GetName().Version!;
     }
 
@@ -244,7 +246,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             case MessageBoxResult.Secondary:
                 // Cancel automatic updates
                 config.CheckForUpdates = false;
-                ConfigurationFactory.Instance.SaveConfig(config);
+                configFactory.SaveConfig(config);
                 return;
 
             default:

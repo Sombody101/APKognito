@@ -9,7 +9,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class AdbConfigurationViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+    private readonly AdbConfig adbConfig;
 
     #region Properties
 
@@ -41,9 +41,10 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
         // For designer
     }
 
-    public AdbConfigurationViewModel(ISnackbarService _snackbarService)
+    public AdbConfigurationViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
         SetSnackbarProvider(_snackbarService);
+        adbConfig = _configFactory.GetConfig<AdbConfig>();
     }
 
     #region Commands
@@ -64,7 +65,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
             return AdbDevicesStatus.NoDevices;
         }
 
-        adbConfig ??= ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+        adbConfig ??= App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
         if (adbConfig.CurrentDeviceId is not null && foundDevices.Contains(adbConfig.CurrentDeviceId))
         {

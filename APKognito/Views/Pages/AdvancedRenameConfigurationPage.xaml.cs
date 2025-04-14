@@ -22,5 +22,6 @@ public partial class AdvancedRenameConfigurationPage : INavigableView<AdvancedRe
     public AdvancedRenameConfigurationPage()
     {
         // For designer
+        ViewModel = new(new());
     }
 }

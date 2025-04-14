@@ -13,7 +13,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class FileExplorerViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+    private readonly AdbConfig adbConfig;
 
     private int directoryHistoryIndex = -1;
     private readonly List<string> directoryHistory = [];
@@ -47,9 +47,11 @@ public partial class FileExplorerViewModel : LoggableObservableObject
 #endif
     }
 
-    public FileExplorerViewModel(ISnackbarService _snackbarService)
+    public FileExplorerViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
         SetSnackbarProvider(_snackbarService);
+
+        adbConfig = _configFactory.GetConfig<AdbConfig>();
     }
 
     #region Commands

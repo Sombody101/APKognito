@@ -1,5 +1,6 @@
 ﻿// #define NO_EXCEPTION_HANDLING
 
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Services;
 using APKognito.Utilities;
@@ -43,6 +44,8 @@ public partial class App
         .ConfigureServices((__, services) =>
         {
             _ = services.AddHostedService<ApplicationHostService>();
+
+            _ = services.AddSingleton<ConfigurationFactory>();
 
             _ = services.AddSingleton<ISnackbarService, SnackbarService>()
                 .AddSingleton<INavigationViewPageProvider, PageService>()
@@ -124,7 +127,7 @@ public partial class App
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
         HomeViewModel.Instance?.Log("Saving all settings...");
-        ConfigurationFactory.Instance.SaveAllConfigs();
+        GetService<ConfigurationFactory>()!.SaveAllConfigs();
 
         await _host.StopAsync();
 

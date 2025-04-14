@@ -12,7 +12,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class FileUploaderViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig = ConfigurationFactory.Instance.GetConfig<AdbConfig>();
+    private readonly AdbConfig adbConfig;
 
     private readonly List<string> _files = [];
 
@@ -26,9 +26,11 @@ public partial class FileUploaderViewModel : LoggableObservableObject
 
     #endregion Properties
 
-    public FileUploaderViewModel(ISnackbarService _snackbarService)
+    public FileUploaderViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
         SetSnackbarProvider(_snackbarService);
+
+        adbConfig = _configFactory.GetConfig<AdbConfig>();
     }
 
     public FileUploaderViewModel()
