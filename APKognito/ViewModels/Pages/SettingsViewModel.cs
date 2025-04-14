@@ -136,7 +136,7 @@ public partial class SettingsViewModel : ViewModel, IViewable
 
     #endregion Commands
 
-    public new void OnNavigatedTo()
+    public override void OnNavigatedTo()
     {
         if (!_isInitialized)
         {
