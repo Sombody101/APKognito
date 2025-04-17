@@ -58,7 +58,7 @@ internal class AdbManager
     /// <exception cref="Exception"></exception>
     public static async Task<AdbCommandOutput> QuickCommandAsync(string arguments, CancellationToken token = default, bool noThrow = false)
     {
-        Process adbProcess = CreateAdbProcess(null, arguments);
+        using Process adbProcess = CreateAdbProcess(null, arguments);
         _ = adbProcess.Start();
         AdbCommandOutput commandOutput = await AdbCommandOutput.GetCommandOutputAsync(adbProcess);
         await adbProcess.WaitForExitAsync(token);
@@ -105,7 +105,7 @@ internal class AdbManager
     /// <exception cref="Exception"></exception>
     public static async Task<ICommandOutput> QuickGenericCommandAsync(string command, string arguments, bool noThrow = false)
     {
-        Process proc = new()
+        using Process proc = new()
         {
             StartInfo =
             {
@@ -226,7 +226,7 @@ internal class AdbManager
     /// <exception cref="Exception"></exception>
     public static async Task RestartAdbServerAsync(bool noThrow = false)
     {
-        Process adbRestartProcess = CreateAdbProcess(null, "restart-server");
+        using Process adbRestartProcess = CreateAdbProcess(null, "restart-server");
         _ = adbRestartProcess.Start();
         AdbCommandOutput output = await AdbCommandOutput.GetCommandOutputAsync(adbRestartProcess);
         await adbRestartProcess.WaitForExitAsync();
@@ -234,14 +234,14 @@ internal class AdbManager
         output.ThrowIfError(noThrow, adbRestartProcess.ExitCode);
     }
 
-    public static bool AdbWorks([Optional] string? platformToolsPath, LoggableObservableObject? snackService = null)
+    public static bool AdbWorks([Optional] string? platformToolsPath, LoggableObservableObject? logger = null)
     {
         platformToolsPath ??= adbConfig.PlatformToolsPath;
         bool isInstalled = Directory.Exists(platformToolsPath) && File.Exists(Path.Combine(platformToolsPath, "adb.exe"));
 
         if (isInstalled)
         {
-            snackService?.SnackError("Platform tools are not installed!", "You can:\n" +
+            logger?.SnackError("Platform tools are not installed!", "You can:\n" +
                 "1. Install them by running ':install-adb' in the Console Page.\n" +
                 "2. Verify the Platform Tools path in the ADB Configuration Page.\n" +
                 $"3. Install them manually at {PLATFORM_TOOLS_INSTALL_LINK}, then set the path in the ADB Configuration Page.");
@@ -339,7 +339,7 @@ internal class AdbManager
             throw new FileNotFoundException($"Failed to locate ADB at {adbPath}. Verify that the directory is correct.");
         }
 
-        // This comment it useless. It's just to keep the formatter from turning this entire method into an ugly ternary statement.
+        // This comment is useless. It's just to keep the formatter from turning this entire method into an ugly ternary statement.
         // Like something Disney would make.
         return new Process()
         {

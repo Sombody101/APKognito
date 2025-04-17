@@ -1,6 +1,6 @@
 ﻿namespace APKognito.AdbTools;
 
-internal interface ICommandOutput
+public interface ICommandOutput
 {
     public string StdOut { get; }
     public string StdErr { get; }
