@@ -88,9 +88,12 @@
                         </StackPanel>
                     </StackPanel>
 
+                    <!--  Monospaced font for better readability, and fira code cause it's already here and fun  -->
                     <ui:TextBox
                         Grid.Column="1"
                         VerticalAlignment="Center"
+                        FontFamily="{StaticResource FiraRegular}"
+                        FontSize="12"
                         Text="{Binding ViewModel.PackageReplaceRegexString}" />
 
                     <ui:Button
@@ -246,27 +249,34 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <ui:Card Margin="7.5">
-                                    <StackPanel Orientation="Vertical">
-                                        <TextBlock
-                                            Margin="0,0,0,5"
-                                            FontWeight="Bold"
-                                            Text="File Path:" />
-                                        <TextBox Margin="0,0,0,5" Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                        <TextBlock
-                                            Margin="0,0,0,5"
-                                            FontWeight="Bold"
-                                            Text="File Type:" />
-                                        <ComboBox ItemsSource="{helpers:EnumCollection EnumType=models:FileType}" SelectedItem="{Binding FileType}" />
+                                        <ComboBox
+                                            Grid.Column="0"
+                                            Margin="0,0,7.5,0"
+                                            ItemsSource="{helpers:EnumCollection EnumType=models:FileType}"
+                                            SelectedItem="{Binding FileType}" />
+
+                                        <TextBox
+                                            Grid.Column="1"
+                                            Margin="0,0,7.5,0"
+                                            Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" />
 
                                         <ui:Button
-                                            Margin="0,16,0,0"
+                                            Grid.Column="2"
                                             HorizontalAlignment="Right"
+                                            VerticalAlignment="Stretch"
+                                            Appearance="Danger"
                                             Command="{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=DataContext.ViewModel.DeleteExtraPathCardCommand}"
                                             CommandParameter="{Binding}"
                                             Content="Delete"
                                             Icon="{ui:SymbolIcon Symbol=Delete24}" />
-                                    </StackPanel>
+                                    </Grid>
                                 </ui:Card>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
