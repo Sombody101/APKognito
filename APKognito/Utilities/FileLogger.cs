@@ -237,12 +237,6 @@ public static class FileLogger
         return outputPack;
     }
 
-    public static string GetTempDirectory()
-    {
-        return Environment.GetEnvironmentVariable("TEMP")
-            ?? throw new InvalidOperationException("There is no %TEMP% variable. One must be set!");
-    }
-
     public static Brush LogLevelToBrush(LogLevel level)
     {
         return level switch
