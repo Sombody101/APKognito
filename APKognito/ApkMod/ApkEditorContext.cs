@@ -226,13 +226,14 @@ public class ApkEditorContext : IProgressReporter
 
     private async Task UnpackApkAsync(CancellationToken cToken)
     {
-        ReportUpdate("Unpacking", UpdateType.Title);
+        ReportUpdate("Unpacking", ProgressUpdateType.Title);
         ReportUpdate("Starting apktools...");
 
         // Output the unpacked APK in the temp folder
         string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f d \"{nameData.FullSourceApkPath}\" -o \"{nameData.ApkAssemblyDirectory}\"";
         using Process process = CreateJavaProcess(args);
 
+        ReportUpdate($"Unpacking {nameData.FullSourceApkFileName}");
         _ = process.Start();
         await process.WaitForExitAsync(cToken);
 
@@ -253,6 +254,9 @@ public class ApkEditorContext : IProgressReporter
 
     private async Task<string> PackApkAsync(CancellationToken cToken)
     {
+        ReportUpdate("Packing package", ProgressUpdateType.Title);
+        ReportUpdate(nameData.NewPackageName);
+
         string outputApkPath = Path.Combine(
             nameData.ApkAssemblyDirectory,
             $"{nameData.NewPackageName}.unsigned.apk"
@@ -269,20 +273,26 @@ public class ApkEditorContext : IProgressReporter
             : outputApkPath;
     }
 
-    private static async Task AlignPackageAsync(string apkPath)
+    private async Task AlignPackageAsync(string apkPath)
     {
-        string aligned = $"{apkPath}.aligned";
+        ReportUpdate("Aligning", ProgressUpdateType.Title);
 
-        string args = $"-f -p 4 \"{apkPath}\" \"{aligned}\"";
+        string alignedPackagePath = $"{apkPath}.aligned";
+        ReportUpdate(Path.GetFileName(alignedPackagePath));
+
+        string args = $"-f -p 4 \"{apkPath}\" \"{alignedPackagePath}\"";
         _ = await AdbManager.QuickGenericCommandAsync(ApkEditorToolPaths.ZipalignPath, args);
 
         // c.z.a.apk.aligned -> c.z.a.apk
         File.Delete(apkPath);
-        File.Move(aligned, apkPath);
+        File.Move(alignedPackagePath, apkPath);
     }
 
     private async Task SignApkToolAsync(string apkPath, CancellationToken cToken)
     {
+        ReportUpdate("Signing", ProgressUpdateType.Title);
+        ReportUpdate(Path.GetFileName(apkPath));
+
         string args = $"-jar \"{ApkEditorToolPaths.ApksignerJarPath}\" -a \"{apkPath}\" -o \"{nameData.RenamedApkOutputDirectory}\" --allowResign";
         using Process process = CreateJavaProcess(args);
 
@@ -324,6 +334,9 @@ public class ApkEditorContext : IProgressReporter
 
     private async Task RenameSmaliFilesAsync(CancellationToken cToken)
     {
+        ReportUpdate("Renaming directories", ProgressUpdateType.Title);
+        ReportUpdate(string.Empty);
+
         string smaliDirectory = Path.Combine(nameData.ApkAssemblyDirectory, "smali");
         IEnumerable<string> renameFiles = Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories)
             .Append($"{nameData.ApkAssemblyDirectory}\\AndroidManifest.xml")
@@ -347,20 +360,24 @@ public class ApkEditorContext : IProgressReporter
 
         Directory.CreateDirectory(nameData.ApkSmaliTempDirectory);
 
-        object updateLock = new();
         int workingOnFile = 0;
 
 #if SINGLE_THREAD_INSTANCE_REPLACING
-        string[] filesArr = [.. files];
+        string[] filesArr = [.. renameFiles];
         logger.LogDebug($"Beginning sequential rename on {filesArr.Length:n0} smali files.");
 
         foreach (string filePath in filesArr)
         {
+            workingOnFile++;
+            ReportUpdate(workingOnFile.ToString());
+
             await ReplaceTextInFileAsync(filePath, cToken);
         }
 #else
+        object updateLock = new();
+
         logger.LogDebug($"Beginning threaded rename on {renameFiles.Count():n0} smali files.");
-        ReportUpdate("Renaming file", UpdateType.Title);
+        ReportUpdate("Renaming file", ProgressUpdateType.Title);
 
         await Parallel.ForEachAsync(renameFiles, cToken,
             async (filePath, subcToken) =>
@@ -401,13 +418,13 @@ public class ApkEditorContext : IProgressReporter
         string newObbDirectory = Path.Combine(nameData.RenamedApkOutputDirectory, Path.GetFileName(sourceObbDirectory));
         if (kognitoConfig.CopyFilesWhenRenaming)
         {
-            ReportUpdate("Copying OBBs", UpdateType.Title);
+            ReportUpdate("Copying OBBs", ProgressUpdateType.Title);
 
             await CopyDirectoryAsync(sourceObbDirectory, newObbDirectory, true);
         }
         else
         {
-            ReportUpdate("Moving OBBs", UpdateType.Title);
+            ReportUpdate("Moving OBBs", ProgressUpdateType.Title);
 
             _ = Directory.CreateDirectory(nameData.RenamedApkOutputDirectory);
             Directory.Move(sourceObbDirectory, newObbDirectory);
@@ -421,6 +438,7 @@ public class ApkEditorContext : IProgressReporter
 
         foreach (string filePath in obbArchives)
         {
+            ReportUpdate(Path.GetFileName(filePath));
             string newAssetName = $"{Path.GetFileNameWithoutExtension(filePath).Replace(originalCompanyName, nameData.NewCompanyName)}.obb";
 
             logger.Log($"Renaming asset file: {Path.GetFileName(filePath)}  |>  {newAssetName}");
@@ -503,7 +521,7 @@ public class ApkEditorContext : IProgressReporter
             return;
         }
 
-        ReportUpdate("Renaming libraries", UpdateType.Title);
+        ReportUpdate("Renaming libraries", ProgressUpdateType.Title);
 
         var elfBinaries = Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories)
             .Concat(advancedRenameSettings.ExtraInternalPackagePaths
@@ -566,7 +584,7 @@ public class ApkEditorContext : IProgressReporter
             // Organize them to prevent "race conditions", which happens when a parent directory is renamed before a child directory, thereby throwing a DirectoryNotFoundException.
             .OrderByDescending(s => s.Length);
 
-        ReportUpdate("Renaming directory", UpdateType.Title);
+        ReportUpdate("Renaming directory", ProgressUpdateType.Title);
 
 #if DEBUG
         // Not good for memory when dealing with a lot of directories.
@@ -706,7 +724,7 @@ public class ApkEditorContext : IProgressReporter
         }
     }
 
-    public void ReportUpdate(string update, UpdateType updateType = UpdateType.Content)
+    public void ReportUpdate(string update, ProgressUpdateType updateType = ProgressUpdateType.Content)
     {
         ProgressChanged?.Invoke(this, new(update, updateType));
     }

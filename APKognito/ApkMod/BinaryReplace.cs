@@ -74,7 +74,7 @@ internal class BinaryReplace : IProgressReporter
     public async Task ModifyArchiveStringsAsync(Regex pattern, string replacement, string[] extraFiles, CancellationToken token)
     {
         FileLogger.Log($"Renaming OBB file '{Path.GetFileName(binaryFilePath)}'");
-        ReportUpdate("Renaming OBB internal", UpdateType.Title);
+        ReportUpdate("Renaming OBB internal", ProgressUpdateType.Title);
 
         // Not really indexing, but it sounds cooler :p
         ReportUpdate("Indexing...");
@@ -182,7 +182,7 @@ internal class BinaryReplace : IProgressReporter
         _ = zip.AddEntry(entry.FileName, updatedContent);
     }
 
-    public void ReportUpdate(string update, UpdateType updateType = UpdateType.Content)
+    public void ReportUpdate(string update, ProgressUpdateType updateType = ProgressUpdateType.Content)
     {
         ProgressChanged?.Invoke(this, new ProgressUpdateEventArgs(update, updateType));
     }

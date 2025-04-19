@@ -4,19 +4,19 @@ public interface IProgressReporter
 {
     public event EventHandler<ProgressUpdateEventArgs> ProgressChanged;
 
-    void ReportUpdate(string update, UpdateType updateType = UpdateType.Content);
+    void ReportUpdate(string update, ProgressUpdateType updateType = ProgressUpdateType.Content);
 
     void ForwardUpdate(ProgressUpdateEventArgs args);
 }
 
-public class ProgressUpdateEventArgs(string update, UpdateType updateType) : EventArgs
+public class ProgressUpdateEventArgs(string update, ProgressUpdateType updateType) : EventArgs
 {
     public string UpdateValue { get; } = update;
 
-    public UpdateType UpdateType { get; } = updateType;
+    public ProgressUpdateType UpdateType { get; } = updateType;
 }
 
-public enum UpdateType
+public enum ProgressUpdateType
 {
     Content,
     Title,

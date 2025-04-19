@@ -548,11 +548,11 @@ public partial class HomeViewModel : LoggableObservableObject
             {
                 switch (args.UpdateType)
                 {
-                    case UpdateType.Content:
+                    case ProgressUpdateType.Content:
                         CurrentAction = args.UpdateValue;
                         break;
 
-                    case UpdateType.Title:
+                    case ProgressUpdateType.Title:
                         CurrentActionTitle = args.UpdateValue;
                         break;
                 }

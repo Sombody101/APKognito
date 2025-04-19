@@ -91,6 +91,14 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 #endif
     }
 
+#if DEBUG
+    public DriveUsageViewModel()
+    {
+        // For designer
+        kognitoConfig = null!;
+    }
+#endif
+
     #region Commands
 
     private CancellationTokenSource? _collectDataCancelationSource;
