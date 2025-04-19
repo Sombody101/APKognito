@@ -207,6 +207,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
     #endregion Commands
 
+    public override async Task OnNavigatedToAsync()
+    {
+        await StartSearchAsync();
+    }
+
     public void UpdateItemsList()
     {
         Dispatcher.CurrentDispatcher.Invoke(() =>

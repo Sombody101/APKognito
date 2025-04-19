@@ -16,11 +16,6 @@ public partial class DriveUsagePage : INavigableView<DriveUsageViewModel>, IView
     {
         InitializeComponent();
         DataContext = ViewModel = viewModel;
-
-        Loaded += (sender, e) => Dispatcher.Invoke(async () =>
-        {
-            await viewModel.StartSearchAsync();
-        });
     }
 
     private void FolderList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
