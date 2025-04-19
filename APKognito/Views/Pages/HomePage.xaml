@@ -412,10 +412,11 @@
                         <!--  Start/Cancel Buttons  -->
 
                         <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
-                            <Button
-                                Height="75"
+                            <ui:Button
+                                Height="90"
                                 Margin="0,0,0,5"
                                 HorizontalAlignment="Stretch"
+                                Appearance="Success"
                                 Command="{Binding StartApkRenameCommand}"
                                 Content="Start Renaming"
                                 Cursor="Hand"
@@ -423,10 +424,11 @@
                                 ToolTip="{Binding CantStartReason}"
                                 Visibility="{Binding StartButtonVisible, Converter={StaticResource BoolToVisibility}}" />
 
-                            <Button
-                                Height="75"
+                            <ui:Button
+                                Height="90"
                                 Margin="0,0,0,5"
                                 HorizontalAlignment="Stretch"
+                                Appearance="Caution"
                                 Command="{Binding CancelApkRenameCommand}"
                                 Content="Cancel"
                                 Cursor="Hand"
