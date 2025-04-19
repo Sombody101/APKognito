@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using APKognito.Models;
+using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Documents;
 using System.Windows.Threading;
@@ -6,13 +8,18 @@ using Wpf.Ui;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
 
+using LogEntryType = APKognito.Models.LogBoxEntry.LogEntryType;
+
 namespace APKognito.Utilities.MVVM;
 
 /// <summary>
 /// Gives a horrible interface for logging to a <see cref="RichTextBox"/> while still adhering to <see cref="ObservableObject"/> rules.
 /// </summary>
-public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
+public partial class LoggableObservableObject : ViewModel, IViewable
 {
+    [ObservableProperty]
+    public partial ObservableCollection<LogBoxEntry> LogBoxEntries { get; set; } = [];
+
     /// <summary>
     /// The current <see cref="LoggableObservableObject"/>.
     /// </summary>
@@ -22,9 +29,6 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         CurrentLoggableObject = this;
     }
 
-    public RichTextBox? RichTextBoxInUse { get; private set; } = null!;
-    public Block RichTextLastBlock => RichTextBoxInUse.Document.Blocks.LastBlock;
-
     public ISnackbarService? SnackbarService { get; private set; } = null!;
 
     /* Configs */
@@ -33,40 +37,39 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     private string indent = string.Empty;
 
-    private List<(string log, Brush? color, LogType? type)>? logBuffer = [];
-    public void WriteGenericLog(string text, [Optional] Brush color, LogType? logType = LogType.None, bool newline = true)
+    public void WriteGenericLog(string text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None, bool newline = true)
     {
         WriteGenericLog(new StringBuilder(text), color, logType, newline);
     }
 
-    public void WriteGenericLog(StringBuilder text, [Optional] Brush color, LogType? logType = LogType.None, bool newline = false)
+    public void WriteGenericLog(StringBuilder text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None, bool newline = false)
     {
         if (newline)
         {
             _ = text.AppendLine();
         }
 
-        if (indent != string.Empty)
+        if (!string.IsNullOrEmpty(indent))
         {
             _ = text.Insert(0, indent);
         }
 
-        if (RichTextBoxInUse is null)
+        LogBoxEntry newEntry = new()
         {
-            logBuffer?.Add(new(text.ToString(), color, logType));
-            return;
-        }
+            Text = text.ToString(),
+            Color = color,
+            LogType = logType,
+        };
 
-        ClearBuffedLogs();
-        AppendRunToLogbox(text.ToString(), color, logType);
+        LogBoxEntries.Add(newEntry);
     }
 
-    public void WriteGenericLogLine(string text, [Optional] Brush color, LogType? logType = LogType.None)
+    public void WriteGenericLogLine(string text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None)
     {
         WriteGenericLog(text, color, logType, newline: true);
     }
 
-    public void WriteGenericLogLine(StringBuilder text, [Optional] Brush color, LogType? logType = LogType.None)
+    public void WriteGenericLogLine(StringBuilder text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None)
     {
         WriteGenericLog(text, color, logType, newline: true);
     }
@@ -74,31 +77,31 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
     public void Log(string log)
     {
         FileLogger.Log(log, DisableFileLogging);
-        WriteGenericLogLine(log, logType: LogType.Info);
+        WriteGenericLogLine(log, logType: LogEntryType.Info);
     }
 
     public void LogSuccess(string log)
     {
         FileLogger.Log(log, DisableFileLogging);
-        WriteGenericLogLine(log, Brushes.Green, logType: LogType.Success);
+        WriteGenericLogLine(log, Brushes.Lime, logType: LogEntryType.Success);
     }
 
     public void LogWarning(string log)
     {
         FileLogger.LogWarning(log, DisableFileLogging);
-        WriteGenericLogLine(log, Brushes.Yellow, logType: LogType.Warning);
+        WriteGenericLogLine(log, Brushes.Yellow, logType: LogEntryType.Warning);
     }
 
     public void LogError(string log)
     {
         FileLogger.LogError(log, DisableFileLogging);
-        WriteGenericLogLine(log, Brushes.Red, logType: LogType.Error);
+        WriteGenericLogLine(log, Brushes.Red, logType: LogEntryType.Error);
     }
 
     public void LogError(Exception ex)
     {
         FileLogger.LogException(ex, DisableFileLogging);
-        WriteGenericLog(ex.ToString(), Brushes.Red, logType: LogType.Error);
+        WriteGenericLog(ex.ToString(), Brushes.Red, logType: LogEntryType.Error);
     }
 
     public void LogDebug(string log)
@@ -106,7 +109,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         FileLogger.LogDebug(log);
 
 #if DEBUG
-        WriteGenericLogLine(log, Brushes.Cyan, logType: LogType.Debug);
+        WriteGenericLogLine(log, Brushes.Cyan, logType: LogEntryType.Debug);
 #endif
     }
 
@@ -115,7 +118,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
         FileLogger.LogDebug(ex);
 
 #if DEBUG
-        WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", Brushes.Cyan, logType: LogType.Debug);
+        WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", Brushes.Cyan, logType: LogEntryType.Debug);
 #endif
     }
 
@@ -141,36 +144,7 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
 
     public void ClearLogs()
     {
-        if (RichTextBoxInUse is null)
-        {
-            return;
-        }
-
-        RichTextBoxInUse.Dispatcher.Invoke(() =>
-        {
-            RichTextBoxInUse.Document.Blocks.Clear();
-            RichTextBoxInUse.Document.Blocks.Add(new Paragraph());
-        });
-    }
-
-    public async Task ClearLogsAsync()
-    {
-        if (RichTextBoxInUse is null)
-        {
-            return;
-        }
-
-        await RichTextBoxInUse.Dispatcher.InvokeAsync(() =>
-        {
-            RichTextBoxInUse.Document.Blocks.Clear();
-            RichTextBoxInUse.Document.Blocks.Add(new Paragraph());
-        });
-    }
-
-    public virtual void AntiMvvm_SetRichTextbox(RichTextBox rtb)
-    {
-        RichTextBoxInUse = rtb;
-        ClearBuffedLogs();
+        LogBoxEntries.Clear();
     }
 
     protected void SetSnackbarProvider(ISnackbarService _snackbarService)
@@ -228,99 +202,5 @@ public class LoggableObservableObject : ViewModel, IAntiMvvmRtb, IViewable
     public void SnackError(string body)
     {
         DisplaySnack("Error", body, ControlAppearance.Danger);
-    }
-
-    private void AppendRunToLogbox(string text, [Optional] Brush? color, LogType? logType)
-    {
-        _ = RichTextBoxInUse.Dispatcher.BeginInvoke(() =>
-        {
-            Run log = new(text);
-
-            if (color is not null)
-            {
-                log.Foreground = color;
-            }
-
-            Paragraph p = (Paragraph)RichTextLastBlock;
-
-            if (LogIconPrefixes && logType is not (null or LogType.None))
-            {
-                // Everything in this block is just to fix the inconsistent bum-fuckery sizing in the SymbolIcons
-
-                SymbolRegular symbol = SymbolRegular.Empty;
-                double height = 16;
-                Thickness margin = new(0, 0, 5, 0);
-
-                switch (logType)
-                {
-                    case LogType.Info:
-                        symbol = SymbolRegular.Info16;
-                        height = 14;
-                        margin.Left = 1;
-                        break;
-
-                    case LogType.Success:
-                        symbol = SymbolRegular.CheckmarkCircle16;
-                        break;
-
-                    case LogType.Warning:
-                        symbol = SymbolRegular.Warning16;
-                        break;
-
-                    case LogType.Error:
-                        symbol = SymbolRegular.ErrorCircle16;
-                        height = 15.5;
-                        break;
-
-                    case LogType.Debug:
-                        symbol = SymbolRegular.Bug16;
-                        break;
-                }
-
-                SymbolIcon icon = new()
-                {
-                    Symbol = symbol,
-                    VerticalAlignment = VerticalAlignment.Bottom,
-                    FontSize = height,
-                    Margin = margin
-                };
-
-                if (color is not null)
-                {
-                    icon.Foreground = color;
-                }
-
-                p.Inlines.Add(icon);
-            }
-
-            p.Inlines.Add(log);
-            RichTextBoxInUse.ScrollToEnd();
-        }, DispatcherPriority.Background);
-    }
-
-    private void ClearBuffedLogs()
-    {
-        if (logBuffer is null)
-        {
-            return;
-        }
-
-        foreach ((string bLog, Brush? bColor, LogType? bType) in logBuffer)
-        {
-            AppendRunToLogbox(bLog, bColor, bType);
-        }
-
-        logBuffer.Clear();
-        logBuffer = null;
-    }
-
-    public enum LogType
-    {
-        None,
-        Info,
-        Success,
-        Warning,
-        Error,
-        Debug,
     }
 }
