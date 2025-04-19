@@ -12,10 +12,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Documents;
 using System.Windows.Threading;
 using Wpf.Ui;
-using FontFamily = System.Windows.Media.FontFamily;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -28,8 +26,6 @@ public partial class HomeViewModel : LoggableObservableObject
     private const string AWAITING_JOB = "Awaiting job";
     private const string CURRENT_ACTION = "Current Action";
     public const char PATH_SEPARATOR = '\n';
-
-    private static readonly FontFamily firaRegular = new(new Uri("pack://application:,,,/"), "./Fonts/FiraCode-Medium.ttf#Fira Code Medium");
 
     // Configs
     private readonly ConfigurationFactory configFactory;
@@ -930,18 +926,6 @@ public partial class HomeViewModel : LoggableObservableObject
         OriginalPackageName = DEFAULT_PROP_MESSAGE;
         CurrentActionTitle = CURRENT_ACTION;
         CurrentAction = AWAITING_JOB;
-    }
-
-    private static readonly List<Run> _runLogBuffer = [];
-    public override void AntiMvvm_SetRichTextbox(RichTextBox rtb)
-    {
-        rtb.Document.FontFamily = firaRegular;
-
-        // Dump all logs
-        ((Paragraph)rtb.Document.Blocks.LastBlock).Inlines.AddRange(_runLogBuffer);
-        _runLogBuffer.Clear();
-
-        base.AntiMvvm_SetRichTextbox(rtb);
     }
 
     private static bool ValidCompanyName(string segment)

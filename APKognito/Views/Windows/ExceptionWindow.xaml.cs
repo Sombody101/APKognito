@@ -20,8 +20,6 @@ public partial class ExceptionWindow : FluentWindow
 
         InitializeComponent();
 
-        exceptionViewModel.AntiMvvm_SetRichTextbox(ExceptionDetailsBox);
-
         SystemThemeWatcher.Watch(this);
         ApplicationAccentColorManager.ApplySystemAccent();
     }

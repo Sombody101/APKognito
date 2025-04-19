@@ -17,8 +17,6 @@ public partial class LogViewerPage : INavigableView<LogViewerViewModel>, IViewab
         ViewModel = viewModel;
 
         InitializeComponent();
-
-        viewModel.AntiMvvm_SetRichTextbox(LogView);
     }
 
     public LogViewerPage()

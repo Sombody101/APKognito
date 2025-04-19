@@ -2,6 +2,7 @@
     x:Class="APKognito.Views.Pages.AdbConsolePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -29,8 +30,16 @@
             Grid.Column="1"
             Margin="0,0,0,10"
             VerticalAlignment="Stretch"
+            ctrls:RichTextBoxLogBehavior.LogEntries="{Binding LogBoxEntries}"
+            ctrls:RichTextBoxLogBehavior.LogIconPrefixes="False"
             FontFamily="{StaticResource FiraRegular}"
-            IsReadOnly="True" />
+            FontSize="12"
+            IsReadOnly="True">
+            <FlowDocument FontFamily="{StaticResource FiraRegular}" FontSize="12">
+                <Paragraph />
+            </FlowDocument>
+        </ui:RichTextBox>
+
 
         <StackPanel Grid.Row="1" Margin="0,0,0,10">
             <ui:TextBox

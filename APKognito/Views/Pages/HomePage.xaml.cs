@@ -26,7 +26,6 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         DataContext = ViewModel;
 
         InitializeComponent();
-        viewModel.AntiMvvm_SetRichTextbox(APKLogs);
 
         Config = _configFactory.GetConfig<KognitoConfig>();
 

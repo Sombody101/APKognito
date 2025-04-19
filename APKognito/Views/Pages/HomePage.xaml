@@ -439,9 +439,14 @@
                 MaxHeight="700"
                 Margin="0,5"
                 VerticalAlignment="Stretch"
+                ctrls:RichTextBoxLogBehavior.LogEntries="{Binding LogBoxEntries}"
                 FontFamily="{StaticResource FiraRegular}"
                 FontSize="12"
-                IsReadOnly="True" />
+                IsReadOnly="True">
+                <FlowDocument FontFamily="{StaticResource FiraRegular}" FontSize="12">
+                    <Paragraph />
+                </FlowDocument>
+            </ui:RichTextBox>
 
             <ui:Button
                 Grid.Row="1"
