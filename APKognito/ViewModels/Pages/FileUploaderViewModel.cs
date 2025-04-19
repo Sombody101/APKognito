@@ -36,6 +36,7 @@ public partial class FileUploaderViewModel : LoggableObservableObject
     public FileUploaderViewModel()
     {
         // For designer
+        adbConfig = null!;
     }
 
     #region Commands

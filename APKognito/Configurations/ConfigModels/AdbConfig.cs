@@ -44,7 +44,7 @@ public sealed class AdbDeviceInfo
     public string DeviceId { get; set; }
 
     [JsonProperty("device_name")]
-    public string DeviceName { get; set; }
+    public string DeviceName { get; set; } = string.Empty;
 
     [JsonProperty("device_local_ip")]
     public byte[] IpAddress { get; set; } = DefaultIp;

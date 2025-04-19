@@ -11,8 +11,6 @@ namespace APKognito.Controls;
 /// </summary>
 public partial class DirectorySelector
 {
-    public new event KeyEventHandler? KeyUp;
-
     public static readonly DependencyProperty DirectoryPathProperty =
         DependencyProperty.Register(nameof(DirectoryPath), typeof(string), typeof(DirectorySelector),
             new FrameworkPropertyMetadata(string.Empty, new PropertyChangedCallback(DirectoryPath_Changed))
@@ -48,7 +46,8 @@ public partial class DirectorySelector
         BrowseButtonIcon ??= new() { Symbol = SymbolRegular.Folder20 };
     }
 
-    private void DirectoryTextBox_KeyUp(object? sender, WPF::Input.KeyEventArgs e)
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Used for event handler.")]
+    private void DirectoryTextBox_KeyUp(object? sender, KeyEventArgs e)
     {
         TextBox tBox;
 

@@ -511,7 +511,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     {
         Log("Installing JDK 24...");
 
-        string tempDirectory = Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "APKognito-JavaTmp");
+        string tempDirectory = Path.Combine(FileLogger.GetTempDirectory(), "APKognito-JavaTmp");
         Directory.CreateDirectory(tempDirectory);
         DriveUsageViewModel.ClaimDirectory(tempDirectory);
 

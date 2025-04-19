@@ -466,7 +466,8 @@ public partial class HomeViewModel : LoggableObservableObject
 
             sharedRenameSettings.SourceApkPath = sourceApkPath;
 
-            // Rename the package
+            // Starts the renaming logic
+            // Whole lot of method extractions... 100% layer 8 networking issue.
             (string? errorReason, bool apkFailed) = await RunPackageRenameAsync(sharedRenameSettings, cancellationToken);
 
             if (!apkFailed)

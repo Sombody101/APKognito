@@ -14,6 +14,7 @@ public partial class DirectoryConfirmationDialog : ContentDialog
     public DirectoryConfirmationDialog()
     {
         // For designer
+        ViewModel = new();
     }
 
     public DirectoryConfirmationDialog(ContentPresenter? presenter)

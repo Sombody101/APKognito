@@ -3,7 +3,6 @@ using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
-using System.Configuration;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -238,6 +237,12 @@ public static class FileLogger
         return outputPack;
     }
 
+    public static string GetTempDirectory()
+    {
+        return Environment.GetEnvironmentVariable("TEMP")
+            ?? throw new InvalidOperationException("There is no %TEMP% variable. One must be set!");
+    }
+
     public static Brush LogLevelToBrush(LogLevel level)
     {
         return level switch
@@ -336,7 +341,9 @@ public static class FileLogger
 
     public static class LogLevelColors
     {
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         static LogLevelColors()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         {
             PopulateColors(ApplicationThemeManager.GetAppTheme() is ApplicationTheme.Dark);
 

@@ -17,28 +17,28 @@ public class AdbFolderInfo
 
     public static AdbFolderInfo RootFolder => new($"{FormatSeparator}directory{FormatSeparator}0{FormatSeparator}/{FormatSeparator}root");
 
-    public string? ParentDirectory { get; }
+    public string? ParentDirectory { get; } = null;
 
     /// <summary>
     /// Specifically for the view to help locate the corresponding TreeViewItem.
     /// </summary>
-    public string TreeViewItemTag { get; }
+    public string TreeViewItemTag { get; } = string.Empty;
 
-    public string RawCreationDate { get; }
+    public string RawCreationDate { get; } = string.Empty;
 
     public string CreationDate => string.IsNullOrWhiteSpace(RawCreationDate)
                 ? RawCreationDate
                 : DateTime.ParseExact(RawCreationDate, "yyyy-M-d", CultureInfo.CurrentCulture).ToString();
 
-    public string FileOwner { get; }
+    public string FileOwner { get; } = string.Empty;
 
-    public string FileName { get; }
+    public string FileName { get; } = string.Empty;
 
-    public string FullPath { get; }
+    public string FullPath { get; } = string.Empty;
 
-    public AdbFolderType ItemType { get; }
+    public AdbFolderType ItemType { get; } = AdbFolderType.None;
 
-    public long FileSizeInBytes { get; }
+    public long FileSizeInBytes { get; } = 0;
 
     // Size info is not rendered for directories, so the item type is needed for the converter
     public KeyValuePair<long, AdbFolderType> ConverterPair => new(FileSizeInBytes, ItemType);

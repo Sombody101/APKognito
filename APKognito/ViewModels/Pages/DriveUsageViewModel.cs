@@ -42,7 +42,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     public partial bool FileListVisibility { get; set; } = true;
 
     [ObservableProperty]
-    public partial string StartButtonText { get; set; } = "Refresh";
+    public partial string StartButtonText { get; set; } = TEXT_REFRESH;
 
     [ObservableProperty]
     public partial long TotalUsedSpace { get; set; } = 0;
@@ -69,10 +69,10 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     public partial bool FilterInFiles { get; set; }
 
     [ObservableProperty]
-    public partial string CurrentlyDeleting { get; set; }
+    public partial string CurrentlyDeleting { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string CurrentlyDeletingLow { get; set; }
+    public partial string CurrentlyDeletingLow { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial ObservableCollection<FootprintInfo> FoundFolders { get; set; } = [];
@@ -162,8 +162,8 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
         if (cachedFootprints.Count > 0 && await PromptForDeletionAsync(FoundFolders))
         {
-        await DeleteFileCollectionAsync(FoundFolders);
-        FoundFolders.Clear();
+            await DeleteFileCollectionAsync(FoundFolders);
+            FoundFolders.Clear();
         }
 
         CanDelete = true;
@@ -422,7 +422,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                     new LineBreak(),
                     new LineBreak(),
                     new Run("Continue?") { FontWeight = FontWeights.Bold }
-        }
+                }
             },
             PrimaryButtonText = "Delete",
             PrimaryButtonAppearance = ControlAppearance.Danger,

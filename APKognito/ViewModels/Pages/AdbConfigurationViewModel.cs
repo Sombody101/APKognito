@@ -16,13 +16,13 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
     // Field visibility
 
     [ObservableProperty]
-    private bool _devicePropertiesEnabled = false;
+    public partial bool DevicePropertiesEnabled { get; set; } = false;
 
     [ObservableProperty]
-    private bool _overridePathsEnabled = false;
+    public partial bool OverridePathsEnabled { get; set; } = false;
 
     [ObservableProperty]
-    private string _overrideObbPath = string.Empty;
+    public partial string OverrideObbPath { get; set; } = string.Empty;
 
     public string PlatformToolsPath
     {
@@ -39,6 +39,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
     public AdbConfigurationViewModel()
     {
         // For designer
+        adbConfig = null!;
     }
 
     public AdbConfigurationViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)

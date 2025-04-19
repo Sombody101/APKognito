@@ -173,7 +173,7 @@
             VerticalContentAlignment="Stretch">
 
             <Grid VerticalAlignment="Stretch">
-                <ui:Card Visibility="{Binding FileListVisibility, Converter={StaticResource VisibilityInverter}}">
+                <ui:Card VerticalAlignment="Top" Visibility="{Binding FileListVisibility, Converter={StaticResource VisibilityInverter}}">
                     <ui:TextBlock
                         HorizontalAlignment="Center"
                         FontSize="18"

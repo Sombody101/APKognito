@@ -78,6 +78,11 @@ public partial class SettingsViewModel : ViewModel, IViewable
 
     public SettingsViewModel()
     {
+        configFactory = null!;
+        updateConfig = null!;
+        kognitoConfig = null!;
+        contentDialogService = null!;
+
         // For designer
         OnNavigatedTo();
     }

@@ -4,7 +4,6 @@
 #endif
 
 using APKognito.AdbTools;
-using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
 using APKognito.Models;

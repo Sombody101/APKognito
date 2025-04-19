@@ -16,31 +16,31 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
     #region Properties
 
     [ObservableProperty]
-    private ObservableCollection<AdbDeviceInfo> _deviceList = [];
+    public partial ObservableCollection<AdbDeviceInfo> DeviceList { get; set; } = [];
 
     [ObservableProperty]
-    private AdbDeviceInfo? _selectedDevice;
+    public partial AdbDeviceInfo? SelectedDevice { get; set; }
 
     [ObservableProperty]
-    private AndroidDevice _androidDevice = AndroidDevice.Empty;
+    public partial AndroidDevice AndroidDevice { get; set; } = AndroidDevice.Empty;
 
     [ObservableProperty]
-    private string _batteryLabelColor;
+    public partial string BatteryLabelColor { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _formattedBatteryLevel;
+    public partial string FormattedBatteryLevel { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private int _batteryLevelWidth = 0;
+    public partial int BatteryLevelWidth { get; set; } = 0;
 
     [ObservableProperty]
-    private int _usedStorageWidth = 0;
+    public partial int UsedStorageWidth { get; set; } = 0;
 
     [ObservableProperty]
-    private int _freeStorageWidth = 0;
+    public partial int FreeStorageWidth { get; set; } = 0;
 
     [ObservableProperty]
-    private AdbDeviceInfo _adbDeviceInfo;
+    public partial AdbDeviceInfo AdbDeviceInfo { get; set; } = null!;
 
     #endregion Properties
 

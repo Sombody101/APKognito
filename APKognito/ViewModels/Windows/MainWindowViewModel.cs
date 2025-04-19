@@ -96,6 +96,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
     public MainWindowViewModel()
     {
         // For designer
+        configFactory = null!;
     }
 
     public MainWindowViewModel(ISnackbarService snack, ConfigurationFactory _configFactory)
@@ -107,6 +108,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
     public MainWindowViewModel(ObservableCollection<object> footerMenuItems)
     {
         FooterMenuItems = footerMenuItems;
+        configFactory = null!;
     }
 
     #region Commands
@@ -168,9 +170,9 @@ public partial class MainWindowViewModel : LoggableObservableObject
     {
 #if DEBUG
         throw new DebugOnlyException();
-#endif
-
+#else
         FileLogger.Log($"Artificial crash attempted on {App.Version.VersionIdentifier} build.");
+#endif
     }
 
     #endregion Commands

@@ -14,6 +14,7 @@ public partial class AdbConfigurationPage : INavigableView<AdbConfigurationViewM
     public AdbConfigurationPage()
     {
         // For designer
+        ViewModel = new();
     }
 
     public AdbConfigurationPage(AdbConfigurationViewModel viewModel)

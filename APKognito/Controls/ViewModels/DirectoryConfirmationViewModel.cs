@@ -13,10 +13,10 @@ public partial class DirectoryConfirmationViewModel : ObservableObject
     #region Properties
 
     [ObservableProperty]
-    private string _title;
+    public partial string Title { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _content;
+    public partial string Content { get; set; } = string.Empty;
 
     public string OutputDirectory
     {

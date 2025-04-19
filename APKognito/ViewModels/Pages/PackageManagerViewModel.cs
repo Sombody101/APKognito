@@ -63,6 +63,8 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     public PackageManagerViewModel()
     {
         // For designer
+        dialogService = null!;
+        configFactory = null!;
     }
 
     public PackageManagerViewModel(
