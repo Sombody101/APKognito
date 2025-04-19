@@ -265,13 +265,6 @@
                                 Margin="1"
                                 FontWeight="Bold"
                                 Text="Filename:" />
-
-                            <!--
-                        <TextBlock
-                            Margin="1"
-                            FontWeight="Bold"
-                            Text="Filepath:" />
-                            -->
                         </StackPanel>
 
                         <StackPanel Grid.Column="1">
@@ -281,13 +274,6 @@
                                 Text="{Binding ApkName}"
                                 TextTrimming="CharacterEllipsis"
                                 ToolTip="{Binding FilePath}" />
-
-                            <!--
-                        <TextBlock
-                            Margin="1"
-                            Text="{Binding FilePath}"
-                            TextTrimming="CharacterEllipsis" />
-                            -->
                         </StackPanel>
 
                         <StackPanel Grid.Row="2">
