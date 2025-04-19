@@ -7,7 +7,10 @@ using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
+using System.Windows.Documents;
 using System.Windows.Threading;
+using Wpf.Ui.Controls;
+using TextBlock = Wpf.Ui.Controls.TextBlock;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -15,6 +18,9 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 {
     private const string CLAIM_FILE_NAME = ".apkognito";
     private const string PACKAGE_LIST_JOIN_STRING = "\n  ⚬  ";
+
+    private const string TEXT_REFRESH = "Refresh",
+        TEXT_CANCEL = "Cancel";
 
     private readonly KognitoConfig kognitoConfig;
 
@@ -94,14 +100,14 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     {
         if (IsRunning)
         {
-            StartButtonText = "Refresh";
+            StartButtonText = TEXT_REFRESH;
             IsRunning = false;
 
             _ = (_collectDataCancelationSource?.CancelAsync());
         }
         else
         {
-            StartButtonText = "Cancel";
+            StartButtonText = TEXT_CANCEL;
             IsRunning = true;
 
             cachedFootprints.Clear();
@@ -135,30 +141,12 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
         List<FootprintInfo> itemsToDelete = folderList.SelectedItems.Cast<FootprintInfo>().ToList();
 
-        if (itemsToDelete.Count < 1)
-        {
-            goto Exit;
-        }
-
-        MessageBox confirmation = new()
-        {
-            Title = $"Delete {GetFormattedItems(itemsToDelete)}?",
-            Content = $"This will remove the following items:{PACKAGE_LIST_JOIN_STRING}{GetFormattedSelectedPackages(itemsToDelete, PACKAGE_LIST_JOIN_STRING)}\n\nContinue?",
-            PrimaryButtonText = "Delete",
-            PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
-            CloseButtonText = "Cancel",
-            MaxHeight = 600,
-        };
-
-        MessageBoxResult result = await confirmation.ShowDialogAsync();
-
-        if (result is MessageBoxResult.Primary)
+        if (itemsToDelete.Count > 0 && await PromptForDeletionAsync(itemsToDelete))
         {
             await DeleteFileCollectionAsync(itemsToDelete);
             FoundFolders.Clear();
         }
 
-    Exit:
         CanDelete = true;
         IsRunning = false;
         CurrentlyDeleting = CurrentlyDeletingLow = string.Empty;
@@ -172,32 +160,12 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         CanDelete = false;
         IsRunning = true;
 
-        if (cachedFootprints.Count < 1)
+        if (cachedFootprints.Count > 0 && await PromptForDeletionAsync(FoundFolders))
         {
-            goto Exit;
-        }
-
-        MessageBox confirmation = new()
-        {
-            Title = $"Delete {GetFormattedItems(FoundFolders)}?",
-            Content = $"This will remove the following items:{PACKAGE_LIST_JOIN_STRING}{GetFormattedSelectedPackages(FoundFolders, PACKAGE_LIST_JOIN_STRING)}\n\nContinue?",
-            PrimaryButtonText = "Delete",
-            PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Danger,
-            CloseButtonText = "Cancel",
-            MaxHeight = 600
-        };
-
-        MessageBoxResult result = await confirmation.ShowDialogAsync();
-
-        if (result != MessageBoxResult.Primary)
-        {
-            goto Exit;
-        }
-
         await DeleteFileCollectionAsync(FoundFolders);
         FoundFolders.Clear();
+        }
 
-    Exit:
         CanDelete = true;
         IsRunning = false;
         CurrentlyDeleting = CurrentlyDeletingLow = string.Empty;
@@ -278,7 +246,6 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
         foreach (FootprintInfo? folderStat in folderStats)
         {
-            // Not having AddRange is irritating
             cachedFootprints.Add(folderStat);
         }
 
@@ -304,7 +271,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         return results.Sum();
     }
 
-    public static void ClaimDirectory(string directory)
+    public static void ClaimDirectory(string directory, string claimName = CLAIM_FILE_NAME)
     {
         if (!Directory.Exists(directory))
         {
@@ -316,7 +283,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
             return;
         }
 
-        string hiddenFile = Path.Combine(directory, CLAIM_FILE_NAME);
+        string hiddenFile = Path.Combine(directory, claimName);
         File.Create(hiddenFile).Close();
         File.SetAttributes(hiddenFile, File.GetAttributes(hiddenFile) | FileAttributes.Hidden);
     }
@@ -376,16 +343,16 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
     private static string GetFormattedSelectedPackages(IEnumerable<FootprintInfo> items, string joinStr)
     {
-        return string.Join(joinStr, items.Select(item => item.FolderName));
+        return $"{PACKAGE_LIST_JOIN_STRING}{string.Join(joinStr, items.Select(item => item.FolderName))}";
     }
 
     private async Task DeleteFileCollectionAsync(IEnumerable<FootprintInfo> files)
     {
         // Horrible to the thread pool, but I'm not sure what else to do right now...
-        // We can only hope the user run a deletion while renaming a package.
+        // We can only hope the user doesn't run a deletion while renaming a package.
         await Task.Run(() =>
         {
-            foreach (var entry in files)
+            foreach (FootprintInfo entry in files)
             {
                 CurrentlyDeleting = $"{Path.GetFileName(entry.FolderName)} ({GBConverter.FormatSizeFromBytes(entry.FolderSizeBytes)})";
 
@@ -426,6 +393,45 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                 }
             }
         }
+    }
+
+    private static async Task<bool> PromptForDeletionAsync(IEnumerable<FootprintInfo> itemsToDelete)
+    {
+        MessageBox confirmation = new()
+        {
+            Title = $"Delete {GetFormattedItems(itemsToDelete)}?",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Inlines =
+                {
+                    new Run("This will remove the following items:")
+                    {
+                        FontWeight = FontWeights.Bold
+                    },
+                    new ScrollViewer
+                    {
+                        MaxHeight = 450,
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                        Content = new TextBlock
+                        {
+                            Text = GetFormattedSelectedPackages(itemsToDelete, PACKAGE_LIST_JOIN_STRING),
+                            TextWrapping = TextWrapping.Wrap
+                        }
+                    },
+                    new LineBreak(),
+                    new LineBreak(),
+                    new Run("Continue?") { FontWeight = FontWeights.Bold }
+        }
+            },
+            PrimaryButtonText = "Delete",
+            PrimaryButtonAppearance = ControlAppearance.Danger,
+            CloseButtonText = "Cancel",
+            MaxHeight = 600,
+        };
+
+        MessageBoxResult result = await confirmation.ShowDialogAsync();
+        return result is MessageBoxResult.Primary;
     }
 
     private static string GetFormattedItems(IEnumerable<FootprintInfo> list)
