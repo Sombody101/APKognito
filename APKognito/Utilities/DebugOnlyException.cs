@@ -1,7 +1,7 @@
-﻿namespace APKognito.Utilities;
-
-// Using a preprocessor statement encourages cleanup since all usages will be errors.
+﻿// Using a preprocessor statement encourages cleanup since all usages will be errors on non-debug builds.
 #if DEBUG
+
+namespace APKognito.Utilities;
 /// <summary>
 /// This exception is only to test how APKognito handles random exceptions. 
 /// It will prevent compilation on release builds. 
@@ -13,24 +13,18 @@ public class DebugOnlyException : Exception
     {
     }
 
-    public DebugOnlyException(string l)
-        : base(l)
+    private DebugOnlyException(string message)
+        : base(message)
     {
     }
-}
-#endif
 
-public static class Utils
-{
-    public static void Assert([DoesNotReturnIf(true)] this bool check, string l)
+    public static void Assert([DoesNotReturnIf(true)] bool check, string message)
     {
         if (!check)
         {
-#if DEBUG
-            throw new DebugOnlyException(l);
-#else
-            throw new InvalidOperationException(l);
-#endif
+            throw new DebugOnlyException(message);
         }
     }
 }
+
+#endif
