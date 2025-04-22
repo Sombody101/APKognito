@@ -22,12 +22,12 @@
             Panel.ZIndex="1"
             Click="BrowseDirectory_Click"
             Content="Browse"
-            Icon="{Binding BrowseButtonIcon}" />
+            Icon="{Binding BrowseButtonIcon, RelativeSource={RelativeSource AncestorType=local:DirectorySelector}, Mode=OneTime, UpdateSourceTrigger=PropertyChanged}" />
 
         <ui:TextBox
             x:Name="DirectoryTextBox"
             Height="36"
-            Padding="80,7,7,7"
+            Padding="100,7,7,7"
             DataContext="{Binding ElementName=this}"
             KeyUp="DirectoryTextBox_KeyUp"
             Text="{Binding DirectoryPath, RelativeSource={RelativeSource AncestorType=local:DirectorySelector}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
