@@ -61,6 +61,12 @@ public static class RichTextBoxLogBehavior
         {
             newCollection.CollectionChanged += TextboxUpdateHandler;
 
+            if (textBox.Document is null)
+            {
+                textBox.Document = new FlowDocument();
+                textBox.Document.Blocks.Add(new Paragraph());
+            }
+
             if (newCollection.Count > 0 && textBox.Document?.Blocks.FirstOrDefault() is Paragraph initialParagraph)
             {
                 _ = textBox.Dispatcher.BeginInvoke(() => PopulateRichTextBox(initialParagraph, newCollection, GetLogIconPrefixes(textBox)));
