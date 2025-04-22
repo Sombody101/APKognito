@@ -28,7 +28,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
     public partial string BatteryLabelColor { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string FormattedBatteryLevel { get; set; } = string.Empty;
+    public partial string FormattedBatteryLevel { get; set; } = "?";
 
     [ObservableProperty]
     public partial int BatteryLevelWidth { get; set; } = 0;
@@ -156,7 +156,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
 
         if (value.BatteryLevel < 0)
         {
-            FormattedBatteryLevel = "?%";
+            FormattedBatteryLevel = "?";
             BatteryLevelWidth = 0;
         }
         else

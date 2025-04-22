@@ -80,12 +80,6 @@
                 </Grid>
             </StackPanel>
 
-            <!--
-        <Grid Grid.Row="1" Margin="0,10">
-            <ui:Card />
-        </Grid>
-            -->
-
             <Grid Grid.Row="2">
                 <!--  Battery  -->
 
@@ -99,7 +93,7 @@
                             Width="100"
                             Height="50"
                             Padding="2"
-                            BorderBrush="White"
+                            BorderBrush="{DynamicResource TextFillColorPrimaryBrush}"
                             BorderThickness="2"
                             CornerRadius="5">
                             <Grid>
@@ -128,7 +122,7 @@
                             Height="20"
                             Margin="0,-2,0,-2"
                             Padding="2"
-                            Background="White"
+                            Background="{DynamicResource TextFillColorPrimaryBrush}"
                             CornerRadius="0,2,2,0" />
                     </StackPanel>
                 </Viewbox>
@@ -165,7 +159,7 @@
                                 Width="300"
                                 Height="20"
                                 Padding="2"
-                                BorderBrush="White"
+                                BorderBrush="{DynamicResource TextFillColorPrimaryBrush}"
                                 BorderThickness=".3"
                                 CornerRadius="5">
                                 <Border
