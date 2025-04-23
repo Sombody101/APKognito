@@ -1,21 +1,28 @@
-﻿using System.Globalization;
+﻿using APKognito.Utilities;
+using System.Globalization;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Models;
 
 public class AdbFolderInfo
 {
-    public const string FormatSeparator = "||";
-    public const string FormatString = $"%.10y{FormatSeparator}%F{FormatSeparator}%s{FormatSeparator}%N{FormatSeparator}%U";
+    private const string STAT_TIME_FORMAT_STRING = "yyyy-MM-dd HH:mm:ss.fffffff zzz";
 
-    public static AdbFolderInfo EmptyLoading => new($"{FormatSeparator}{FormatSeparator}{FormatSeparator}/Loading...{FormatSeparator}");
-    public static AdbFolderInfo EmptyDirectory => new($"{FormatSeparator}E{FormatSeparator}{FormatSeparator}/Empty Directory{FormatSeparator}");
+    public const string STAT_FORMAT_SEPARATOR = "||";
+    public const string STAT_FORMAT_STRING = $"%y{STAT_FORMAT_SEPARATOR}%F{STAT_FORMAT_SEPARATOR}%s{STAT_FORMAT_SEPARATOR}%N{STAT_FORMAT_SEPARATOR}%U";
+
+    #region Static Instances
+
+    public static AdbFolderInfo EmptyLoading => new($"{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Loading...{STAT_FORMAT_SEPARATOR}");
+    public static AdbFolderInfo EmptyDirectory => new($"{STAT_FORMAT_SEPARATOR}E{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Empty Directory{STAT_FORMAT_SEPARATOR}");
 
 #if DEBUG
-    public static AdbFolderInfo DebugFiller => new($"2022-12-20{FormatSeparator}regular file{FormatSeparator}69420{FormatSeparator}/Random File{FormatSeparator}root");
+    public static AdbFolderInfo DebugFiller => new($"2008-12-31 17:00:00.000000000 -0700{STAT_FORMAT_SEPARATOR}regular file{STAT_FORMAT_SEPARATOR}69420{STAT_FORMAT_SEPARATOR}/Random File{STAT_FORMAT_SEPARATOR}root");
 #endif
 
-    public static AdbFolderInfo RootFolder => new($"{FormatSeparator}directory{FormatSeparator}0{FormatSeparator}/{FormatSeparator}root");
+    public static AdbFolderInfo RootFolder => new($"{STAT_FORMAT_SEPARATOR}directory{STAT_FORMAT_SEPARATOR}0{STAT_FORMAT_SEPARATOR}/{STAT_FORMAT_SEPARATOR}root");
+
+    #endregion Static Instances
 
     public string? ParentDirectory { get; } = null;
 
@@ -24,11 +31,7 @@ public class AdbFolderInfo
     /// </summary>
     public string TreeViewItemTag { get; } = string.Empty;
 
-    public string RawCreationDate { get; } = string.Empty;
-
-    public string CreationDate => string.IsNullOrWhiteSpace(RawCreationDate)
-                ? RawCreationDate
-                : DateTime.ParseExact(RawCreationDate, "yyyy-M-d", CultureInfo.CurrentCulture).ToString();
+    public DateTime CreationDate { get; }
 
     public string FileOwner { get; } = string.Empty;
 
@@ -41,7 +44,7 @@ public class AdbFolderInfo
     public long FileSizeInBytes { get; } = 0;
 
     // Size info is not rendered for directories, so the item type is needed for the converter
-    public KeyValuePair<long, AdbFolderType> ConverterPair => new(FileSizeInBytes, ItemType);
+    public KeyValuePair<long, AdbFolderType> ConverterPair { get; }
 
     public string FormattedItemType => ItemType switch
     {
@@ -66,7 +69,7 @@ public class AdbFolderInfo
     public AdbFolderInfo(string statInfo, string? parentItem = null)
     {
         /*
-         * 'stat' format: %.10y %F %s %N %U
+         * 'stat' format: %y %F %s %N %U (STAT_FORMAT_STRING)
          *      0: Date (0000-00-0)
          *      1: File type
          *      2: Size in bytes (gives block size for directories)
@@ -74,9 +77,24 @@ public class AdbFolderInfo
          *      4: Owner name
          */
 
-        string[] parts = statInfo.Split(FormatSeparator);
+        string[] parts = statInfo.Split(STAT_FORMAT_SEPARATOR);
 
-        RawCreationDate = parts[0];
+        string rawTime = parts[0];
+
+        if (!string.IsNullOrEmpty(rawTime))
+        {
+            if (rawTime.Length > 26 && rawTime[19] == '.')
+            {
+                rawTime = string.Concat(rawTime.AsSpan(0, 27), rawTime.AsSpan(29));
+            }
+
+            DebugOnlyException.Assert(rawTime != parts[0], "stat time format didn't work");
+
+            if (DateTime.TryParseExact(rawTime, STAT_TIME_FORMAT_STRING, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDateTime))
+            {
+                CreationDate = parsedDateTime;
+            }
+        }
 
         ItemType = ResolveType(parts[1]);
 
@@ -101,6 +119,8 @@ public class AdbFolderInfo
 
         ParentDirectory = parentItem;
         TreeViewItemTag = Random.Shared.Next().ToString("x");
+
+        ConverterPair = new(FileSizeInBytes, ItemType);
     }
 
     private SymbolRegular GetSymbol()
