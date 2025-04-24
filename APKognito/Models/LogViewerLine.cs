@@ -1,4 +1,5 @@
 ﻿using APKognito.Utilities;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Brush = System.Windows.Media.Brush;
 
@@ -68,7 +69,13 @@ public partial class LogViewerLine
             ExceptionLog = ParseExceptionLog(match.Groups[5].Value);
         }
 
-        LogTime = timeString;
+        const string TIME_FORMAT = "hh:mm:ss.fff";
+        if (!DateTime.TryParseExact(timeString.Trim(), TIME_FORMAT, CultureInfo.CurrentCulture, DateTimeStyles.AssumeUniversal, out DateTime dateTime))
+        {
+            throw new InvalidOperationException($"Given log time '{timeString}' is not in the format '{TIME_FORMAT}'");
+        }
+
+        LogTime = dateTime.ToString("hh:mm:ss tt");
     }
 
     public bool Contains(string key, StringComparison comparison)
