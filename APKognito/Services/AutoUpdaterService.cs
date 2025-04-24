@@ -74,6 +74,11 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         return Task.CompletedTask;
     }
 
+    public void ForceUpdateCheck()
+    {
+        ForceTick();
+    }
+
     private async Task CheckForUpdatesAsync(CancellationToken cToken)
     {
         if (inUpdate)
@@ -280,6 +285,17 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
     private static void LogNextUpdate(int minuteCount)
     {
         FileLogger.Log($"Next update check will be at {DateTime.UtcNow.AddMinutes(minuteCount)}");
+    }
+
+    private void ForceTick()
+    {
+        if (_timer is null)
+        {
+            return;
+        }
+
+        _ = _timer.Change(0, 1);
+        _ = _timer.Change(0, config.CheckDelay);
     }
 
     private enum ValidationResult
