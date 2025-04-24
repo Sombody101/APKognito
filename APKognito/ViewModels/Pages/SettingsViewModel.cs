@@ -1,5 +1,6 @@
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Services;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages.Debugging;
@@ -110,6 +111,12 @@ public partial class SettingsViewModel : ViewModel, IViewable
     private void OnSaveUpdatesSettings()
     {
         configFactory.SaveConfig(updateConfig);
+    }
+
+    [RelayCommand]
+    private static void OnRunUpdateCheck()
+    {
+        App.GetService<AutoUpdaterService>()?.ForceUpdateCheck();
     }
 
     [RelayCommand]
