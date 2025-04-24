@@ -25,6 +25,10 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         DependencyProperty.Register(nameof(AndroidDevice), typeof(AndroidDevice), typeof(AndroidDeviceInfo)
     );
 
+    public static readonly DependencyProperty NoExpanderProperty =
+        DependencyProperty.Register(nameof(NoExpander), typeof(bool), typeof(AndroidDeviceInfo), new() { DefaultValue = true }
+    );
+
     public static readonly RoutedEvent TriggeredEvent =
         EventManager.RegisterRoutedEvent(nameof(TriggeredEvent), RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(AndroidDeviceInfo)
     );
@@ -41,6 +45,12 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             viewModel.AndroidDevice = value;
             SetValue(AndroidDeviceProperty, value);
         }
+    }
+
+    public bool NoExpander
+    {
+        get => (bool)GetValue(NoExpanderProperty);
+        set => SetValue(NoExpanderProperty, value);
     }
 
     public event RoutedEventHandler Triggered
@@ -125,7 +135,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             }
             finally
             {
-                cts.Dispose();
+                cts?.Dispose();
                 cts = null;
             }
         }, null, 0, UPDATE_DELAY_MS);

@@ -15,165 +15,204 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
 
-    <ui:CardExpander Icon="{ui:SymbolIcon Symbol=PhoneLaptop32}">
-        <ui:CardExpander.Header>
+    <UserControl.Resources>
+        <DataTemplate x:Key="AndroidDeviceView">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition />
                 </Grid.RowDefinitions>
 
-                <ui:TextBlock Grid.Row="0" Text="Android Device Options" />
-                <ui:TextBlock Grid.Row="1" Text="Select which Android device to target, and get some information about it." />
-            </Grid>
-        </ui:CardExpander.Header>
+                <StackPanel Grid.ColumnSpan="2">
+                    <Label Content="Selected Device" />
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition />
-            </Grid.RowDefinitions>
+                        <ComboBox
+                            Margin="0,0,10,0"
+                            DropDownOpened="ComboBox_DropDownOpened"
+                            IsEditable="False"
+                            IsReadOnly="True"
+                            IsSynchronizedWithCurrentItem="True"
+                            ItemsSource="{Binding ViewModel.DeviceList}"
+                            SelectedItem="{Binding ViewModel.SelectedDevice, UpdateSourceTrigger=PropertyChanged}"
+                            SelectionChanged="ComboBox_SelectionChanged">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate DataType="conf:AdbDeviceInfo">
+                                    <ui:TextBlock>
+                                        <Run Text="{Binding DeviceName}" />
+                                        <Run Text="-" />
+                                        <Run Text="{Binding DeviceId}" />
+                                    </ui:TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
 
-            <StackPanel Grid.ColumnSpan="2">
-                <Label Content="Selected Device" />
-                <Grid Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition />
-                        <ColumnDefinition Width="auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                        <ui:Button
+                            Grid.Column="1"
+                            Margin="0,0,10,0"
+                            Command="{Binding ViewModel.TryConnectionCommand}"
+                            Content="Test Connection"
+                            ToolTip="Tests connectivity to your ADB device and reports the status as a snack notification." />
 
-                    <ComboBox
-                        Margin="0,0,10,0"
-                        DropDownOpened="ComboBox_DropDownOpened"
-                        IsEditable="False"
-                        IsReadOnly="True"
-                        IsSynchronizedWithCurrentItem="True"
-                        ItemsSource="{Binding ViewModel.DeviceList}"
-                        SelectedItem="{Binding ViewModel.SelectedDevice, UpdateSourceTrigger=PropertyChanged}"
-                        SelectionChanged="ComboBox_SelectionChanged">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate DataType="conf:AdbDeviceInfo">
-                                <ui:TextBlock>
-                                    <Run Text="{Binding DeviceName}" />
-                                    <Run Text="-" />
-                                    <Run Text="{Binding DeviceId}" />
-                                </ui:TextBlock>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
+                        <ui:Button
+                            Grid.Column="2"
+                            Margin="0,0,10,0"
+                            Command="{Binding ViewModel.TryUploadAdbScriptsCommand}"
+                            Content="Upload ADB Scripts"
+                            ToolTip="Uploads shell scripts to your device that help with data reporting. This is required if you want to use the package uninstaller page." />
+                    </Grid>
+                </StackPanel>
 
-                    <ui:Button
-                        Grid.Column="1"
-                        Margin="0,0,10,0"
-                        Command="{Binding ViewModel.TryConnectionCommand}"
-                        Content="Test Connection"
-                        ToolTip="Tests connectivity to your ADB device and reports the status as a snack notification." />
-
-                    <ui:Button
-                        Grid.Column="2"
-                        Margin="0,0,10,0"
-                        Command="{Binding ViewModel.TryUploadAdbScriptsCommand}"
-                        Content="Upload ADB Scripts"
-                        ToolTip="Uploads shells scripts to your device that help with data gathering. This is required if you wnat to use the package uninstaller page." />
-                </Grid>
-            </StackPanel>
-
-            <Grid Grid.Row="2">
-                <!--  Battery  -->
-
-                <Viewbox
-                    Width="50"
-                    Height="25"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Bottom">
-                    <StackPanel Orientation="Horizontal">
-                        <Border
-                            Width="100"
-                            Height="50"
-                            Padding="2"
-                            BorderBrush="{DynamicResource TextFillColorPrimaryBrush}"
-                            BorderThickness="2"
-                            CornerRadius="5">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Border
-                                    Grid.Column="0"
-                                    Width="{Binding ViewModel.BatteryLevelWidth}"
-                                    Padding="2"
-                                    HorizontalAlignment="Left"
-                                    Background="{Binding ViewModel.BatteryLabelColor}"
-                                    CornerRadius="2" />
-
-                                <ui:TextBlock
-                                    Grid.ColumnSpan="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="24"
-                                    Text="{Binding ViewModel.FormattedBatteryLevel}" />
-                            </Grid>
-                        </Border>
-                        <Border
-                            Width="7"
-                            Height="20"
-                            Margin="0,-2,0,-2"
-                            Padding="2"
-                            Background="{DynamicResource TextFillColorPrimaryBrush}"
-                            CornerRadius="0,2,2,0" />
-                    </StackPanel>
-                </Viewbox>
-
-                <!--  Storage Info  -->
-
-                <Grid Grid.Column="2" HorizontalAlignment="Right">
-
-                    <Grid.RowDefinitions>
-                        <RowDefinition />
-                        <RowDefinition />
-                    </Grid.RowDefinitions>
-
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="300" />
-                        <ColumnDefinition />
-                    </Grid.ColumnDefinitions>
-
-                    <ui:TextBlock HorizontalAlignment="Right">
-                        <Run Text="{Binding ViewModel.AndroidDevice.UsedSpace}" />
-                        <Run Text="GB Used /" />
-                        <Run Text="{Binding ViewModel.AndroidDevice.TotalSpace}" />
-                        <Run Text="GB Total" />
-                    </ui:TextBlock>
+                <Grid Grid.Row="2">
+                    <!--  Battery  -->
 
                     <Viewbox
-                        Grid.Row="2"
-                        Width="300"
-                        Height="20"
-                        Margin="0,10,0,0"
-                        HorizontalAlignment="Left">
+                        Width="75"
+                        Height="50"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom">
                         <StackPanel Orientation="Horizontal">
                             <Border
-                                Width="300"
-                                Height="20"
-                                Padding="2"
+                                Width="100"
+                                Height="50"
+                                Padding="1"
                                 BorderBrush="{DynamicResource TextFillColorPrimaryBrush}"
-                                BorderThickness=".3"
+                                BorderThickness="2"
                                 CornerRadius="5">
-                                <Border
-                                    Grid.Column="0"
-                                    Width="{Binding ViewModel.UsedStorageWidth}"
-                                    Padding="2"
-                                    HorizontalAlignment="Left"
-                                    Background="Orange"
-                                    CornerRadius="4.25" />
+                                <Grid>
+                                    <Border
+                                        Width="{Binding ViewModel.BatteryLevelWidth}"
+                                        Margin="0,2,0,0"
+                                        HorizontalAlignment="Left"
+                                        Background="{Binding ViewModel.BatteryLabelColor}"
+                                        CornerRadius="3" />
+
+                                    <ui:TextBlock
+                                        Grid.ColumnSpan="2"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="24"
+                                        Text="{Binding ViewModel.FormattedBatteryLevel}" />
+                                </Grid>
                             </Border>
+                            <Border
+                                Width="7"
+                                Height="20"
+                                Margin="0,-2,0,-2"
+                                Padding="2"
+                                Background="{DynamicResource TextFillColorPrimaryBrush}"
+                                CornerRadius="0,2,2,0" />
                         </StackPanel>
                     </Viewbox>
+
+                    <!--  Storage Info  -->
+
+                    <Grid Grid.Column="2" HorizontalAlignment="Right">
+                        <Grid.RowDefinitions>
+                            <RowDefinition />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="300" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <ui:TextBlock HorizontalAlignment="Right">
+                            <Run Text="{Binding ViewModel.AndroidDevice.UsedSpace}" />
+                            <Run Text="GB Used /" />
+                            <Run Text="{Binding ViewModel.AndroidDevice.TotalSpace}" />
+                            <Run Text="GB Total" />
+                        </ui:TextBlock>
+
+                        <Viewbox
+                            Grid.Row="2"
+                            Width="300"
+                            Height="20"
+                            Margin="0,10,0,0"
+                            HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <Border
+                                    Width="300"
+                                    Height="20"
+                                    Padding="1"
+                                    BorderBrush="{DynamicResource TextFillColorPrimaryBrush}"
+                                    BorderThickness=".3"
+                                    CornerRadius="5">
+                                    <Border
+                                        Grid.Column="0"
+                                        Width="{Binding ViewModel.UsedStorageWidth}"
+                                        HorizontalAlignment="Left"
+                                        Background="Orange"
+                                        CornerRadius="4" />
+                                </Border>
+                            </StackPanel>
+                        </Viewbox>
+                    </Grid>
                 </Grid>
             </Grid>
-        </Grid>
-    </ui:CardExpander>
+        </DataTemplate>
+
+        <DataTemplate x:Key="CardExpanderView">
+            <ui:CardExpander Icon="{ui:SymbolIcon Symbol=PhoneLaptop32}">
+                <ui:CardExpander.Header>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <ui:TextBlock Grid.Row="0" Text="Android Device Options" />
+                        <ui:TextBlock Grid.Row="1" Text="Select which Android device to target, and get some information about it." />
+                    </Grid>
+                </ui:CardExpander.Header>
+                <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource AndroidDeviceView}" />
+            </ui:CardExpander>
+        </DataTemplate>
+
+        <DataTemplate x:Key="CardOnlyView">
+            <ui:Card>
+                <StackPanel>
+                    <Grid Margin="0,0,0,16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <ui:TextBlock
+                            Grid.Row="0"
+                            FontSize="18"
+                            FontWeight="Bold"
+                            Text="Android Device Options" />
+                        <ui:TextBlock
+                            Grid.Row="1"
+                            Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                            Text="Select which Android device to target, and get some information about it." />
+                    </Grid>
+
+                    <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource AndroidDeviceView}" />
+                </StackPanel>
+            </ui:Card>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ContentPresenter Content="{Binding}">
+        <ContentPresenter.Style>
+            <Style TargetType="ContentPresenter">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding NoExpander}" Value="False">
+                        <Setter Property="ContentTemplate" Value="{StaticResource CardExpanderView}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding NoExpander}" Value="True">
+                        <Setter Property="ContentTemplate" Value="{StaticResource CardOnlyView}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </ContentPresenter.Style>
+    </ContentPresenter>
 </UserControl>
