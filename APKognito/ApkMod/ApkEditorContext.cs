@@ -100,7 +100,7 @@ public class ApkEditorContext : IProgressReporter
 
             // Get original package name
             logger.Log("Getting package name...");
-            nameData.OriginalPackageName = GetApkPackageName(Path.Combine(nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
+            nameData.OriginalPackageName = GetPackageName(Path.Combine(nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
 
             // Format new package name and get original company name
             (
@@ -121,11 +121,7 @@ public class ApkEditorContext : IProgressReporter
             if (!kognitoConfig.ClearTempFilesOnRename)
             {
                 Directory.CreateDirectory(nameData.RenamedApkOutputDirectory);
-
-                // Shows where the tmp directory for this package is
-                string hiddenFile = Path.Combine(nameData.RenamedApkOutputDirectory, ".tmpdir");
-                await File.WriteAllTextAsync(hiddenFile, nameData.ApkAssemblyDirectory, cancellationToken);
-                File.SetAttributes(hiddenFile, File.GetAttributes(hiddenFile) | FileAttributes.Hidden);
+                DriveUsageViewModel.ClaimDirectory(nameData.RenamedApkOutputDirectory);
             }
 
             // 'nameData' should not be modified after this point.
@@ -664,10 +660,15 @@ public class ApkEditorContext : IProgressReporter
         }
     }
 
-    private static string GetApkPackageName(string manifestPath)
+    private static string GetPackageName(string manifestPath)
+    {
+        return GetPackageName(File.OpenRead(manifestPath));
+    }
+
+    public static string GetPackageName(Stream fileStream)
     {
         XmlDocument xmlDoc = new();
-        xmlDoc.Load(manifestPath);
+        xmlDoc.Load(fileStream);
 
         return xmlDoc.DocumentElement?.Attributes["package"]?.Value
             ?? throw new RenameFailedException("Failed to get package name from AndroidManifest (XML).");
