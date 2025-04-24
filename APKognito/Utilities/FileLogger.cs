@@ -33,14 +33,14 @@ public enum LogLevel
 /// </summary>
 public static class FileLogger
 {
-    public const string TimeFormatString = "hh:mm:ss.fff tt:";
-    public const string ReplacementUsername = "[:USER:]";
+    public const string TIME_FORMAT_STRING = "hh:mm:ss.fff tt:";
+    public const string USER_REPLACEMENT_STRING = "[:USER:]";
 
     private static readonly object _lock = new();
     private static readonly string logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
     private static readonly string exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
 
-    private static string UtcTime => DateTime.UtcNow.ToString(TimeFormatString, CultureInfo.InvariantCulture);
+    private static string UtcTime => DateTime.UtcNow.ToString(TIME_FORMAT_STRING, CultureInfo.InvariantCulture);
 
     static FileLogger()
     {
@@ -173,7 +173,7 @@ public static class FileLogger
 
     public static string CreateLogpack()
     {
-        ConfigurationFactory configFactory = App.GetService<ConfigurationFactory>();
+        ConfigurationFactory configFactory = App.GetService<ConfigurationFactory>()!;
 
         ArgumentNullException.ThrowIfNull(configFactory);
 
@@ -354,30 +354,44 @@ public static class FileLogger
         public static Brush Debug { get; private set; }
         public static Brush Trace { get; private set; }
 
-        public static SolidColorBrush ToBrush(string value)
+        public static SolidColorBrush ToBrush(int color)
         {
-            return (SolidColorBrush)new BrushConverter().ConvertFromString(value)!;
+            byte red = (byte)((color >> 16) & 0xFF);
+            byte green = (byte)((color >> 8) & 0xFF);
+            byte blue = (byte)(color & 0xFF);
+
+            return new SolidColorBrush(Color.FromArgb(255, red, green, blue));
         }
 
         private static void PopulateColors(bool dark = true)
         {
-            Error = ToBrush("#F44336");
+            Error = ToBrush(0xF44336);
 
             if (dark)
             {
-                Info = ToBrush("#006d9e");
-                Warning = ToBrush("#FF9800");
-                Fatal = ToBrush("#FF5722");
-                Debug = ToBrush("#009688");
-                Trace = ToBrush("#3F51B5");
+                LoadDarkColors();
                 return;
             }
 
-            Info = ToBrush("#5BB6FF");
-            Warning = ToBrush("#FF9800");
-            Fatal = ToBrush("#FF7043");
-            Debug = ToBrush("#009688");
-            Trace = ToBrush("#3F51B5");
+            LoadLightColors();
+        }
+
+        private static void LoadDarkColors()
+        {
+            Info = ToBrush(0x1cb1f5);
+            Warning = ToBrush(0xFF9800);
+            Fatal = ToBrush(0xFF5722);
+            Debug = ToBrush(0x009688);
+            Trace = ToBrush(0x3F51B5);
+        }
+
+        private static void LoadLightColors()
+        {
+            Info = ToBrush(0x5BB6FF);
+            Warning = ToBrush(0xFF9800);
+            Fatal = ToBrush(0xFF7043);
+            Debug = ToBrush(0x009688);
+            Trace = ToBrush(0x3F51B5);
         }
     }
 }
