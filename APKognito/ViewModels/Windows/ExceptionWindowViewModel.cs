@@ -2,6 +2,7 @@
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace APKognito.ViewModels.Windows;
 
@@ -9,27 +10,25 @@ namespace APKognito.ViewModels.Windows;
 
 public partial class ExceptionWindowViewModel : LoggableObservableObject
 {
-    private string exceptionDetails;
-
     #region Properties
 
     [ObservableProperty]
-    private Exception _thrownException;
+    public partial Exception ThrownException { get; set; }
 
     [ObservableProperty]
-    private string _exceptionTypeName;
+    public partial string ExceptionTypeName { get; set; }
 
     [ObservableProperty]
-    private string _exceptionStackTrace;
+    public partial string ExceptionStackTrace { get; set; }
 
     [ObservableProperty]
-    private bool _isFailure;
+    public partial bool IsFailure { get; set; }
 
     [ObservableProperty]
-    private int _facility;
+    public partial int Facility { get; set; }
 
     [ObservableProperty]
-    private int _exceptionCode;
+    public partial int ExceptionCode { get; set; }
 
     #endregion Properties
 
@@ -74,6 +73,8 @@ public partial class ExceptionWindowViewModel : LoggableObservableObject
 
         ExceptionStackTrace = exception.StackTrace ?? "[No stack trace]";
 
+        StringBuilder exceptionBuffer = new();
+
         try
         {
             FileLogger.LogFatal("Fatal exception details:");
@@ -81,12 +82,15 @@ public partial class ExceptionWindowViewModel : LoggableObservableObject
         }
         catch (Exception ex)
         {
-            exceptionDetails = $"[Failed to log exception to %APPDATA%\\applog.log]: File Log Exception Details:\n\tType:\t{ex.GetType().Name}\n\tReason:\t{ex.Message}\n\n";
+            exceptionBuffer.AppendLine($"[Failed to log exception to %APPDATA%\\applog.log]: File Log Exception Details:\n\tType:\t{ex.GetType().Name}\n\tReason:\t{ex.Message}\n");
         }
 
-        exceptionDetails = $"{exceptionDetails}[Main Exception Details]\n\tFailure: \t{IsFailure}\n\tFacility: \t0x{Facility:x0} ({Facility})\n\tCode: \t0x{ExceptionCode:x00} ({ExceptionCode})\n" +
-            $"{exception.GetType().Name}: {exception.Message}\n{exception.StackTrace}";
+        exceptionBuffer.Append("[Main Exception Details]\n\tFailure: \t").AppendLine(IsFailure.ToString())
+            .Append("\tFacility: \t0x").Append(Facility.ToString("x0")).Append(" (").Append(Facility).AppendLine(")")
+            .Append("\tCode: \t0x").Append(ExceptionCode.ToString("x00")).Append(" (").Append(ExceptionCode).AppendLine(")")
+            .Append(exception.GetType().Name).Append(": ").AppendLine(exception.Message)
+            .AppendLine(exception.StackTrace);
 
-        WriteGenericLogLine(exceptionDetails);
+        WriteGenericLogLine(exceptionBuffer.ToString());
     }
 }

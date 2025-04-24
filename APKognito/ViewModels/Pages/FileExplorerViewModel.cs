@@ -6,7 +6,6 @@ using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Windows.Threading;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
@@ -16,34 +15,34 @@ public partial class FileExplorerViewModel : LoggableObservableObject
     private readonly AdbConfig adbConfig;
 
     private int directoryHistoryIndex = -1;
+
     private readonly List<string> directoryHistory = [];
+
     private string CurrentDirectory => directoryHistory[directoryHistoryIndex];
 
     #region Properties
 
     [ObservableProperty]
-    private double _viewHeight = 500;
+    public partial ObservableCollection<AdbFolderInfo> AdbItems { get; set; } = [];
 
     [ObservableProperty]
-    private ObservableCollection<AdbFolderInfo> _adbItems = [];
+    public partial string ItemPath { get; set; } = "/";
 
     [ObservableProperty]
-    private string _itemPath = "/";
-
-    [ObservableProperty]
-    private bool _directoryEmpty = true;
+    public partial bool DirectoryEmpty { get; set; } = true;
 
     #endregion Properties
 
     public FileExplorerViewModel()
     {
         // For designer
-
 #if DEBUG
-        _adbItems.Add(AdbFolderInfo.DebugFiller);
-        _adbItems.Add(AdbFolderInfo.DebugFiller);
-        _adbItems.Add(AdbFolderInfo.DebugFiller);
-        _adbItems.Add(AdbFolderInfo.DebugFiller);
+        AdbItems.Add(AdbFolderInfo.DebugFiller);
+        AdbItems.Add(AdbFolderInfo.DebugFiller);
+        AdbItems.Add(AdbFolderInfo.DebugFiller);
+        AdbItems.Add(AdbFolderInfo.DebugFiller);
+
+        adbConfig = null!;
 #endif
     }
 
@@ -59,17 +58,18 @@ public partial class FileExplorerViewModel : LoggableObservableObject
     [RelayCommand]
     private async Task OnNavigateToDirectoryAsync(AdbFolderInfo info)
     {
-        if (await UpdateFoldersAsync(info))
+        if (!await UpdateFoldersAsync(info))
         {
-            directoryHistoryIndex++;
-
-            if (directoryHistoryIndex < directoryHistory.Count)
-            {
-                PruneHistory();
-            }
-
-            directoryHistory.Add(info.FullPath);
+            return;
         }
+
+        directoryHistoryIndex++;
+        if (directoryHistoryIndex < directoryHistory.Count)
+        {
+            PruneHistory();
+        }
+
+        directoryHistory.Add(info.FullPath);
     }
 
     [RelayCommand]
@@ -104,7 +104,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject
             // a pointless NuGet package or a custom class
             ?.Replace('\\', '/') ?? "/";
 
-        if (!await UpdateFoldersAsync(parentDirectoryPath))
+        if (!await UpdateFoldersAsync(parentDirectoryPath) && directoryHistory.Count > 0)
         {
             directoryHistory.Add(directoryHistory[^1]);
             directoryHistoryIndex++;
@@ -150,36 +150,32 @@ public partial class FileExplorerViewModel : LoggableObservableObject
                 path = path.TrimEnd('/');
             }
 
-            string[] response = (await AdbManager.QuickDeviceCommandAsync(
+            AdbCommandOutput rawFileList = await AdbManager.QuickDeviceCommandAsync(
                 // Redirect STDERR to null so filter out 'Permission denied' errors
-                $"shell stat -c '{AdbFolderInfo.FormatString}' {path}/* 2>/dev/null")).StdOut
-                .Split("\r\n");
+                $"shell stat -c '{AdbFolderInfo.STAT_FORMAT_STRING}' {path}/* 2>/dev/null");
 
-            IEnumerable<AdbFolderInfo> filtered = response
+            string[] fileList = rawFileList.StdOut.Split("\r\n");
+
+            IEnumerable<AdbFolderInfo> filteredFiles = fileList
                 .Where(str => !string.IsNullOrWhiteSpace(str))
                 .Select(str => new AdbFolderInfo(str, path));
 
-            AdbFolderInfo[] newItems = [.. filtered];
+            AdbItems.Clear();
 
-            await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
+            ItemPath = path;
+
+            if (!filteredFiles.Any())
             {
-                AdbItems.Clear();
+                DirectoryEmpty = true;
+                return false;
+            }
 
-                ItemPath = path;
+            DirectoryEmpty = false;
 
-                if (newItems.Length is 0)
-                {
-                    DirectoryEmpty = true;
-                    return;
-                }
-
-                DirectoryEmpty = false;
-
-                foreach (AdbFolderInfo item in newItems)
-                {
-                    AdbItems.Add(item);
-                }
-            });
+            foreach (AdbFolderInfo item in filteredFiles)
+            {
+                AdbItems.Add(item);
+            }
 
             return true;
         }
@@ -188,12 +184,12 @@ public partial class FileExplorerViewModel : LoggableObservableObject
             FileLogger.LogException(ex);
 
             string forItem = path is null
-                ? " for root directory"
-                : $" for {path}";
+                ? "for root directory"
+                : $"for {path}";
 
             if (!silent)
             {
-                SnackError($"Failed to get directory descendants{forItem}", ex.Message);
+                SnackError($"Failed to get directory descendants {forItem}", ex.Message);
             }
         }
 
