@@ -442,11 +442,7 @@
                 ctrls:RichTextBoxLogBehavior.LogEntries="{Binding LogBoxEntries}"
                 FontFamily="{StaticResource FiraRegular}"
                 FontSize="12"
-                IsReadOnly="True">
-                <FlowDocument FontFamily="{StaticResource FiraRegular}" FontSize="12">
-                    <Paragraph />
-                </FlowDocument>
-            </ui:RichTextBox>
+                IsReadOnly="True" />
 
             <ui:Button
                 Grid.Row="1"
