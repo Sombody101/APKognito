@@ -20,28 +20,28 @@
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
-    <Grid Margin="0,10">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width=".3*" />
-            <ColumnDefinition Width="auto" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <ui:Card
+        Margin="-13,0"
+        Padding="5"
+        VerticalAlignment="Stretch"
+        VerticalContentAlignment="Stretch">
+        <Grid Margin="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width=".3*" />
+                <ColumnDefinition Width="auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <GridSplitter
-            Grid.Column="1"
-            Width="5"
-            Margin="0,-10,0,-10"
-            Background="{DynamicResource ApplicationBackgroundBrush}"
-            BorderBrush="#444c56"
-            BorderThickness="1,0,1,0"
-            ResizeBehavior="PreviousAndNext" />
+            <GridSplitter
+                Grid.Column="1"
+                Width="5"
+                Margin="0,-10,0,-10"
+                Background="{DynamicResource ApplicationBackgroundBrush}"
+                BorderBrush="#444c56"
+                BorderThickness="1,0,1,0"
+                ResizeBehavior="PreviousAndNext" />
 
-        <ui:Card
-            Grid.Column="0"
-            Margin="0,0,5,0"
-            VerticalAlignment="Stretch"
-            VerticalContentAlignment="Top">
-            <Grid>
+            <Grid Grid.Column="0" Margin="0,0,5,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="10*" />
                     <RowDefinition Height="auto" />
@@ -67,13 +67,30 @@
                         ItemsSource="{Binding ViewModel.RecentPacks}"
                         SelectedItem="{Binding ViewModel.LogpackPath, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <ui:Button Command="{Binding ViewModel.LoadLogpackCommand}" Content="Load Logpack" />
-                    <ui:Button Command="{Binding ViewModel.ReloadPackCommand}" Content="Reload Pack" />
+                    <ui:Button
+                        Appearance="Info"
+                        Command="{Binding ViewModel.LoadLogpackCommand}"
+                        Content="Load Logpack" />
+
+                    <ui:Button
+                        Appearance="Caution"
+                        Command="{Binding ViewModel.ReloadPackCommand}"
+                        Content="Reload Pack"
+                        Foreground="White" />
 
                     <Separator Margin="0,0,0,5" />
 
-                    <ui:Button Command="{Binding ViewModel.CreateLogpackCommand}" Content="Create Logpack" />
-                    <ui:Button Command="{Binding ViewModel.OpenAppDataCommand}" Content="Open AppData" />
+                    <ui:Button
+                        Appearance="Success"
+                        Command="{Binding ViewModel.CreateLogpackCommand}"
+                        Content="Create Logpack"
+                        Foreground="White" />
+
+                    <ui:Button
+                        Appearance="Success"
+                        Command="{Binding ViewModel.OpenAppDataCommand}"
+                        Content="Open AppData"
+                        Foreground="White" />
 
                     <Separator Margin="0,0,0,5" />
 
@@ -93,33 +110,30 @@
                     </ui:TextBlock>
                 </StackPanel>
             </Grid>
-        </ui:Card>
 
-        <Grid Grid.Column="2">
+            <Grid Grid.Column="2">
 
-            <Grid.RowDefinitions>
-                <RowDefinition />
-                <RowDefinition Height="auto" />
-                <RowDefinition Height=".25*" />
-            </Grid.RowDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition Height="auto" />
+                    <RowDefinition Height=".25*" />
+                </Grid.RowDefinitions>
 
-            <GridSplitter
-                Grid.Row="1"
-                Height="5"
-                Margin="-1,0,0,0"
-                HorizontalAlignment="Stretch"
-                Panel.ZIndex="2"
-                Background="{DynamicResource ApplicationBackgroundBrush}"
-                BorderBrush="#444c56"
-                BorderThickness="0,1,0,1"
-                ResizeBehavior="PreviousAndNext" />
+                <GridSplitter
+                    Grid.Row="1"
+                    Height="5"
+                    Margin="-1,0,0,0"
+                    HorizontalAlignment="Stretch"
+                    Panel.ZIndex="2"
+                    Background="{DynamicResource ApplicationBackgroundBrush}"
+                    BorderBrush="#444c56"
+                    BorderThickness="0,1,0,1"
+                    ResizeBehavior="PreviousAndNext" />
 
-            <ui:Card
-                Grid.Row="0"
-                Margin="5,0,0,5"
-                VerticalAlignment="Stretch"
-                VerticalContentAlignment="Stretch">
-                <Grid>
+                <Grid
+                    Grid.Row="0"
+                    Margin="5,0,0,5"
+                    VerticalAlignment="Stretch">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto" />
                         <RowDefinition Height="*" />
@@ -169,7 +183,7 @@
 
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <ui:Card Background="{Binding Background}">
+                                <ui:Card Background="{Binding Background}" Foreground="White">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="auto" />
@@ -216,6 +230,7 @@
                                             Grid.ColumnSpan="3"
                                             Margin="5,0,5,5"
                                             Background="#F44336"
+                                            Foreground="White"
                                             Visibility="{Binding ExceptionLogVisible, Mode=OneTime}">
                                             <Grid>
                                                 <Grid.RowDefinitions>
@@ -237,24 +252,21 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Grid>
-            </ui:Card>
 
-            <ui:Card
-                Grid.Row="2"
-                Margin="5,5,0,0"
-                Padding="0"
-                VerticalAlignment="Stretch"
-                VerticalContentAlignment="Stretch">
-                <ui:RichTextBox
-                    x:Name="LogView"
-                    ctrls:RichTextBoxLogBehavior.LogEntries="{Binding ViewModel.LogBoxEntries}"
-                    FontSize="12"
-                    IsReadOnly="True">
-                    <FlowDocument FontFamily="{StaticResource FiraRegular}" FontSize="12">
-                        <Paragraph />
-                    </FlowDocument>
-                </ui:RichTextBox>
-            </ui:Card>
+                <ui:Card
+                    Grid.Row="2"
+                    Margin="5,5,0,0"
+                    Padding="0"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Stretch">
+                    <ui:RichTextBox
+                        x:Name="LogView"
+                        ctrls:RichTextBoxLogBehavior.LogEntries="{Binding ViewModel.LogBoxEntries}"
+                        FontFamily="{StaticResource FiraRegular}"
+                        FontSize="12"
+                        IsReadOnly="True" />
+                </ui:Card>
+            </Grid>
         </Grid>
-    </Grid>
+    </ui:Card>
 </Page>
