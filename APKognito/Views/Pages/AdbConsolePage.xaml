@@ -16,44 +16,33 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
-    <Grid Margin="0,10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="auto" />
-        </Grid.RowDefinitions>
-
+    <Grid Margin="-41,0,-41,0">
         <ui:RichTextBox
             x:Name="CommandOutputBox"
             Grid.Row="0"
             Grid.Column="1"
-            Margin="0,0,0,10"
+            Padding="5,5,5,35"
             VerticalAlignment="Stretch"
             ctrls:RichTextBoxLogBehavior.LogEntries="{Binding LogBoxEntries}"
             ctrls:RichTextBoxLogBehavior.LogIconPrefixes="False"
             FontFamily="{StaticResource FiraRegular}"
             FontSize="12"
-            IsReadOnly="True">
-            <FlowDocument FontFamily="{StaticResource FiraRegular}" FontSize="12">
-                <Paragraph />
-            </FlowDocument>
-        </ui:RichTextBox>
+            IsReadOnly="True" />
 
-
-        <StackPanel Grid.Row="1" Margin="0,0,0,10">
-            <ui:TextBox
-                Grid.Row="2"
-                FontFamily="{StaticResource FiraRegular}"
-                KeyUp="TextBox_KeyUp"
-                PlaceholderText="ADB Command"
-                Text="{Binding CommandBuffer, UpdateSourceTrigger=PropertyChanged}">
-                <ui:TextBox.InputBindings>
-                    <KeyBinding Key="Return" Command="{Binding ExecuteCommand}" />
-                    <KeyBinding Key="Up" Command="{Binding HistoryUpCommand}" />
-                    <KeyBinding Key="Down" Command="{Binding HistoryDownCommand}" />
-                </ui:TextBox.InputBindings>
-            </ui:TextBox>
-        </StackPanel>
+        <ui:TextBox
+            VerticalAlignment="Bottom"
+            FontFamily="{StaticResource FiraRegular}"
+            KeyUp="TextBox_KeyUp"
+            PlaceholderText="ADB Command"
+            Text="{Binding CommandBuffer, UpdateSourceTrigger=PropertyChanged}">
+            <ui:TextBox.InputBindings>
+                <KeyBinding Key="Return" Command="{Binding ExecuteCommand}" />
+                <KeyBinding Key="Up" Command="{Binding HistoryUpCommand}" />
+                <KeyBinding Key="Down" Command="{Binding HistoryDownCommand}" />
+            </ui:TextBox.InputBindings>
+        </ui:TextBox>
     </Grid>
 </Page>
