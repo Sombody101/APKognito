@@ -1,5 +1,5 @@
-﻿// Using a preprocessor statement encourages cleanup since all usages will be errors on non-debug builds.
-#if DEBUG
+﻿
+using System.Diagnostics;
 
 namespace APKognito.Utilities;
 /// <summary>
@@ -8,17 +8,20 @@ namespace APKognito.Utilities;
 /// </summary>
 public class DebugOnlyException : Exception
 {
+#if DEBUG
     public DebugOnlyException()
         : base("This exception can only be used while debugging. If you see this message, you are using a debug build which will be more prone to bugs or errors.")
     {
     }
+#endif
 
     private DebugOnlyException(string message)
         : base(message)
     {
     }
 
-    public static void Assert([DoesNotReturnIf(true)] bool check, string message)
+    [Conditional("DEBUG")]
+    public static void Assert([DoesNotReturnIf(false)] bool check, string message)
     {
         if (!check)
         {
@@ -26,5 +29,3 @@ public class DebugOnlyException : Exception
         }
     }
 }
-
-#endif
