@@ -2,8 +2,6 @@
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Windows.Documents;
-using System.Windows.Threading;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;

@@ -7,6 +7,7 @@ using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages;
+using APKognito.Views.Windows;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
@@ -74,7 +75,7 @@ public partial class HomeViewModel : LoggableObservableObject
     public partial string ElapsedTime { get; set; } = DEFAULT_JOB_MESSAGE;
 
     [ObservableProperty]
-    public partial string CantStartReason { get; set; } = string.Empty;
+    public partial string CantStartReason { get; set; } = null!;
 
     [ObservableProperty]
     public partial bool StartButtonVisible { get; set; } = true;
@@ -325,7 +326,7 @@ public partial class HomeViewModel : LoggableObservableObject
                     JavaPath = javaPath!,
                     SourceApkPath = filePath,
                     TempDirectory = TempData?.FullName
-                        ?? Environment.GetEnvironmentVariable("TEMP")
+                        ?? Path.GetTempPath()
                         ?? "./",
                 }, null!, this, kognitoConfig, true);
 
@@ -399,9 +400,11 @@ public partial class HomeViewModel : LoggableObservableObject
 
         if (string.IsNullOrWhiteSpace(kognitoCache.ApkSourcePath))
         {
-            CantStartReason = "No input APKs given. Click 'Select' and pick some.";
+            CantStartReason = "No input APKs selected. Click 'Select' and pick some.";
             return;
         }
+
+        CantStartReason = null!;
 
         CanStart = true;
     }
@@ -783,7 +786,7 @@ public partial class HomeViewModel : LoggableObservableObject
         UpdateCanStart();
     }
 
-    public async Task AddManualFilesAsync(string[] files, bool verifyTypes = false)
+    public async Task AddManualFilesAsync(string[] files)
     {
         if (files.Length is 1)
         {

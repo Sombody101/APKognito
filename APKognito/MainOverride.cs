@@ -25,7 +25,7 @@ internal static class MainOverride
             CliMain.Main(pargs);
         }
 
-        APKognito.App app = new();
+        App app = new();
         app.InitializeComponent();
         return app.Run();
     }

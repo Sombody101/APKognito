@@ -68,6 +68,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
         ];
 
         viewerConfig = null!;
+        configFactory = null!;
 
         RefreshRecents();
     }

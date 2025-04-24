@@ -21,7 +21,7 @@ internal static class Tools
 
     public static string Redact(this string? data)
     {
-        return data?.Replace(Environment.UserName, FileLogger.ReplacementUsername) ?? string.Empty;
+        return data?.Replace(Environment.UserName, FileLogger.USER_REPLACEMENT_STRING) ?? string.Empty;
     }
 
     public static void InvertVisibility(this UIElement elm)
