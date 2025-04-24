@@ -27,6 +27,14 @@
         </ResourceDictionary>
     </Page.Resources>
 
+    <Page.InputBindings>
+        <KeyBinding
+            Key="Return"
+            Command="{Binding NavigateToDirectoryCommand}"
+            CommandParameter="{Binding SelectedItem, ElementName=AdbFolderPresenter}" />
+        <KeyBinding Key="Backspace" Command="{Binding NavigateBackwardsCommand}" />
+    </Page.InputBindings>
+
     <Grid Margin="10">
 
         <Grid.RowDefinitions>
@@ -63,85 +71,92 @@
         <ui:ListView
             x:Name="AdbFolderPresenter"
             Grid.Row="5"
+            AlternationCount="2"
             BorderBrush="Transparent"
             ItemsSource="{Binding AdbItems}"
             ScrollViewer.CanContentScroll="True"
             VirtualizingPanel.ScrollUnit="Pixel">
+
             <ui:ListView.Resources>
                 <helper:AdbGBConverter x:Key="AdbGBConverter" />
+                <helper:BoolToVisibility x:Key="BoolToVisibility" />
             </ui:ListView.Resources>
 
-            <ListView.ItemContainerStyle>
+            <ui:ListView.ItemContainerStyle>
                 <Style BasedOn="{StaticResource {x:Type ui:ListViewItem}}" TargetType="{x:Type ui:ListViewItem}">
                     <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClickAsync" />
-                    <!--
-                    <Setter Property="ContextMenu">
-                        <Setter.Value>
-                            <ContextMenu DataContext="{RelativeSource AncestorType=local:FileExplorerPage}">
-                                <ui:MenuItem
-                                    Command="{Binding ViewModel}"
-                                    CommandParameter="{Binding ., Source={x:Reference Name=AdbFolderPresenter}}"
-                                    Header="Properties" />
-                            </ContextMenu>
-                        </Setter.Value>
-                    </Setter>
-                    -->
                 </Style>
-            </ListView.ItemContainerStyle>
+            </ui:ListView.ItemContainerStyle>
 
-            <ListView.View>
+            <ui:ListView.View>
                 <ui:GridView AllowsColumnReorder="True" ColumnHeaderToolTip="Directory Information">
-                    <GridView.Columns>
-                        <GridViewColumn Width="31">
-                            <GridViewColumn.Header>
+                    <ui:GridView.Columns>
+                        <ui:GridViewColumn Width="31">
+                            <ui:GridViewColumn.Header>
                                 <!--  Prevents column from being resized  -->
                                 <GridViewColumnHeader IsEnabled="False" />
-                            </GridViewColumn.Header>
+                            </ui:GridViewColumn.Header>
 
-                            <GridViewColumn.CellTemplate>
+                            <ui:GridViewColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Grid>
-                                        <ui:SymbolIcon FontSize="20" Symbol="{Binding Symbol}" />
-                                    </Grid>
+                                    <ui:SymbolIcon FontSize="20" Symbol="{Binding Symbol}" />
                                 </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
+                            </ui:GridViewColumn.CellTemplate>
+                        </ui:GridViewColumn>
 
-                        <GridViewColumn Width="200" Header="Name">
-                            <GridViewColumn.CellTemplate>
+                        <ui:GridViewColumn Width="200" Header="Name">
+                            <ui:GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <ui:TextBlock
                                         FontSize="13"
                                         Text="{Binding FileName}"
                                         TextTrimming="CharacterEllipsis" />
                                 </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
+                            </ui:GridViewColumn.CellTemplate>
+                        </ui:GridViewColumn>
 
-                        <GridViewColumn Width="170" Header="Date modfied">
-                            <GridViewColumn.CellTemplate>
+                        <ui:GridViewColumn Width="170" Header="Date Modfied">
+                            <ui:GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <ui:TextBlock
                                         FontSize="13"
                                         Text="{Binding CreationDate}"
                                         TextTrimming="CharacterEllipsis" />
                                 </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
+                            </ui:GridViewColumn.CellTemplate>
+                        </ui:GridViewColumn>
 
-                        <GridViewColumn Width="100" Header="Size">
-                            <GridViewColumn.CellTemplate>
+                        <ui:GridViewColumn Width="100" Header="Size">
+                            <ui:GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <ui:TextBlock
                                         FontSize="13"
                                         Text="{Binding ConverterPair, Converter={StaticResource AdbGBConverter}}"
                                         TextTrimming="CharacterEllipsis" />
                                 </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-                    </GridView.Columns>
+                            </ui:GridViewColumn.CellTemplate>
+                        </ui:GridViewColumn>
+
+                        <ui:GridViewColumn Width="100" Header="User">
+                            <ui:GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <ui:SymbolIcon
+                                            Margin="5,0,5,0"
+                                            Filled="True"
+                                            FontSize="18"
+                                            Symbol="ShieldError24"
+                                            ToolTip="This item is owned by root and cannot be modified."
+                                            Visibility="{Binding OwnedByRoot, Converter={StaticResource BoolToVisibility}}" />
+                                        <ui:TextBlock Text="{Binding FileOwner}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ui:GridViewColumn.CellTemplate>
+                        </ui:GridViewColumn>
+                    </ui:GridView.Columns>
                 </ui:GridView>
-            </ListView.View>
+            </ui:ListView.View>
         </ui:ListView>
     </Grid>
 </Page>

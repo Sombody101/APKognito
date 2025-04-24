@@ -33,18 +33,19 @@ public partial class FileExplorerViewModel : LoggableObservableObject
 
     #endregion Properties
 
+#if DEBUG
     public FileExplorerViewModel()
     {
         // For designer
-#if DEBUG
         AdbItems.Add(AdbFolderInfo.DebugFiller);
         AdbItems.Add(AdbFolderInfo.DebugFiller);
         AdbItems.Add(AdbFolderInfo.DebugFiller);
         AdbItems.Add(AdbFolderInfo.DebugFiller);
 
         adbConfig = null!;
-#endif
+        DirectoryEmpty = false;
     }
+#endif
 
     public FileExplorerViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
@@ -58,6 +59,11 @@ public partial class FileExplorerViewModel : LoggableObservableObject
     [RelayCommand]
     private async Task OnNavigateToDirectoryAsync(AdbFolderInfo info)
     {
+        if (info is null)
+        {
+            return;
+        }
+
         if (!await UpdateFoldersAsync(info))
         {
             return;
@@ -167,7 +173,7 @@ public partial class FileExplorerViewModel : LoggableObservableObject
             if (!filteredFiles.Any())
             {
                 DirectoryEmpty = true;
-                return false;
+                return true;
             }
 
             DirectoryEmpty = false;
