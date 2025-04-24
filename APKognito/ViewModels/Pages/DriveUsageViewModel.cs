@@ -216,8 +216,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     public async Task CollectDiskUsageAsync(CancellationToken cancellation)
     {
         List<string> folders = [];
+
+        // Temp directories
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
 
+        // Renamed apps
         string apkOutputPath = kognitoConfig.ApkOutputDirectory ?? string.Empty;
         if (Directory.Exists(apkOutputPath))
         {
@@ -349,9 +352,9 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         UpdateItemsList();
     }
 
-    private static string GetFormattedSelectedPackages(IEnumerable<FootprintInfo> items, string joinStr)
+    private static string GetFormattedSelectedPackages(IEnumerable<FootprintInfo> items, string joinStr = PACKAGE_LIST_JOIN_STRING)
     {
-        return $"{PACKAGE_LIST_JOIN_STRING}{string.Join(joinStr, items.Select(item => item.FolderName))}";
+        return $"{joinStr}{string.Join(joinStr, items.Select(item => item.FolderName))}";
     }
 
     private async Task DeleteFileCollectionAsync(IEnumerable<FootprintInfo> files)
@@ -413,7 +416,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                 TextWrapping = TextWrapping.Wrap,
                 Inlines =
                 {
-                    new Run("This will remove the following items:")
+                    new Run("This will remove the following items:\n")
                     {
                         FontWeight = FontWeights.Bold
                     },
@@ -423,7 +426,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                         VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                         Content = new TextBlock
                         {
-                            Text = GetFormattedSelectedPackages(itemsToDelete, PACKAGE_LIST_JOIN_STRING),
+                            Text = GetFormattedSelectedPackages(itemsToDelete),
                             TextWrapping = TextWrapping.Wrap
                         }
                     },
@@ -435,6 +438,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
             PrimaryButtonText = "Delete",
             PrimaryButtonAppearance = ControlAppearance.Danger,
             CloseButtonText = "Cancel",
+            MinWidth = 450,
             MaxHeight = 600,
         };
 

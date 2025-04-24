@@ -89,6 +89,7 @@
 
                     <ui:Button
                         HorizontalAlignment="Stretch"
+                        Appearance="Info"
                         Command="{Binding StartSearchCommand}"
                         Content="{Binding StartButtonText}"
                         ToolTip="Show all data currently on your drive that was created by APKognito" />
