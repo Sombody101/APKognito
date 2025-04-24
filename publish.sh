@@ -83,23 +83,23 @@ esac
 
 [[ "$4" == "gen" ]] && bash "./generate_version.sh" "$release_type"
 
-readonly git_remote_url="https://github.com/Sombody101/APKognito"
+readonly build_path="./APKognito/bin/Release/net8.0-windows/win-x64/"
 
-readonly build_path="./APKognito/bin/Release/net8.0-windows/publish/win-x64"
-
-echo "Using publish profile: $publish_profile"
-! dotnet publish -c Release -p:PublishProfile="./APKognito/Properties/PublishProfiles/$publish_profile" "$buildflag" && exit "$?"
+echo "Using build profile: $publish_profile"
+! dotnet build "./APKognito/APKognito.csproj" -c Release -p:PublishProfile="./APKognito/Properties/PublishProfiles/$publish_profile" && exit
 
 appversion="$($build_path/APKognito.exe --version | tr -d '\000-\037\177')"
+appversion="${appversion%.*}"
 readonly appversion
 
 echo
-echo "Build version: |$appversion|"
-exit
+echo "Build version |$appversion|"
 
-echo "Uploading to VirusTotal"
-permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll" | jq -r '.data.id')"
-readonly permlink
+[[ "$2" != "-" ]] && {
+    echo "Uploading to VirusTotal"
+    permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll" | jq -r '.data.id')"
+    readonly permlink
+}
 
 readonly zip_file="APKognito-$appversion.zip"
 
@@ -119,6 +119,8 @@ commit_messages="$(git log "$(git describe --tags --abbrev=0)"..@ --oneline --no
 
 readarray -t split <<<"$commit_messages"
 
+readonly git_remote_url="https://github.com/Sombody101/APKognito"
+
 NL=$'\n'
 commit_messages=
 for message in "${split[@]}"; do
@@ -129,7 +131,13 @@ done
 commit_messages="${commit_messages}${NL}[VirusTotal for ${release_tag}${appversion}](${permlink})${NL}${NL}###### This was created by an auto publish script @ $(date -u)"
 
 readonly commit_messages
-readonly release_title="[$release_type] Release $appversion"
+
+release_title="Release $appversion"
+[[ "$release_type" != "Release" ]] && {
+    release_title="[$release_type] $release_title"
+}
+
+readonly release_title
 readonly release_tag="${release_tag_prefix}${appversion}"
 
 echo
@@ -139,16 +147,16 @@ echo "$release_tag"
 echo "$release_title"
 echo "$commit_messages"
 
-! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" "$3" && exit "$?"
+[[ "$1" != "-" ]] && {
+    ! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" "$3" && exit "$?"
 
-echo "Release created with the tag $release_tag"
-echo "Syncing remote tags..."
-git pull
+    echo "Release created with the tag $release_tag"
+    echo "Syncing remote tags..."
+    git pull
+}
 
 echo "Cleaning up"
 rm "$build_path/$zip_file"
 
-[[ "$*" =~ --gen ]] && {
-    echo "Release link:"
-    echo "[$release_tag](https://github.com/Sombody101/APKognito/releases/tag/$release_tag)"
-}
+echo "Release link:"
+echo "[$release_tag](https://github.com/Sombody101/APKognito/releases/tag/$release_tag)"
