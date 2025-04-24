@@ -14,6 +14,7 @@ public class AdbFolderInfo
     #region Static Instances
 
     public static AdbFolderInfo EmptyLoading => new($"{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Loading...{STAT_FORMAT_SEPARATOR}");
+
     public static AdbFolderInfo EmptyDirectory => new($"{STAT_FORMAT_SEPARATOR}E{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Empty Directory{STAT_FORMAT_SEPARATOR}");
 
 #if DEBUG
@@ -42,6 +43,8 @@ public class AdbFolderInfo
     public AdbFolderType ItemType { get; } = AdbFolderType.None;
 
     public long FileSizeInBytes { get; } = 0;
+
+    public bool OwnedByRoot => FileOwner is "root" or "system";
 
     // Size info is not rendered for directories, so the item type is needed for the converter
     public KeyValuePair<long, AdbFolderType> ConverterPair { get; }
