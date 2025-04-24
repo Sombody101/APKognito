@@ -1,4 +1,5 @@
 ﻿using APKognito.AdbTools;
+using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;
@@ -6,6 +7,7 @@ using APKognito.Controls.ViewModels;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
+using Ionic.Zip;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Threading;
@@ -25,7 +27,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     #region Properties
 
     [ObservableProperty]
-    private ObservableCollection<PackageEntry> _packageList = [
+    public partial ObservableCollection<PackageEntry> PackageList { get; set; } = [
 #if DEBUG
         new("test","/apk.apk", 10923, null, 0, 0),
         new("test","/apk.apk", 23874, "jsjs", 2399, -1),
@@ -38,25 +40,22 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     ];
 
     [ObservableProperty]
-    private double _listHeight = 500;
+    public partial bool IsRefreshing { get; set; } = false;
 
     [ObservableProperty]
-    private bool _isRefreshing = false;
+    public partial bool EnableControls { get; set; } = true;
 
     [ObservableProperty]
-    private bool _enableControls = true;
+    public partial bool EnableProgressBar { get; set; } = false;
 
     [ObservableProperty]
-    private bool _enableProgressBar = false;
+    public partial string SearchText { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _searchText = string.Empty;
+    public partial int SelectedItems { get; set; } = 0;
 
     [ObservableProperty]
-    private int _selectedItems = 0;
-
-    [ObservableProperty]
-    private string _currentlyPulling = "None";
+    public partial string CurrentlyPulling { get; set; } = "None";
 
     #endregion Properties
 
@@ -65,6 +64,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         // For designer
         dialogService = null!;
         configFactory = null!;
+        adbConfig = null!;
     }
 
     public PackageManagerViewModel(
@@ -129,6 +129,55 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         {
             FileLogger.LogException(ex);
             SnackError("Package pull failed!", ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task OnPushPackagesAsync()
+    {
+        EnableControls = false;
+
+        try
+        {
+            string? package = PromptForPackage();
+
+            if (package is null)
+            {
+                return;
+            }
+
+            ZipEntry? manifest = new ZipFile(package).Entries.FirstOrDefault(e => e.FileName == "AndroidManifest.xml");
+
+            string packageName = Path.GetFileNameWithoutExtension(package);
+
+            if (manifest is null)
+            {
+                SnackError("No Manifest!", $"Failed to find a manifest in the package {packageName}");
+                return;
+            }
+
+            using MemoryStream manifestStream = new();
+            manifest.Extract(manifestStream);
+
+            packageName = ApkEditorContext.GetPackageName(manifestStream);
+
+            await AdbManager.WakeDeviceAsync();
+            await AdbManager.QuickCommandAsync($@"install -g ""{package}""");
+
+            string assetDirectory = Path.Combine(Path.GetDirectoryName(package)!, packageName);
+            if (Directory.Exists(assetDirectory))
+            {
+                await AdbManager.QuickCommandAsync($@"push ""{assetDirectory}"" ""{AdbManager.ANDROID_OBB}/{packageName}""");
+            }
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            SnackError("Package push failed!", ex.Message);
+        }
+        finally
+        {
+            EnableControls = true;
         }
     }
 
@@ -404,5 +453,32 @@ public partial class PackageManagerViewModel : LoggableObservableObject
 
             PackageList.RemoveAt(itemInd);
         }
+    }
+
+    private string? PromptForPackage()
+    {
+        OpenFileDialog openFileDialog = new()
+        {
+            Filter = "APK files (*.apk)|*.apk",
+        };
+
+        bool? result = openFileDialog.ShowDialog();
+
+        if (result is null)
+        {
+            Log("Failed to get file. Please try again.");
+            return null;
+        }
+
+        if ((bool)result)
+        {
+            return openFileDialog.FileName;
+        }
+        else
+        {
+            Log("Did you forget to select a file from the File Explorer window?");
+        }
+
+        return null;
     }
 }

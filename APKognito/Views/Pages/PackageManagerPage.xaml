@@ -26,7 +26,10 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ctrls:AndroidDeviceInfo Grid.ColumnSpan="2" Margin="0,0,0,10" />
+        <ctrls:AndroidDeviceInfo
+            Grid.ColumnSpan="2"
+            Margin="0,0,0,10"
+            NoExpander="False" />
 
         <ProgressBar
             Grid.Row="1"
@@ -43,10 +46,10 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="auto" />
                     <RowDefinition Height="auto" />
-                    <RowDefinition />
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Menu Grid.Row="0" Margin="0,-5,0,5">
+                <Menu Margin="0,-5,0,5" HorizontalAlignment="Stretch">
                     <Menu.Resources>
                         <Style TargetType="ui:SymbolIcon">
                             <Setter Property="FontSize" Value="20" />
@@ -122,7 +125,7 @@
                         </ui:MenuItem.Header>
                     </ui:MenuItem>
                     <ui:MenuItem
-                        Command="{Binding PullPackagesCommand}"
+                        Command="{Binding PushPackagesCommand}"
                         CommandParameter="{Binding ElementName=PackagesList}"
                         ToolTip="Push an app to your ADB enabled device.">
                         <ui:MenuItem.Header>
@@ -150,8 +153,10 @@
                     x:Name="PackagesList"
                     Grid.Row="2"
                     ItemsSource="{Binding PackageList}"
+                    ScrollViewer.CanContentScroll="True"
                     SelectionMode="Extended"
                     VirtualizingPanel.ScrollUnit="Pixel">
+
                     <ui:ListView.ItemTemplate>
                         <DataTemplate DataType="models:PackageEntry">
                             <ui:Card>
