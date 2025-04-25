@@ -16,6 +16,11 @@ public class ConfigurationFactory
     private readonly Dictionary<Type, IKognitoConfig> _cachedConfigs = [];
     private readonly Dictionary<Type, ConfigFileAttribute> _cachedAttributes = [];
 
+    public ConfigurationFactory()
+    {
+        Directory.CreateDirectory(ConfigurationDirectory);
+    }
+
     /// <summary>
     /// Loads the given config type from file. If the file doesn't exist, a default config is returned and no file is created, edited, or destroyed.
     /// </summary>
