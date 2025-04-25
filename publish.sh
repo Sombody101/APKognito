@@ -66,6 +66,7 @@ case "$3" in
     publish_profile="PreReleaseProfile.pubxml"
     readonly release_type="Prerelease"
     readonly release_tag_prefix="d"
+    readonly extra_args="--prerelease"
     ;;
 
 "deb")
@@ -73,6 +74,7 @@ case "$3" in
     publish_profile="PublicDebugProfile.pubxml"
     readonly release_type="PublicDebug"
     readonly release_tag_prefix="d"
+    readonly extra_args="--prerelease"
     ;;
 
 *)
@@ -148,7 +150,7 @@ echo "$release_title"
 echo "$commit_messages"
 
 [[ "$1" != "-" ]] && {
-    ! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" "$3" && exit "$?"
+    ! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" "$extra_args" && exit "$?"
 
     echo "Release created with the tag $release_tag"
     echo "Syncing remote tags..."
