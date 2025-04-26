@@ -5,6 +5,8 @@ namespace APKognito.Models;
 
 public class PackageEntry
 {
+    private const char ARG_SEPARATOR = '|';
+
     public string PackageName { get; }
 
     public string PackagePath { get; }
@@ -29,27 +31,19 @@ public class PackageEntry
         SaveDataSizeBytes = saveDataSizeBytes;
     }
 
-    public string FormattedAssetsSize => AssetsSizeBytes < 0 ? "(no assets)" : GBConverter.FormatSizeFromBytes(AssetsSizeBytes);
+    public string FormattedAssetsSize => AssetsSizeBytes < 0
+        ? "(no assets)"
+        : GBConverter.FormatSizeFromBytes(AssetsSizeBytes);
 
     public string FormattedPackageSize => GBConverter.FormatSizeFromBytes(PackageSizeBytes);
 
-    public string FormattedSaveDataSize => SaveDataSizeBytes < 0 ? "(no save data)" : GBConverter.FormatSizeFromBytes(SaveDataSizeBytes);
+    public string FormattedSaveDataSize => SaveDataSizeBytes < 0
+        ? "(no save data)"
+        : GBConverter.FormatSizeFromBytes(SaveDataSizeBytes);
 
-    public string FormattedTotalSize
-    {
-        get
-        {
-            long assetsSize = AssetsSizeBytes < 0
-                ? 0
-                : AssetsSizeBytes;
-
-            long saveDataSize = SaveDataSizeBytes < 0
-                ? 0
-                : SaveDataSizeBytes;
-
-            return GBConverter.FormatSizeFromBytes(PackageSizeBytes + assetsSize + saveDataSize);
-        }
-    }
+    public string FormattedTotalSize => GBConverter.FormatSizeFromBytes(PackageSizeBytes 
+        + Math.Max(AssetsSizeBytes, 0) 
+        + Math.Max(SaveDataSizeBytes, 0));
 
     public override string ToString()
     {
@@ -57,11 +51,9 @@ public class PackageEntry
 
         if (AssetPath is not null)
         {
-            _ = sb.Append(" (assets ")
-                .Append(AssetsSizeBytes is 0
-                    ? 0
-                    : AssetsSizeBytes / 1024 / 1024)
-                .Append(" MB )");
+            sb.Append(" (assets ")
+                .Append(GBConverter.FormatSizeFromBytes(AssetsSizeBytes))
+                .Append(')');
         }
 
         return sb.ToString();
@@ -70,7 +62,7 @@ public class PackageEntry
     public static PackageEntry ParseEntry(string adbPackage)
     {
         // <package name>|<package path>|<package size in bytes>|<assets size in bytes>|<save data size in bytes>
-        string[] split = adbPackage.Split('|');
+        string[] split = adbPackage.Split(ARG_SEPARATOR);
         if (split.Length != 5)
         {
             return new PackageEntry("[Invalid Format]", string.Empty, -1, null, -1, -1);
