@@ -3,6 +3,7 @@ using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
+using APKognito.Helpers;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
@@ -635,7 +636,7 @@ public partial class HomeViewModel : LoggableObservableObject
         }
 
         FileInfo apkInfo = new(context.OutputApkPath);
-        Log($"Installing {FinalName} to {currentDevice.DeviceId} ({apkInfo.Length / 1024 / 1024} MB)");
+        Log($"Installing {FinalName} to {currentDevice.DeviceId} ({GBConverter.FormatSizeFromBytes(apkInfo.Length)})");
 
         await AdbManager.WakeDeviceAsync();
         await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
@@ -651,18 +652,27 @@ public partial class HomeViewModel : LoggableObservableObject
 
             await AdbManager.QuickDeviceCommandAsync(@$"shell mkdir ""{obbDirectory}""", token: cancellationToken);
 
-            int assetIndex = 0;
-            foreach (string file in assets)
+            AddIndent();
+
+            try
             {
-                if (cancellationToken.IsCancellationRequested)
+                int assetIndex = 0;
+                foreach (string file in assets)
                 {
-                    break;
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    var assetInfo = new FileInfo(file);
+                    Log($"Pushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({GBConverter.FormatSizeFromBytes(assetInfo.Length)})");
+
+                    await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
                 }
-
-                var assetInfo = new FileInfo(file);
-                Log($"\tPushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({assetInfo.Length / 1024 / 1024:n0} MB)");
-
-                await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
+            }
+            finally
+            {
+                ResetIndent();
             }
         }
     }
