@@ -51,7 +51,7 @@ public partial record RenameSession
     {
         return $"{(wasSuccess ? 1 : 0)}{SEPARATOR}{str1}{SEPARATOR}{str2}";
     }
-
+    
     public static string[] FormatForView(string str)
     {
         string[] parts = str.Split(SEPARATOR);
