@@ -56,7 +56,7 @@ internal class AdbManager
     /// <param name="arguments"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static async Task<AdbCommandOutput> QuickCommandAsync(string arguments, CancellationToken token = default, bool noThrow = false)
+    public static async Task<AdbCommandOutput> QuickCommandAsync(string arguments, bool noThrow = false, CancellationToken token = default)
     {
         using Process adbProcess = CreateAdbProcess(null, arguments);
         _ = adbProcess.Start();
@@ -69,7 +69,7 @@ internal class AdbManager
             _ = await QuickCommandAsync("kill-server");
             _noCommandRecurse = true;
 
-            return await QuickCommandAsync(arguments, token, noThrow);
+            return await QuickCommandAsync(arguments, noThrow, token);
         }
         else if (_noCommandRecurse && commandOutput.DeviceNotAuthorized)
         {
@@ -90,10 +90,10 @@ internal class AdbManager
     /// <param name="deviceId"></param>
     /// <param name="token"></param>
     /// <returns></returns>
-    public static async Task<AdbCommandOutput> QuickDeviceCommandAsync(string arguments, string? deviceId = null, CancellationToken token = default, bool noThrow = false)
+    public static async Task<AdbCommandOutput> QuickDeviceCommandAsync(string arguments, string? deviceId = null, bool noThrow = false, CancellationToken token = default)
     {
         deviceId ??= adbConfig.CurrentDeviceId;
-        return await QuickCommandAsync($"-s {deviceId} {arguments}", token, noThrow);
+        return await QuickCommandAsync($"-s {deviceId} {arguments}", noThrow, token);
     }
 
     /// <summary>

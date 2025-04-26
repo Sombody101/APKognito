@@ -19,10 +19,10 @@ public partial class FileUploaderViewModel : LoggableObservableObject
     #region Properties
 
     [ObservableProperty]
-    private ObservableCollection<ListBoxItem> selectedItems = [];
+    public partial ObservableCollection<ListBoxItem> SelectedItems { get; set; } = [];
 
     [ObservableProperty]
-    private bool isUploading = false;
+    public partial bool IsUploading { get; set; } = false;
 
     #endregion Properties
 

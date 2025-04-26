@@ -30,12 +30,12 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     public partial ObservableCollection<PackageEntry> PackageList { get; set; } = [
 #if DEBUG
         new("test","/apk.apk", 10923, null, 0, 0),
-        new("test","/apk.apk", 23874, "jsjs", 2399, -1),
+        new("tet","/a.apk", 23874, "jsjs", 2399, -1),
         new("test twice", "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE", 209374029374, "rueu", 23098, 023423),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
-        new("test testjasdh lkjashdlkfjhsadkljfhalsjdfhlkjsad", "/home/user/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test ttjasdh lkjashdlkhsadkljfhsjdfhlkjsad", "/home/user/k/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test tejasdh lkjashdlkfjkljalsjdfhlkjsad", "/home/userk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test tesjasdh lkjashdlkfjsdljfhsjdfhlkjsad", "/home/ur/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
+        new("test tstjasdh lkjashdlkfjhadkljfhajdfhlkjsad", "/home/er/idk/something.apk", 0004334958374, "test/dddfsd", 38479828, 203984),
 #endif
     ];
 

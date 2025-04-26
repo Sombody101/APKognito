@@ -13,13 +13,13 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
     #region Properties
 
     [ObservableProperty]
-    private Visibility _noHistoryPanelVisibility = Visibility.Collapsed;
+    public partial Visibility NoHistoryPanelVisibility { get; set; } = Visibility.Collapsed;
 
     [ObservableProperty]
-    private Visibility _historyPanelVisibility = Visibility.Visible;
+    public partial Visibility HistoryPanelVisibility { get; set; } = Visibility.Visible;
 
     [ObservableProperty]
-    private ObservableCollection<RenameSession> _renameSessions = [
+    public partial ObservableCollection<RenameSession> RenameSessions { get; set; } = [
 #if DEBUG
         new([(false, "com.google.idk", "com.apkognito.idk"),
             (false, "com.facebook.spooky", "com.apkognito.spooky")], 1098234423),

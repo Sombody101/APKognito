@@ -6,10 +6,11 @@ using System.Runtime.InteropServices;
 
 namespace APKognito.Cli;
 
-internal static class CliMain
+internal static partial class CliMain
 {
-    [DllImport("kernel32", SetLastError = true)]
-    private static extern bool AttachConsole(int dwProcessId);
+    [LibraryImport("kernel32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AttachConsole(int dwProcessId);
 
     public static void Main(ParsedArgs args)
     {

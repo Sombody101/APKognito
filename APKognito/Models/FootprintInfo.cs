@@ -53,7 +53,7 @@ public record FootprintInfo
         FormattedCreationDate = CreationDate.ToString();
 
         // Check if the directory has an APK file
-        if (Directory.GetFiles(directory.FullName, "*.apk").Any())
+        if (Directory.EnumerateFiles(directory.FullName, "*.apk").Any())
         {
             ItemType = FootprintTypes.RenamedApk;
         }

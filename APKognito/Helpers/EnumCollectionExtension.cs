@@ -7,7 +7,7 @@ public class EnumCollectionExtension : MarkupExtension
 {
     public Type EnumType { get; set; } = null!;
 
-    public override object ProvideValue(IServiceProvider _)
+    public override object ProvideValue(IServiceProvider serviceProvider)
     {
         if (EnumType is not null)
         {
