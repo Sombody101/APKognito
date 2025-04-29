@@ -1,3 +1,4 @@
+﻿using APKognito.Cli;
 ﻿using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities.MVVM;
@@ -257,6 +258,16 @@ public static class FileLogger
         try
         {
             entry = entry.Redact();
+
+            if (CliMain.ConsoleActive)
+            {
+                Console.WriteLine(entry);
+
+                if (ex is not null)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
 
             lock (_lock)
             {

@@ -1,3 +1,4 @@
+﻿#if DEBUG
 ﻿#define DEBUG_WITHOUT_CONSOLE
 
 using APKognito.Utilities;
@@ -11,6 +12,12 @@ internal static partial class CliMain
     [LibraryImport("kernel32", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool AttachConsole(int dwProcessId);
+
+    [LibraryImport("kernel32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AllocConsole();
+
+    public static bool ConsoleActive { get; private set; }
 
     public static void Main(ParsedArgs args)
     {
@@ -49,12 +56,28 @@ internal static partial class CliMain
     {
         if (AttachConsole(-1))
         {
+            ConsoleActive = true;
             return;
         }
 
         // No console handle from the parent
         FileLogger.LogFatal($"CLI usage attempted. Failed to get parent console handle. Given args:\r\n{string.Join("\r\n\t", Environment.GetCommandLineArgs())}");
-        Environment.Exit((int)ExitCode.ParentConsoleHandleNotFound);
+        Exit(ExitCode.ParentConsoleHandleNotFound);
+    }
+
+    public static void CreateConsole()
+    {
+        if (AttachConsole(-1) || AllocConsole())
+        {
+            ConsoleActive = true;
+
+            Console.WriteLine("Console Active");
+
+            return;
+        }
+
+        FileLogger.LogFatal("Failed to create console via kernel32::AllocConsole.");
+        Exit(ExitCode.ConsoleCreationFailed);
     }
 
     [DoesNotReturn]

@@ -15,6 +15,7 @@
     <StartupObject>APKognito.MainOverride</StartupObject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>preview</LangVersion>
+    <Configurations>Debug;Release;Debug (Console)</Configurations>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -30,7 +31,15 @@
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)'=='Debug (Console)'">
+    <DefineConstants>$(DefineConstants);CONSOLE_DEBUG;DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+	
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug (Console)'">
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
 
@@ -38,7 +47,15 @@
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug (Console)|AnyCPU'">
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug (Console)|x64'">
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
 

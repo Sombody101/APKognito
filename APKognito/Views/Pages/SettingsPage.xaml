@@ -238,6 +238,12 @@
                     Command="{Binding ViewModel.NavigateToLogViewerCommand}"
                     Content="Open LogViewer Page"
                     Icon="{ui:SymbolIcon Symbol=ContentViewGallery28}" />
+                <Separator />
+                <ui:CardAction
+                    Margin="16"
+                    Command="{Binding ViewModel.StartDebugConsoleCommand}"
+                    Content="Open Debug Console (Readonly)"
+                    Icon="{ui:SymbolIcon Symbol=WindowConsole20}" />
             </StackPanel>
         </ui:CardExpander>
 

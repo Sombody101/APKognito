@@ -150,6 +150,12 @@ public partial class SettingsViewModel : ViewModel, IViewable
         App.NavigateTo<LogViewerPage>();
     }
 
+    [RelayCommand]
+    private static void OnStartDebugConsole()
+    {
+        CliMain.CreateConsole();
+    }
+
     #endregion Commands
 
     public override void OnNavigatedTo()

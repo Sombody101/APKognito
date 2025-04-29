@@ -7,4 +7,5 @@ enum ExitCode
     InvalidCliUsage,
     InvalidInputArgument,
     ParentConsoleHandleNotFound = 5012,
+    ConsoleCreationFailed,
 }

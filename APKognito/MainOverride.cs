@@ -14,6 +14,10 @@ internal static class MainOverride
     [STAThread]
     public static int Main(string[] args)
     {
+#if CONSOLE_DEBUG
+        CliMain.CreateConsole();
+#endif
+
         // Tells AutoUpdateService to cleanup update files
         if (Array.Exists(args, str => str == Constants.UpdateInstalledArgument))
         {

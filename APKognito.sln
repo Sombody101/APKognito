@@ -12,10 +12,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug (Console)|Any CPU = Debug (Console)|Any CPU
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B7021F95-A0B6-47BC-95BE-10100BB9B862}.Debug (Console)|Any CPU.ActiveCfg = Debug (Console)|x64
+		{B7021F95-A0B6-47BC-95BE-10100BB9B862}.Debug (Console)|Any CPU.Build.0 = Debug (Console)|x64
 		{B7021F95-A0B6-47BC-95BE-10100BB9B862}.Debug|Any CPU.ActiveCfg = Debug|x64
 		{B7021F95-A0B6-47BC-95BE-10100BB9B862}.Debug|Any CPU.Build.0 = Debug|x64
 		{B7021F95-A0B6-47BC-95BE-10100BB9B862}.Release|Any CPU.ActiveCfg = Release|x64
