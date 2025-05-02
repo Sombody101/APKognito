@@ -30,6 +30,7 @@
 
     <Page.InputBindings>
         <KeyBinding Command="{Binding ManualUnpackApkCommand}" Gesture="CTRL+SHIFT+U" />
+        <KeyBinding Command="{Binding ManualPackApkCommand}" Gesture="CTRL+SHIFT+P" />
     </Page.InputBindings>
 
     <Grid>

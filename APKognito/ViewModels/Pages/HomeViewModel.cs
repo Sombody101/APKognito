@@ -348,6 +348,41 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
+    private async Task OnManualPackApkAsync()
+    {
+        try
+        {
+            string? directory = DirectorySelector.UserSelectDirectory();
+
+            if (directory is null || !new JavaVersionLocator().GetJavaPath(out string? javaPath, this))
+            {
+                return;
+            }
+
+            var context = new ApkEditorContext(new()
+            {
+                JavaPath = javaPath!,
+                SourceApkPath = string.Empty,
+                TempDirectory = TempData?.FullName ?? Path.GetTempPath()
+            }, null!, this, kognitoConfig, true);
+
+            string packageName = ApkEditorContext.GetPackageName(Path.Combine(directory, "AndroidManifest.xml"));
+            string packageFileName = $"{packageName}.apk";
+            string outputFile = Path.Combine(Path.GetDirectoryName(directory)!, packageFileName);
+
+            Log($"Packing {directory}");
+            await context.PackApkAsync(directory, outputFile);
+
+            Log($"Packed {Path.GetFileName(directory)} into {packageFileName}");
+        }
+        catch (Exception ex)
+        {
+            LogError($"Error: {ex.Message}");
+            LogDebug(ex.StackTrace ?? "[NoTrace]");
+        }
+    }
+
+    [RelayCommand]
     private void OnClearLogBox()
     {
         ClearLogs();
