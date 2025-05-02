@@ -225,7 +225,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         if (Directory.Exists(apkOutputPath))
         {
             apkOutputPath = Path.GetFullPath(apkOutputPath);
-            folders.AddRange(Directory.GetDirectories(apkOutputPath).Where(IsDirectoryClaimed));
+            folders.AddRange(Directory.GetDirectories(apkOutputPath).Where(path => IsDirectoryClaimed(path)));
         }
 
         List<Task<FootprintInfo>> tasks = [];
@@ -299,56 +299,28 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         File.SetAttributes(hiddenFile, File.GetAttributes(hiddenFile) | FileAttributes.Hidden);
     }
 
-    public static bool IsDirectoryClaimed(string directory)
+    public static bool IsDirectoryClaimed(string directory, string claimName = CLAIM_FILE_NAME)
     {
         return !Directory.Exists(directory)
             ? throw new ArgumentException($"Unable to check if directory is claimed '{directory}' as it doesn't exist.")
-            : File.Exists(Path.Combine(directory, CLAIM_FILE_NAME));
+            : File.Exists(Path.Combine(directory, claimName));
     }
 
     partial void OnFilterInRenamedApksChanged(bool value)
     {
-        if (value)
-        {
-            filter |= (uint)FootprintTypes.RenamedApk;
-        }
-        else
-        {
-            filter &= ~(uint)FootprintTypes.RenamedApk;
-        }
-
+        UpdateFilterFlag(value, FootprintTypes.RenamedApk);
         UpdateItemsList();
     }
 
     partial void OnFilterInDirectoriesChanged(bool value)
     {
-        const uint flag = (uint)(FootprintTypes.Directory | FootprintTypes.TempDirectory);
-
-        if (value)
-        {
-            filter |= flag;
-        }
-        else
-        {
-            filter &= ~flag;
-        }
-
+        UpdateFilterFlag(value, FootprintTypes.Directory | FootprintTypes.TempDirectory);
         UpdateItemsList();
     }
 
     partial void OnFilterInFilesChanged(bool value)
     {
-        const uint flag = (uint)(FootprintTypes.File | FootprintTypes.TempFile);
-
-        if (value)
-        {
-            filter |= flag;
-        }
-        else
-        {
-            filter &= ~flag;
-        }
-
+        UpdateFilterFlag(value, FootprintTypes.File | FootprintTypes.TempFile);
         UpdateItemsList();
     }
 
@@ -507,6 +479,22 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         }
 
         return sb.ToString();
+    }
+
+    private void UpdateFilterFlag(bool value, FootprintTypes flag)
+    {
+        uint flagUint = (uint)flag;
+
+        if (value)
+        {
+            filter |= flagUint;
+        }
+        else
+        {
+            filter &= ~flagUint;
+        }
+
+        UpdateItemsList();
     }
 
     #region DEBUG_ONLY
