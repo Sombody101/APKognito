@@ -14,12 +14,12 @@ internal class BinaryReplace : IProgressReporter
     private const int BUFFER_SIZE = 1024 * 1024;
 
     private readonly string binaryFilePath;
-    private readonly LoggableObservableObject? logger;
+    private readonly IViewLogger? logger;
     private readonly Encoding encoding = Encoding.UTF8;
 
     public event EventHandler<ProgressUpdateEventArgs> ProgressChanged = null!;
 
-    public BinaryReplace(string filePath, LoggableObservableObject? _logger)
+    public BinaryReplace(string filePath, IViewLogger? _logger)
     {
         binaryFilePath = filePath;
         logger = _logger;

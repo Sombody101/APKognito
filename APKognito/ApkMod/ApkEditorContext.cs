@@ -1,9 +1,10 @@
 ﻿#if DEBUG
 // Only used for debugging (multiple threads running will disrupt stepthrough-debugging by triggering breakpoints)
-// #define SINGLE_THREAD_INSTANCE_REPLACING
+//#define SINGLE_THREAD_INSTANCE_REPLACING
 #endif
 
 using APKognito.AdbTools;
+using APKognito.ApkMod.Automation;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
 using APKognito.Models;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 
@@ -29,7 +31,7 @@ public class ApkEditorContext : IProgressReporter
 
     private Regex lineReplaceRegex = null!;
 
-    private readonly LoggableObservableObject logger;
+    private readonly IViewLogger logger;
     private readonly KognitoConfig kognitoConfig;
 
     private readonly ApkNameData nameData;
@@ -45,7 +47,7 @@ public class ApkEditorContext : IProgressReporter
     public ApkEditorContext(
         ApkRenameSettings renameSettings,
         AdvancedApkRenameSettings advancedRenameSettings,
-        LoggableObservableObject logger,
+        IViewLogger logger,
         KognitoConfig _kognitoConfig,
         bool limited = false
     )
@@ -126,11 +128,23 @@ public class ApkEditorContext : IProgressReporter
 
             // 'nameData' should not be modified after this point.
 
+            var automationConfig = await GetParsedAutoConfigAsync();
+
+            // Nothing happens for the unpack stage that should be saved, but we still run the commands
+            _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack);
+
             // Replace all instances in the APK and any OBBs
             logger.Log($"Changing '{nameData.OriginalPackageName}'  |>  '{nameData.NewPackageName}'");
             lineReplaceRegex = advancedRenameSettings.BuildRegex(nameData.OriginalCompanyName);
 
-            await ReplaceAllNameInstancesAsync(cancellationToken);
+#if SINGLE_THREAD_INSTANCE_REPLACING
+            ThreadPool.SetMaxThreads(1, 1);
+#endif
+
+            await ReplaceAllNameInstancesAsync(automationConfig, cancellationToken);
+
+            // Visit the pack stage commands as well
+            _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack);
 
             // Repack
             logger.Log("Packing APK...");
@@ -248,6 +262,24 @@ public class ApkEditorContext : IProgressReporter
         throw new RenameFailedException(error);
     }
 
+    public async Task PackApkAsync(string apkDirectory, string outputFile, CancellationToken token = default)
+    {
+        string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f b \"{apkDirectory}\" -o \"{outputFile}\"";
+        using Process process = CreateJavaProcess(args);
+
+        _ = process.Start();
+        await process.WaitForExitAsync(token);
+
+        if (process.ExitCode is 0)
+        {
+            return;
+        }
+
+        string error = await process.StandardError.ReadToEndAsync(token);
+        logger.LogError($"Failed to pack {apkDirectory}. Error: {error}");
+        throw new RenameFailedException(error);
+    }
+
     private async Task<string> PackApkAsync(CancellationToken cToken)
     {
         ReportUpdate("Packing package", ProgressUpdateType.Title);
@@ -315,20 +347,42 @@ public class ApkEditorContext : IProgressReporter
         File.Move($"{newSignedName}.apk.idsig", $"{fullTrueName}.apk.idsig", true);
     }
 
-    private async Task ReplaceAllNameInstancesAsync(CancellationToken cToken)
+    private async Task ReplaceAllNameInstancesAsync(AutoConfigModel? config, CancellationToken cToken)
     {
-        logger.LogDebug("Renaming smali directories.");
-        ReplaceAllDirectoryNames(nameData.ApkAssemblyDirectory);
+        ThreadPool.GetMaxThreads(out int maxTaskThreads, out int maxIoThreads);
 
-        await ReplaceLibInstancesAsync(cToken);
+        if (maxTaskThreads == 1 && maxIoThreads == 1)
+        {
+            logger.Log("Multi threading disabled.");
+        }
+        else
+        {
+            logger.Log($"Using {maxTaskThreads} max task threads, {maxIoThreads} max I/O threads.");
+        }
 
-        await RenameSmaliFilesAsync(cToken);
+        ReplaceAllDirectoryNames(
+            await GetCommandResultAsync(config, CommandStage.Directory),
+            nameData.ApkAssemblyDirectory
+        );
+
+        await ReplaceLibInstancesAsync(
+            await GetCommandResultAsync(config, CommandStage.Library),
+            cToken
+        );
+
+        await RenameSmaliFilesAsync(
+            await GetCommandResultAsync(config, CommandStage.Smali),
+            cToken
+        );
 
         // This will take the most disk space, so do it only if the smali renaming was successful
-        await RenameObbFilesAsync(cToken);
+        await RenameObbFilesAsync(
+            await GetCommandResultAsync(config, CommandStage.Assets),
+            cToken
+        );
     }
 
-    private async Task RenameSmaliFilesAsync(CancellationToken cToken)
+    private async Task RenameSmaliFilesAsync(CommandStageResult? additionals, CancellationToken cToken)
     {
         ReportUpdate("Renaming directories", ProgressUpdateType.Title);
         ReportUpdate(string.Empty);
@@ -336,7 +390,8 @@ public class ApkEditorContext : IProgressReporter
         string smaliDirectory = Path.Combine(nameData.ApkAssemblyDirectory, "smali");
         IEnumerable<string> renameFiles = Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories)
             .Append($"{nameData.ApkAssemblyDirectory}\\AndroidManifest.xml")
-            .Append($"{nameData.ApkAssemblyDirectory}\\apktool.yml");
+            .Append($"{nameData.ApkAssemblyDirectory}\\apktool.yml")
+            .FilterByCommandResult(additionals);
 
         foreach (string directory in Directory.GetDirectories(nameData.ApkAssemblyDirectory, "smali_*"))
         {
@@ -391,7 +446,7 @@ public class ApkEditorContext : IProgressReporter
 #endif
     }
 
-    private async Task RenameObbFilesAsync(CancellationToken token)
+    private async Task RenameObbFilesAsync(CommandStageResult? additionals, CancellationToken token)
     {
         string originalCompanyName = nameData.OriginalCompanyName;
         string? sourceDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath);
@@ -430,7 +485,8 @@ public class ApkEditorContext : IProgressReporter
         var obbArchives = Directory.EnumerateFiles(newObbDirectory, $"*{nameData.FullSourceApkFileName}.obb")
             .Concat(advancedRenameSettings.ExtraInternalPackagePaths
                 .Where(p => p.FileType == FileType.Archive)
-                .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)));
+                .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)))
+            .FilterByCommandResult(additionals);
 
         foreach (string filePath in obbArchives)
         {
@@ -503,7 +559,7 @@ public class ApkEditorContext : IProgressReporter
         }
     }
 
-    private async Task ReplaceLibInstancesAsync(CancellationToken token)
+    private async Task ReplaceLibInstancesAsync(CommandStageResult? additionals, CancellationToken token)
     {
         string libs = Path.Combine(nameData.ApkAssemblyDirectory, "lib");
         if (!Directory.Exists(libs))
@@ -522,7 +578,8 @@ public class ApkEditorContext : IProgressReporter
         var elfBinaries = Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories)
             .Concat(advancedRenameSettings.ExtraInternalPackagePaths
                 .Where(p => p.FileType is FileType.Elf)
-                .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)));
+                .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)))
+            .FilterByCommandResult(additionals);
 
         foreach (string originalFilePath in elfBinaries)
         {
@@ -574,9 +631,12 @@ public class ApkEditorContext : IProgressReporter
         };
     }
 
-    private void ReplaceAllDirectoryNames(string baseDirectory)
+    private void ReplaceAllDirectoryNames(CommandStageResult? additionals, string baseDirectory)
     {
+        logger.LogDebug("Renaming smali directories.");
+
         IEnumerable<string> ienDirs = Directory.GetDirectories(baseDirectory, $"*{nameData.OriginalCompanyName}*", SearchOption.AllDirectories)
+            .FilterByCommandResult(additionals)
             // Organize them to prevent "race conditions", which happens when a parent directory is renamed before a child directory, thereby throwing a DirectoryNotFoundException.
             .OrderByDescending(s => s.Length);
 
@@ -597,6 +657,65 @@ public class ApkEditorContext : IProgressReporter
 
             ReportUpdate(directoryName);
             RenameDirectory(directory, adjustedDirectoryName, nameData);
+        }
+    }
+
+    private async Task<AutoConfigModel?> GetParsedAutoConfigAsync()
+    {
+        if (!advancedRenameSettings.AutoPackageEnabled)
+        {
+            return null;
+        }
+
+        if (advancedRenameSettings.AutoPackageConfig is null)
+        {
+            logger.LogWarning("Found auto config is null (won't be parsed).");
+            return null;
+        }
+
+        using MemoryStream configStream = new(Encoding.Default.GetBytes(advancedRenameSettings.AutoPackageConfig));
+        using StreamReader streamReader = new(configStream);
+
+        // We all know damn well this is not compiling, but "parsing" didn't sound as cool :p
+        logger.Log("Compiling auto configuration...");
+
+        var parser = new ConfigParser(streamReader);
+        return await parser.BeginParseAsync();
+    }
+
+    private async Task<CommandStageResult?> GetCommandResultAsync(AutoConfigModel? config, CommandStage stage)
+    {
+        if (config is null)
+        {
+            return null;
+        }
+
+        var foundStage = config.GetStage(stage);
+
+        if (foundStage is null)
+        {
+            logger.LogDebug($"No stage found for {stage}, no alterations made.");
+            return null;
+        }
+
+        logger.Log("-- Entering auto configuration script.");
+        logger.AddIndentString("[SCRIPT]: ");
+
+        try
+        {
+            return await new CommandDispatcher(foundStage, nameData.ApkAssemblyDirectory, new()
+            {
+                { "originalCompany", nameData.OriginalCompanyName },
+                { "originalPackage", nameData.OriginalPackageName },
+                { "newCompany", nameData.NewCompanyName },
+                { "newPackage", nameData.NewPackageName },
+            }, logger)
+                .DispatchCommandsAsync();
+        }
+        finally
+        {
+            logger.ResetIndent();
+            logger.Log("-- Exiting auto configuration script.");
         }
     }
 
@@ -660,9 +779,10 @@ public class ApkEditorContext : IProgressReporter
         }
     }
 
-    private static string GetPackageName(string manifestPath)
+    public static string GetPackageName(string manifestPath)
     {
-        return GetPackageName(File.OpenRead(manifestPath));
+        using FileStream stream = File.OpenRead(manifestPath);
+        return GetPackageName(stream);
     }
 
     public static string GetPackageName(Stream fileStream)
