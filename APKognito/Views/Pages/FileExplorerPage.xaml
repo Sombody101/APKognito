@@ -27,7 +27,7 @@
             <helper:BoolToVisibility x:Key="VisibilityInverter" />
 
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/Controls/ListViewItem.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Controls/Overrides/ListViewItem.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Page.Resources>
