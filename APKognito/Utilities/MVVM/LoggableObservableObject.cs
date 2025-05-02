@@ -13,7 +13,7 @@ namespace APKognito.Utilities.MVVM;
 /// <summary>
 /// Gives a horrible interface for logging to a <see cref="RichTextBox"/> while still adhering to <see cref="ObservableObject"/> rules.
 /// </summary>
-public partial class LoggableObservableObject : ViewModel, IViewable
+public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogger
 {
     [ObservableProperty]
     public partial ObservableCollection<LogBoxEntry> LogBoxEntries { get; set; } = [];
@@ -22,10 +22,6 @@ public partial class LoggableObservableObject : ViewModel, IViewable
     /// The current <see cref="LoggableObservableObject"/>.
     /// </summary>
     public static LoggableObservableObject CurrentLoggableObject { get; private set; } = null!;
-    public void SetCurrentLogger()
-    {
-        CurrentLoggableObject = this;
-    }
 
     public ISnackbarService? SnackbarService { get; private set; } = null!;
 
@@ -34,6 +30,11 @@ public partial class LoggableObservableObject : ViewModel, IViewable
     protected bool DisableFileLogging = true;
 
     private string indent = string.Empty;
+
+    public void SetCurrentLogger()
+    {
+        CurrentLoggableObject = this;
+    }
 
     public void WriteGenericLog(string text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None, bool newline = true)
     {
@@ -120,14 +121,14 @@ public partial class LoggableObservableObject : ViewModel, IViewable
 #endif
     }
 
-    public void AddIndent(char indentor = '\t')
+    public void AddIndent(char indenter = '\t')
     {
-        indent = $"{indent}{indentor}";
+        indent = $"{indent}{indenter}";
     }
 
-    public void AddIndentString(string indentor = "\t")
+    public void AddIndentString(string indenter = "\t")
     {
-        indent = $"{indent}{indentor}";
+        indent = $"{indent}{indenter}";
     }
 
     public void RemoveIndent()
@@ -143,11 +144,6 @@ public partial class LoggableObservableObject : ViewModel, IViewable
     public void ClearLogs()
     {
         LogBoxEntries.Clear();
-    }
-
-    protected void SetSnackbarProvider(ISnackbarService _snackbarService)
-    {
-        SnackbarService = _snackbarService;
     }
 
     public void DisplaySnack(string header, string body, ControlAppearance appearance, int displayTimeMs = 10_000)
@@ -200,5 +196,10 @@ public partial class LoggableObservableObject : ViewModel, IViewable
     public void SnackError(string body)
     {
         DisplaySnack("Error", body, ControlAppearance.Danger);
+    }
+
+    protected void SetSnackbarProvider(ISnackbarService _snackbarService)
+    {
+        SnackbarService = _snackbarService;
     }
 }
