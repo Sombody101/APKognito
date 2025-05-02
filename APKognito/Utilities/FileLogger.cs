@@ -1,5 +1,6 @@
-﻿using APKognito.Cli;
-﻿using APKognito.Configurations;
+﻿using APKognito.AdbTools;
+using APKognito.Cli;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
@@ -172,7 +173,7 @@ public static class FileLogger
         LogGenericException(exception, log);
     }
 
-    public static string CreateLogpack()
+    public static async Task<string> CreateLogpackAsync(bool includeAndroidCrash)
     {
         ConfigurationFactory configFactory = App.GetService<ConfigurationFactory>()!;
 
@@ -186,6 +187,25 @@ public static class FileLogger
 
         string packPath = Path.Combine(App.AppDataDirectory!.FullName, "logpack");
         _ = Directory.CreateDirectory(packPath);
+
+        if (includeAndroidCrash)
+        {
+            // Get android log first
+            AdbCommandOutput crashLogs = await AdbManager.QuickCommandAsync("logcat -b crash -d", true);
+
+            using FileStream file = File.OpenWrite(Path.Combine(packPath, "package-crash.log"));
+            using StreamWriter writer = new(file);
+
+            await writer.WriteLineAsync("-- START STDOUT");
+            await writer.WriteLineAsync(crashLogs.StdOut.AsMemory());
+            await writer.WriteLineAsync("-- END STDOUT");
+            await writer.WriteLineAsync("-- START STDERR");
+            await writer.WriteLineAsync(crashLogs.StdErr.AsMemory());
+            await writer.WriteLineAsync("-- END STDERR");
+
+            await writer.FlushAsync();
+            await file.FlushAsync();
+        }
 
         StringBuilder errorFiles = new();
         foreach (string file in filesToPack)
@@ -202,7 +222,7 @@ public static class FileLogger
 
         if (errorFiles.Length > 0)
         {
-            File.WriteAllText(Path.Combine(packPath, "unpacked.txt"), errorFiles.ToString());
+            await File.WriteAllTextAsync(Path.Combine(packPath, "unpacked.txt"), errorFiles.ToString());
         }
 
         // Items that need to be packed manually
@@ -211,14 +231,14 @@ public static class FileLogger
 
         if (hmv is null)
         {
-            File.WriteAllText(logBoxPath, "[Null]");
+            await File.WriteAllTextAsync(logBoxPath, "[Null]");
         }
         else
         {
             IEnumerable<string> lines = ((Paragraph)hmv.APKLogs.Document.Blocks.LastBlock).Inlines
                 .Select(line => line.ContentStart.GetTextInRun(LogicalDirection.Forward));
 
-            File.WriteAllText(logBoxPath, string.Join("\r\n", lines));
+            await File.WriteAllTextAsync(logBoxPath, string.Join("\r\n", lines));
         }
 
         File.Create(Path.Combine(packPath, App.Version.GetFullVersion())).Close();
@@ -261,7 +281,7 @@ public static class FileLogger
 
             if (CliMain.ConsoleActive)
             {
-                Console.WriteLine(entry);
+                Console.WriteLine(entry.TrimEnd());
 
                 if (ex is not null)
                 {

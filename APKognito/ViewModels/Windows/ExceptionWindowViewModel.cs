@@ -3,6 +3,7 @@ using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using System.Runtime.InteropServices;
 using System.Text;
+using Wpf.Ui;
 
 namespace APKognito.ViewModels.Windows;
 
@@ -10,6 +11,8 @@ namespace APKognito.ViewModels.Windows;
 
 public partial class ExceptionWindowViewModel : LoggableObservableObject
 {
+    private readonly IContentDialogService dialogService;
+
     #region Properties
 
     [ObservableProperty]
@@ -32,12 +35,17 @@ public partial class ExceptionWindowViewModel : LoggableObservableObject
 
     #endregion Properties
 
+    public ExceptionWindowViewModel(IContentDialogService _dialogService)
+    {
+        dialogService = _dialogService;
+    }
+
     #region Commands
 
     [RelayCommand]
-    private static void OnCreateLogpack()
+    private async Task OnCreateLogpackAsync()
     {
-        _ = SettingsViewModel.CreateLogPack();
+        _ = await SettingsViewModel.CreateLogPackAsync(dialogService);
     }
 
     [RelayCommand]

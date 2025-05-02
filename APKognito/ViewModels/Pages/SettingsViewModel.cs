@@ -1,5 +1,7 @@
-﻿using APKognito.Configurations;
+﻿using APKognito.Cli;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Controls.Dialogs;
 using APKognito.Services;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
@@ -77,17 +79,6 @@ public partial class SettingsViewModel : ViewModel, IViewable
 
     #endregion Properties
 
-    public SettingsViewModel()
-    {
-        configFactory = null!;
-        updateConfig = null!;
-        kognitoConfig = null!;
-        contentDialogService = null!;
-
-        // For designer
-        OnNavigatedTo();
-    }
-
     public SettingsViewModel(IContentDialogService _contentDialogService, ConfigurationFactory _configFactory)
     {
         contentDialogService = _contentDialogService;
@@ -99,12 +90,23 @@ public partial class SettingsViewModel : ViewModel, IViewable
         AppDataPath = App.AppDataDirectory.FullName;
     }
 
+    public SettingsViewModel()
+    {
+        configFactory = null!;
+        updateConfig = null!;
+        kognitoConfig = null!;
+        contentDialogService = null!;
+
+        // For designer
+        OnNavigatedTo();
+    }
+
     #region Commands
 
     [RelayCommand]
-    private static void OnCreateLogpack()
+    private async Task OnCreateLogpackAsync()
     {
-        _ = CreateLogPack();
+        await CreateLogPackAsync(contentDialogService);
     }
 
     [RelayCommand]
@@ -188,20 +190,28 @@ public partial class SettingsViewModel : ViewModel, IViewable
         ApplicationThemeManager.Apply(newValue);
     }
 
-    public static string CreateLogPack()
+    public static async Task<string?> CreateLogPackAsync(IContentDialogService dialogService)
     {
         try
         {
-            string logpackPath = FileLogger.CreateLogpack();
+            var optionsDialog = new LogpackCreatorDialog(dialogService.GetDialogHost());
+            var dialogResult = await optionsDialog.ShowAsync();
 
-            MessageBoxResult result = new MessageBox()
+            if (dialogResult is not ContentDialogResult.Primary)
+            {
+                return null;
+            }
+
+            string logpackPath = await FileLogger.CreateLogpackAsync(optionsDialog.IncludeCrashLogs);
+
+            MessageBoxResult result = await new MessageBox()
             {
                 Title = "Logpack Created",
                 Content = $"A logpack has been created at:\n{logpackPath}",
                 PrimaryButtonText = "Open"
-            }.ShowDialogAsync().Result;
+            }.ShowDialogAsync();
 
-            if (result == MessageBoxResult.Primary)
+            if (result is MessageBoxResult.Primary)
             {
                 App.OpenDirectory(Path.GetDirectoryName(logpackPath)!);
             }
@@ -210,13 +220,13 @@ public partial class SettingsViewModel : ViewModel, IViewable
         }
         catch (Exception ex)
         {
-            _ = new MessageBox()
+            await new MessageBox()
             {
                 Title = "Logpack Failed",
                 Content = $"Failed to create logpack.\n\n{ex.Message}",
             }.ShowDialogAsync();
         }
 
-        return string.Empty;
+        return null;
     }
 }

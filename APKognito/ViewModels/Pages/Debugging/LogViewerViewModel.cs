@@ -16,6 +16,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
 {
     private readonly ConfigurationFactory configFactory;
     private readonly LogViewerConfig viewerConfig;
+    private readonly IContentDialogService dialogService;
 
     // These aren't really being "cached", but it sounds weirder to say "realLogs"
     private readonly List<LogViewerLine> _cachedLogs = [];
@@ -73,11 +74,15 @@ public partial class LogViewerViewModel : LoggableObservableObject
         RefreshRecents();
     }
 
-    public LogViewerViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
+    public LogViewerViewModel(
+        ISnackbarService _snackbarService, 
+        IContentDialogService _dialogService, 
+        ConfigurationFactory _configFactory)
     {
         DisableFileLogging = true;
         SetSnackbarProvider(_snackbarService);
 
+        dialogService = _dialogService;
         configFactory = _configFactory;
         viewerConfig = configFactory.GetConfig<LogViewerConfig>();
 
@@ -140,9 +145,9 @@ public partial class LogViewerViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private static void OnCreateLogpack()
+    private async Task OnCreateLogpackAsync()
     {
-        _ = SettingsViewModel.CreateLogPack();
+        await SettingsViewModel.CreateLogPackAsync(dialogService);
     }
 
     [RelayCommand]
