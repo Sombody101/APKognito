@@ -4,11 +4,11 @@ namespace APKognito.Models;
 
 public class LogBoxEntry
 {
-    public string Text { get; set; } = string.Empty;
+    public string Text { get; init; } = string.Empty;
 
-    public Brush? Color { get; set; }
+    public Brush? Color { get; init; }
 
-    public LogEntryType? LogType { get; set; }
+    public LogEntryType? LogType { get; init; }
 
     public enum LogEntryType
     {

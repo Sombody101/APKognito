@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 
 namespace APKognito.AdbTools;
 
-internal class AdbManager
+internal sealed class AdbManager : IDisposable
 {
     private const string APKOGNITO_DIRECTORY = $"{ANDROID_EMULATED}/apkognito";
 
@@ -66,7 +66,7 @@ internal class AdbManager
         if (!_noCommandRecurse && commandOutput.StdErr.StartsWith("adb.exe: device unauthorized."))
         {
             LoggableObservableObject.CurrentLoggableObject?.SnackWarning("Command failed!", "An ADB command failed to execute! Running an ADB server restart... (may take some time).");
-            _ = await QuickCommandAsync("kill-server");
+            _ = await QuickCommandAsync("kill-server", token: token);
             _noCommandRecurse = true;
 
             return await QuickCommandAsync(arguments, noThrow, token);
@@ -321,6 +321,11 @@ internal class AdbManager
         return await QuickDeviceCommandAsync($"shell sh \"{APKOGNITO_DIRECTORY}/{scriptName}\" {scriptArguments}", noThrow: noThrow);
     }
 
+    public static string GetAdbPath()
+    {
+        return adbConfig.PlatformToolsPath;
+    }
+
     private static Process CreateAdbProcess([Optional] string? overrideAdbPath, [Optional] string? arguments)
     {
         string adbDirectory = string.IsNullOrWhiteSpace(overrideAdbPath)
@@ -353,6 +358,12 @@ internal class AdbManager
                 FileName = adbPath
             }
         };
+    }
+
+    public void Dispose()
+    {
+        AdbProcess?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     public enum ScriptPushResult

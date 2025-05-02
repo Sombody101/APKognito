@@ -2,13 +2,13 @@
 using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Controls;
 using APKognito.Exceptions;
 using APKognito.Helpers;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages;
-using APKognito.Views.Windows;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
@@ -168,6 +168,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
     public HomeViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
     {
+        DisableFileLogging = false;
         Instance = this;
 
         try
@@ -327,8 +328,7 @@ public partial class HomeViewModel : LoggableObservableObject
                     JavaPath = javaPath!,
                     SourceApkPath = filePath,
                     TempDirectory = TempData?.FullName
-                        ?? Path.GetTempPath()
-                        ?? "./",
+                        ?? Path.GetTempPath(),
                 }, null!, this, kognitoConfig, true);
 
                 string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
@@ -971,7 +971,6 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private void ResetViewFields()
     {
-        ApkName = DEFAULT_JOB_MESSAGE;
         OriginalPackageName = DEFAULT_PROP_MESSAGE;
         CurrentActionTitle = CURRENT_ACTION;
         CurrentAction = AWAITING_JOB;

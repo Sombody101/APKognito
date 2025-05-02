@@ -425,7 +425,7 @@ public partial class AdbConsoleViewModel
         }
     }
 
-    private sealed class CommandInfo
+    private sealed record CommandInfo
     {
         public string CommandName { get; }
 

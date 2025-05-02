@@ -35,7 +35,7 @@
                 Margin="0,16,16,16"
                 FontSize="24"
                 FontWeight="SemiBold"
-                Text="Advaned Renaming Settings" />
+                Text="Advanced Renaming Settings" />
 
             <Separator Grid.Column="1" Margin="0,5" />
 

@@ -1,4 +1,8 @@
-﻿using APKognito.Cli;
+﻿#if DEBUG
+#define CONSOLE_DEBUG
+#endif
+
+using APKognito.Cli;
 
 namespace APKognito;
 
