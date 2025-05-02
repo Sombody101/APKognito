@@ -44,7 +44,6 @@
 
         <ui:CardExpander
             Grid.Row="1"
-            Margin="0,5,0,0"
             ContentPadding="0"
             CornerRadius="4,0,4,4"
             Icon="{ui:SymbolIcon DocumentSettings20}">
@@ -433,7 +432,6 @@
 
         <Grid Grid.Row="3" Margin="0,5,0,0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*" MinHeight="50" />
                 <RowDefinition Height="auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
@@ -512,13 +510,6 @@
                 FontFamily="{StaticResource FiraRegular}"
                 FontSize="12"
                 IsReadOnly="True" />
-
-            <ui:Button
-                Grid.Row="1"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                Command="{Binding ClearLogBoxCommand}"
-                Content="Clear Logs" />
         </Grid>
     </Grid>
 </Page>
