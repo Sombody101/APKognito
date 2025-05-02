@@ -53,6 +53,26 @@ public partial class AdvancedRenameConfigurationViewModel : ViewModel, IViewable
         }
     }
 
+    public bool AutoPackageEnabled
+    {
+        get => advancedSettings.AutoPackageEnabled;
+        set
+        {
+            advancedSettings.AutoPackageEnabled = value;
+            OnPropertyChanged(nameof(AutoPackageEnabled));
+        }
+    }
+
+    public string AutoPackageConfig
+    {
+        get => advancedSettings.AutoPackageConfig ?? "; Visit the APKognito Wiki if you want to learn how to use this!";
+        set
+        {
+            advancedSettings.AutoPackageConfig = value;
+            OnPropertyChanged(nameof(AutoPackageConfig));
+        }
+    }
+
     [ObservableProperty]
     public partial string RenameObbsInternalExtras { get; set; }
 
