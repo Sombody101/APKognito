@@ -79,18 +79,14 @@ public partial class DirectorySelector
 
         if (SelectingDirectory)
         {
-            OpenFolderDialog openFolderDialog = new()
-            {
-                Multiselect = false,
-                DefaultDirectory = oldOutput ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
-            };
+            string? selectedDirectory = UserSelectDirectory();
 
-            if (openFolderDialog.ShowDialog() is false)
+            if (selectedDirectory is null)
             {
                 return;
             }
 
-            DirectoryPath = openFolderDialog.FolderName;
+            DirectoryPath = selectedDirectory;
             return;
         }
 
@@ -118,5 +114,25 @@ public partial class DirectorySelector
         string value = (string)e.NewValue;
 
         selector.DirectoryPath = VariablePathResolver.Resolve(value);
+    }
+
+    public static string? UserSelectDirectory(bool multiSelect = false, string? defaultDirectory = null)
+    {
+        OpenFolderDialog openFolderDialog = new()
+        {
+            Multiselect = multiSelect,
+        };
+
+        if (defaultDirectory is not null)
+        {
+            openFolderDialog.DefaultDirectory = defaultDirectory;
+        }
+
+        if (openFolderDialog.ShowDialog() is false)
+        {
+            return null;
+        }
+
+        return openFolderDialog.FolderName;
     }
 }
