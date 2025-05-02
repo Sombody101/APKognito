@@ -10,13 +10,16 @@ internal class ParsedArgs
     public bool RunningCli { get; }
 
     [CliArg("getcode", typeof(int))]
-    public int? GetCode { get; set; }
+    public int? GetCode { get; private set; }
 
     [CliArg("v|version")]
-    public bool GetVersion { get; set; }
+    public bool GetVersion { get; private set; }
 
     [CliArg("start")]
-    public bool StartApp { get; set; }
+    public bool StartApp { get; private set; }
+
+    [CliArg("console")]
+    public bool StartConsole { get; private set; }
 
     public ParsedArgs(string[] args)
     {

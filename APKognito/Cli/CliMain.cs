@@ -1,5 +1,6 @@
 ﻿#if DEBUG
-﻿#define DEBUG_WITHOUT_CONSOLE
+//#define DEBUG_WITHOUT_CONSOLE
+#endif
 
 using APKognito.Utilities;
 using System.Reflection;
@@ -26,9 +27,14 @@ internal static partial class CliMain
             return;
         }
 
+        if (args.StartConsole)
+        {
+            CreateConsole();
+        }
+
         // This should always be active for a release build, even if disabled for debugging.
-#if (DEBUG && !DEBUG_WITHOUT_CONSOLE) || RELEASE
-        AttachConsole();
+#if !DEBUG_WITHOUT_CONSOLE || RELEASE
+        AttachConsole(); // Won't do anything if the console was attached/created already
 #endif
 
         if (args.GetCode is not null)
@@ -54,6 +60,11 @@ internal static partial class CliMain
 
     public static void AttachConsole()
     {
+        if (ConsoleActive)
+        {
+            return;
+        }
+
         if (AttachConsole(-1))
         {
             ConsoleActive = true;
@@ -67,6 +78,11 @@ internal static partial class CliMain
 
     public static void CreateConsole()
     {
+        if (ConsoleActive)
+        {
+            return;
+        }
+
         if (AttachConsole(-1) || AllocConsole())
         {
             ConsoleActive = true;
