@@ -4,11 +4,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="AdbConsole"
+    Margin="-41,0"
     d:DataContext="{d:DesignInstance pages:AdbConsoleViewModel,
                                      IsDesignTimeCreatable=False}"
     d:DesignHeight="800"
@@ -19,7 +19,11 @@
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
-    <Grid Margin="-41,0,-41,0">
+    <Grid>
+        <Grid.Resources>
+            <CornerRadius x:Key="ControlCornerRadius">0,0,10,0</CornerRadius>
+        </Grid.Resources>
+
         <ui:RichTextBox
             x:Name="CommandOutputBox"
             Grid.Row="0"
