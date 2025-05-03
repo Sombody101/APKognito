@@ -1,0 +1,43 @@
+site_url: https://sombody101.github.io/APKognito/
+site_name: APKognito Docs
+repo_url: https://github.com/Sombody101/APKognito/
+repo_name: Sombody101/APKognito
+
+theme:
+    name: material
+
+    features:
+        - content.action.edit
+        - navigation.instant
+        - navigation.instant.progress
+        - navigation.expand
+        - navigation.indexes
+
+    logo: images/apkognito.png
+    favicon: images/apkognito.ico
+
+    palette:
+        - media: "(prefers-color-scheme: light)"
+          scheme: default
+          accent: indigo
+          primary: deep purple
+          toggle:
+              icon: material/brightness-7
+              name: Switch to dark mode
+
+        - media: "(prefers-color-scheme: dark)"
+          scheme: slate
+          accent: indigo
+          primary: deep purple
+          toggle:
+              icon: material/brightness-4
+              name: Switch to light mode
+
+markdown_extensions:
+    - attr_list
+    - md_in_html
+    - pymdownx.blocks.caption
+    - admonition
+    - pymdownx.details
+    - pymdownx.superfences
+    - pymdownx.tilde
