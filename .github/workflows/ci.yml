@@ -7,6 +7,7 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'CNAME'
 
 permissions:
   contents: write
@@ -33,3 +34,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - run: mkdocs gh-deploy --force
+
+      - name: Copy CNAME to gh-pages branch
+        run: |
+          git checkout gh-pages
+          git checkout master -- CNAME
+          git add CNAME
+
+          if git diff --staged --quiet; then
+            echo "No changes to CNAME, skipping commit and push."
+          else
+            git commit -m "chore: Copy CNAME from master branch"
+            git push origin gh-pages
+          fi
