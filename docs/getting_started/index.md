@@ -1,8 +1,8 @@
 ---
-title: Getting Started
+title: Getting started
 ---
 
-If you haven't, make sure to download APKognito. If you don't know how to, check out [Installing APKognito](./installing.md).
+If you haven't, make sure to download APKognito. You can find a quick guide in [Installing APKognito](./installing.md).
 
 When you first open APKognito, Windows will likely give you a warning that looks a lot like this:
 
@@ -16,7 +16,7 @@ If you clicked the underlined text that says `More info` close to the top, then 
 
 Then MUAH HA HA HA, I HAVE HACKEKD YOUR PC 👻!!
 
-I'm kidding (sorry). You should see APKognito launch and be presented with a window that looks like this (I'm running a Debug build since, ya know, I'm developing it, but you will still be presented with
+I'm kidding (sorry). APKognito will launch and you should be presented with a window that looks like this (I'm running a Debug build since, ya know, I'm developing it, but you will still be presented with
 something similar).
 ![APKognito Main Page Example](../images/index/apkognito-main-page-example.png)
 
@@ -50,5 +50,5 @@ Clicking `View Output` will open File Explorer to the output directory.
 
 ## Conclusion
 
-That concludes the basic tutorial for using APKognito.
-If check out some other articles to understand other tools APKognito has to offer. Or, if you're up to the challenge, check out the Advanced topics.
+That concludes the basic tutorial for using APKognito. Use the navigator to the left to look at more articles to understand other tools APKognito has to offer.
+Or, if you're up to the challenge, check out the Advanced topics.

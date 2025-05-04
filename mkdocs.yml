@@ -1,4 +1,4 @@
-site_url: https://sombody101.github.io/APKognito/
+site_url: https://apkognito.win/
 site_name: APKognito Docs
 repo_url: https://github.com/Sombody101/APKognito/
 repo_name: Sombody101/APKognito
@@ -12,32 +12,51 @@ theme:
         - navigation.instant.progress
         - navigation.expand
         - navigation.indexes
+        - toc.integrate
+        - content.tooltips
 
     logo: images/apkognito.png
     favicon: images/apkognito.ico
+    icon:
+        logo: logo
 
     palette:
         - media: "(prefers-color-scheme: light)"
           scheme: default
-          accent: indigo
           primary: deep purple
+          accent: purple
           toggle:
-              icon: material/brightness-7
+              icon: material/weather-sunny
               name: Switch to dark mode
 
         - media: "(prefers-color-scheme: dark)"
           scheme: slate
-          accent: indigo
-          primary: deep purple
+          primary: indigo
+          accent: light blue
           toggle:
-              icon: material/brightness-4
+              icon: material/weather-night
               name: Switch to light mode
+
+extra_css:
+    - stylesheets/badges.css
 
 markdown_extensions:
     - attr_list
     - md_in_html
-    - pymdownx.blocks.caption
     - admonition
     - pymdownx.details
     - pymdownx.superfences
     - pymdownx.tilde
+    - pymdownx.emoji:
+          emoji_index: !!python/name:material.extensions.emoji.twemoji
+          emoji_generator: !!python/name:material.extensions.emoji.to_svg
+    - pymdownx.blocks.caption
+
+plugins:
+    - search:
+          separator: '[\s\u200b\-_,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+    # This is going to throw a schema error, but it is valid (so long as mkdocs-awesome-nav was installed)
+    - awesome-nav
+
+hooks:
+    - docs/overrides/hooks/shortcodes.py

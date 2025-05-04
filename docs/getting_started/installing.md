@@ -7,6 +7,8 @@ Simply download the fist .ZIP file named `APKognito-{version}.zip`, where `{vers
 
 ![APKognito Example Release](../images/apkognito-example-release.png)
 
+Extract APKognito from the ZIP archive, then you can run it! Follow the [Getting started](index.md) guide to learn how to use APKognito.
+
 !!! warning "Understanding Version Prefixes"
 
     APKognito versions are set up in a specific way, and you'll be able to tell what kind of
@@ -16,9 +18,9 @@ Simply download the fist .ZIP file named `APKognito-{version}.zip`, where `{vers
     * `pd`: Stands for **Public Debug**. These builds are halfway to being full Debug builds. They contain some tools or utilities that can help with diagnosing user issues, or even patches that will eventually reach Public Release builds, and are only ever given to address specific issues. This helps to prevent pushing out many updates so close to each other.
     * `d`: Indicates a **Debug** build of APKognito. The only way to obtain this is to build APKognito manually. This will also assign the constant version `d1.0.0` (or, `1.0.0.0` when viewing via the file properties dialog from File Explorer).
 
-    ### ***Why is this important?***
+    ### ***Why are version types important?***
     
     APKognito will only update (automatically or manually, via the Settings menu) to builds of the *same type*. So, if you're using a **Public Debug**, then APKognito
-    will never update to a **Public Release**. If you're using a **Debug** build, then APKognito will never update (because Debug builds are never published).
+    will never update to a **Public Release** and vise versa. If you're using a **Debug** build, then APKognito will never update (because Debug builds are never published).
 
-    The version file can be found in [AssemblyInfo.Version.cs](https://github.com/Sombody101/APKognito/blob/master/APKognito/AssemblyInfo.Version.cs).
+    The version file can be found in [AssemblyInfo.Version.cs](https://github.com/Sombody101/APKognito/blob/master/APKognito/AssemblyInfo.Version.cs). This is regenerated for every publish.
