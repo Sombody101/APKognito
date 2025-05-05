@@ -57,6 +57,14 @@ plugins:
           separator: '[\s\u200b\-_,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
     # This is going to throw a schema error, but it is valid (so long as mkdocs-awesome-nav was installed)
     - awesome-nav
+    - minify:
+          minify_html: true
+          minify_css: true
+          htmlmin_opts:
+              remove_comments: true
+          cache_safe: true
+          css_files:
+              - stylesheets/badges.css
 
 hooks:
     - docs/overrides/hooks/shortcodes.py

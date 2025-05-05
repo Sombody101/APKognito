@@ -3,7 +3,8 @@
 }
 
 .mdx-badge {
-    font-size: .85em
+    font-size: .85em;
+    margin-right: .3rem;
 }
 
 .md-typeset .mdx-badge--right {
@@ -62,6 +63,13 @@
     --md-accent-fg-color: #ffec42;
     --md-accent-fg-color--transparent: #d5e9201a;
     color: #e9d51e
+}
+
+.md-typeset .mdx-badge--danger {
+    --md-typeset-a-color: #e92020;
+    --md-accent-fg-color: #ff4242;
+    --md-accent-fg-color--transparent: #ff17441a;
+    color: var(--md-typeset-color);
 }
 
 .metadata {

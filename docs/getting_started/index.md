@@ -50,5 +50,5 @@ Clicking `View Output` will open File Explorer to the output directory.
 
 ## Conclusion
 
-That concludes the basic tutorial for using APKognito. Use the navigator to the left to look at more articles to understand other tools APKognito has to offer.
-Or, if you're up to the challenge, check out the Advanced topics.
+That concludes the basic tutorial for using APKognito. Use the navigator on the left to view more articles and see other tools APKognito has to offer.
+Or, if you're up to the challenge, check out the advanced topics such as [advanced configuration](../advanced/advanced_package_configurations.md).

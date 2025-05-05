@@ -50,6 +50,9 @@ def on_page_markdown(markdown: str, *, page: Page, config: MkDocsConfig, files: 
             case "meta":
                 return _metadata(args)
 
+            case "api":
+                return _api_flag(args)
+
         # Otherwise, raise an error
         raise RuntimeError(f"Unknown shortcode: {type}")
 
@@ -185,10 +188,37 @@ def _resolve_control_type(arg: str) -> tuple[str, str, str]:
             return ("Toggle", "material-toggle-switch-outline")
 
         case "page":
-            return ("Page", "material-directions", "A redirection to a new page.") 
+            return ("Page", "material-directions", "A redirection to a new page.")
 
         case _:
 
             if not arg.startswith("::"):
                 raise RuntimeError(f"Unknown metadata control type '{arg}'")
-            
+
+
+def _api_flag(args: str):
+    output = []
+
+    flags = args.split()
+
+    for flag in flags:
+        match (flag):
+            case "write":
+                output.append(
+                    _badgeify(
+                        icon=f':fontawesome-solid-pen:{{ title="This command can create or overwrite data." }}',
+                        type="danger",
+                    )
+                )
+
+            case "read":
+                output.append(
+                    _badgeify(
+                        icon=f':fontawesome-brands-readme:{{ title="This command reads data." }}',
+                    )
+                )
+
+            case _:
+                raise RuntimeError(f"Unknown API flag '{flag}'")
+
+    return "".join(output)
