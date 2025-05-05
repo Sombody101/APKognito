@@ -46,8 +46,7 @@
 
 # How to use
 
-If you're new to APKognito and don't know what you're doing, then check out the [Wiki Quickstart](https://github.com/Sombody101/APKognito/wiki/Quickstart).
-It will give you general information on renaming your packages.
+If you're new to APKognito and don't know what you're doing, then check out the [APKognito Docs](https://apkognito.win)!
 
 # Requirements
 
