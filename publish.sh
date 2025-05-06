@@ -65,7 +65,7 @@ case "$3" in
     echo "Building pre-release."
     publish_profile="PreReleaseProfile.pubxml"
     readonly release_type="Prerelease"
-    readonly release_tag_prefix="d"
+    readonly release_tag_prefix="pd"
     readonly extra_args="--prerelease"
     ;;
 
@@ -93,9 +93,10 @@ echo "Using build profile: $publish_profile"
 appversion="$($build_path/APKognito.exe --version | tr -d '\000-\037\177')"
 appversion="${appversion%.*}"
 readonly appversion
+readonly release_tag="${release_tag_prefix}${appversion}"
 
 echo
-echo "Build version |$appversion|"
+echo "Build version |$appversion| (${release_tag})"
 
 [[ "$2" != "-" ]] && {
     echo "Uploading to VirusTotal"
@@ -103,7 +104,7 @@ echo "Build version |$appversion|"
     readonly permlink
 }
 
-readonly zip_file="APKognito-$appversion.zip"
+readonly zip_file="APKognito-${release_tag}.zip"
 
 # Zip build files (except for other zip files)
 scd "$build_path"
@@ -130,7 +131,7 @@ for message in "${split[@]}"; do
     commit_messages="${commit_messages} - [${splitMessage[0]}]($git_remote_url/tree/${splitMessage[0]}): ${splitMessage[*]:1}${NL}"
 done
 
-commit_messages="${commit_messages}${NL}[VirusTotal for ${release_tag}${appversion}](${permlink})${NL}${NL}###### This was created by an auto publish script @ $(date -u)"
+commit_messages="${commit_messages}${NL}[VirusTotal for ${release_tag}](${permlink})${NL}${NL}###### This was created by an auto publish script @ $(date -u)"
 
 readonly commit_messages
 
@@ -140,7 +141,6 @@ release_title="Release $appversion"
 }
 
 readonly release_title
-readonly release_tag="${release_tag_prefix}${appversion}"
 
 echo
 echo
