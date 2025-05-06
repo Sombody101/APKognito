@@ -378,10 +378,10 @@
                     <ui:Anchor
                         Margin="0,0,8,8"
                         Appearance="Caution"
-                        Content="APKognito Wiki"
+                        Content="APKognito Docs"
                         Foreground="white"
                         Icon="{ui:SymbolIcon Symbol=BookQuestionMark24}"
-                        NavigateUri="https://github.com/Sombody101/APKognito/wiki" />
+                        NavigateUri="https://apkognito.win" />
                     <ui:Anchor
                         Margin="0,0,8,8"
                         Appearance="Danger"
