@@ -15,7 +15,7 @@ theme:
         - toc.integrate
         - content.tooltips
 
-    logo: images/apkognito.png
+    logo: images/apkognito.webp
     favicon: images/apkognito.ico
     icon:
         logo: logo

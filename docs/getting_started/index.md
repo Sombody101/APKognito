@@ -6,7 +6,7 @@ If you haven't, make sure to download APKognito. You can find a quick guide in [
 
 When you first open APKognito, Windows will likely give you a warning that looks a lot like this:
 
-![Windows security example](../images/index/windows-security-warning.png)
+![Windows security example](../images/index/windows-security-warning.webp)
 
 This is called [Windows SmartScreen](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) and can be daunting
 if you're new to Free and Open-Source Software (FOSS). So, if you don't trust APKognito, _then do not run it_.
@@ -18,14 +18,14 @@ Then MUAH HA HA HA, I HAVE HACKEKD YOUR PC 👻!!
 
 I'm kidding (sorry). APKognito will launch and you should be presented with a window that looks like this (I'm running a Debug build since, ya know, I'm developing it, but you will still be presented with
 something similar).
-![APKognito Main Page Example](../images/index/apkognito-main-page-example.png)
+![APKognito Main Page Example](../images/index/apkognito-main-page-example.webp)
 
 ## Renaming your first package
 
 To rename a package, you need to load some into APKognito. To do that, click `Select APKs`. This will open a File Explorer window.
 Once open, navigate to your package.
 
-![Totally Real Example](../images/index/real-example.png)
+![Totally Real Example](../images/index/real-example.webp)
 
 !!! tip
 
@@ -37,7 +37,7 @@ Your output package name will be `{prefix}.apkognito.{app name}` if you don't ch
 
 Now, you're ready to start the renaming process.
 
-![Start Example](../images/index/start-example.png)
+![Start Example](../images/index/start-example.webp)
 
 !!! tip
 

@@ -6,7 +6,7 @@ title: Configurations
 
 APKognito offers both basic and advanced configurations. All basic configurations can be found under the card expander on the main package renaming page.
 
-![basic configurations location](images/configurations/basic-configurations-location.png)
+![basic configurations location](images/configurations/basic-configurations-location.webp)
 
 There a several basic options that come build into a dropdown card menu on the main package renamer page.
 

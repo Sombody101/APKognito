@@ -2,8 +2,8 @@
 title: " "
 ---
 
-![APKognito Logo](images/dark-wide.png#only-dark){ width="500" }
-![APKognito Logo](images/light-wide.png#only-light){ width="500" }
+![APKognito Logo](images/dark-wide.webp#only-dark){ width="500" }
+![APKognito Logo](images/light-wide.webp#only-light){ width="500" }
 /// caption
 ///
 

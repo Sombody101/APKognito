@@ -5,7 +5,7 @@ title: Installing APKognito
 The most recent version of APKognito can be found [here](https://github.com/Sombody101/APKognito/releases/latest).
 Simply download the fist .ZIP file named `APKognito-{version}.zip`, where `{version}` is the respective publish version.
 
-![APKognito Example Release](../images/apkognito-example-release.png)
+![APKognito Example Release](../images/apkognito-example-release.webp)
 
 Extract APKognito from the ZIP archive, then you can run it! Follow the [Getting started](index.md) guide to learn how to use APKognito.
 
