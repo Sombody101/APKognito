@@ -177,7 +177,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             batteryPercentage = -1;
         }
 
-        string output = (await AdbManager.QuickDeviceCommandAsync("shell df | grep -E '^(/dev/block|rootfs|tmp)'")).StdOut;
+        string output = (await AdbManager.QuickDeviceCommandAsync("shell df | grep -E '^(/dev/block|rootfs|tmp)'", token: token)).StdOut;
         (float total, float used, float free) = ParseDeviceStorage(output);
 
         return new()

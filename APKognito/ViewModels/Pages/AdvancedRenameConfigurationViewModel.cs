@@ -1,5 +1,5 @@
-﻿using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
+﻿using APKognito.ApkMod;
+using APKognito.Configurations;
 using APKognito.Models;
 using APKognito.Utilities.MVVM;
 using System.Collections.ObjectModel;
@@ -20,6 +20,16 @@ public partial class AdvancedRenameConfigurationViewModel : ViewModel, IViewable
         {
             advancedSettings.PackageReplaceRegexString = value;
             OnPropertyChanged(nameof(PackageReplaceRegexString));
+        }
+    }
+
+    public int ThreadCount
+    {
+        get => advancedSettings.ThreadCount;
+        set
+        {
+            advancedSettings.ThreadCount = value;
+            OnPropertyChanged(nameof(ThreadCount));
         }
     }
 
@@ -169,5 +179,12 @@ public partial class AdvancedRenameConfigurationViewModel : ViewModel, IViewable
                 FileType = model.FileType
             };
         }
+    }
+
+    public override async Task OnNavigatedToAsync()
+    {
+
+
+        await base.OnNavigatedToAsync();
     }
 }

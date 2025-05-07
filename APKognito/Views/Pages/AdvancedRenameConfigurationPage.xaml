@@ -7,11 +7,12 @@
     xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:APKognito.Models"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="AdvancedRenameConfigurationPage"
     d:DataContext="{d:DesignInstance local:AdvancedRenameConfigurationPage,
                                      IsDesignTimeCreatable=True}"
-    d:DesignHeight="1000"
+    d:DesignHeight="2000"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -59,52 +60,82 @@
 
         <StackPanel Margin="0,16,0,0">
 
-            <ui:Card>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="2*" />
-                        <ColumnDefinition />
-                        <ColumnDefinition Width="auto" />
-                    </Grid.ColumnDefinitions>
+            <ui:CardControl Icon="{ui:SymbolIcon Symbol=TextWholeWord20}">
+                <ui:CardControl.Header>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
 
-                    <StackPanel>
-                        <ui:TextBlock Text="File replace pattern" />
-                        <StackPanel Orientation="Horizontal">
+                        <ui:TextBlock Foreground="{DynamicResource TextFillColorPrimaryBrush}" Text="File regex pattern" />
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto" />
+                                <ColumnDefinition Width="auto" />
+                                <ColumnDefinition Width="auto" />
+                            </Grid.ColumnDefinitions>
+
                             <ui:TextBlock
+                                Grid.Column="0"
                                 Margin="0,0,2,0"
                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                 Text="Use"
                                 TextWrapping="WrapWithOverflow" />
-                            <ui:Card Padding="3,0">
+                            <ui:Card Grid.Column="1" Padding="3,0">
                                 <ui:TextBlock
                                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                     Text="{}{value}"
                                     TextWrapping="WrapWithOverflow" />
                             </ui:Card>
                             <ui:TextBlock
+                                Grid.Column="2"
                                 Margin="2,0,0,0"
                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                 Text="for the company name replacement."
                                 TextWrapping="WrapWithOverflow" />
-                        </StackPanel>
-                    </StackPanel>
+                        </Grid>
+                    </Grid>
+                </ui:CardControl.Header>
 
-                    <!--  Monospaced font for better readability, and fira code cause it's already here and fun  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="auto" />
+                    </Grid.ColumnDefinitions>
+
                     <ui:TextBox
-                        Grid.Column="1"
+                        Grid.Column="0"
+                        MinWidth="300"
+                        HorizontalAlignment="Stretch"
                         VerticalAlignment="Center"
                         FontFamily="{StaticResource FiraRegular}"
                         FontSize="12"
                         Text="{Binding ViewModel.PackageReplaceRegexString}" />
 
                     <ui:Button
-                        Grid.Column="2"
+                        Grid.Column="1"
                         Margin="5,5,0,5"
                         VerticalAlignment="Stretch"
                         Command="{Binding ViewModel.ResetRegexCommand}"
                         Icon="{ui:SymbolIcon Symbol=ArrowCounterclockwise48}" />
                 </Grid>
-            </ui:Card>
+            </ui:CardControl>
+
+            <ui:CardControl Header="Thread Count" Icon="{ui:SymbolIcon Symbol=Memory16}">
+                <ui:CardControl.Resources>
+                    <ObjectDataProvider
+                        x:Key="ProcessorCountProvider"
+                        MethodName="get_ProcessorCount"
+                        ObjectType="{x:Type sys:Environment}" />
+                </ui:CardControl.Resources>
+
+                <ui:NumberBox
+                    Maximum="{Binding Source={StaticResource ProcessorCountProvider}}"
+                    Minimum="1"
+                    Value="{Binding ViewModel.ThreadCount}" />
+            </ui:CardControl>
         </StackPanel>
 
         <ui:TextBlock
@@ -285,5 +316,40 @@
                 </Grid>
             </ui:Card>
         </StackPanel>
+
+        <ui:TextBlock
+            Margin="0,20,0,0"
+            FontSize="20"
+            FontWeight="Medium"
+            Text="Auto Rename Config" />
+
+        <ui:Card Margin="0,16,0,0">
+            <Grid>
+                <ui:ToggleSwitch
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Panel.ZIndex="5"
+                    IsChecked="{Binding ViewModel.AutoPackageEnabled}"
+                    OffContent="Disabled"
+                    OnContent="Enabled" />
+
+                <StackPanel IsEnabled="{Binding ViewModel.AutoPackageEnabled}">
+                    <ui:TextBlock Margin="0,0,0,16" Text="Allows for altering what directories or files are renamed, or where they're placed in the package." />
+                    <ui:TextBlock
+                        Margin="0,0,0,16"
+                        Foreground="Red"
+                        Text="This option can pose certain security risks. Only use this if you know what the script does and who created it!" />
+
+                    <TextBox
+                        MinHeight="150"
+                        MaxHeight="750"
+                        AcceptsReturn="True"
+                        MaxLines="1000"
+                        Text="{Binding ViewModel.AutoPackageConfig, UpdateSourceTrigger=PropertyChanged}"
+                        TextWrapping="NoWrap"
+                        VerticalScrollBarVisibility="Visible" />
+                </StackPanel>
+            </Grid>
+        </ui:Card>
     </StackPanel>
 </Page>

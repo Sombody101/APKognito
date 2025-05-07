@@ -2,7 +2,6 @@
 using APKognito.Models;
 using Newtonsoft.Json;
 using System.IO;
-using System.Management;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -12,8 +11,6 @@ namespace APKognito.ApkMod;
 public class AdvancedApkRenameSettings : IKognitoConfig
 {
     public const string DEFAULT_RENAME_REGEX = "(?<=[./_])({value})(?=[./_])";
-
-    private static readonly int _coreCount = GetCoreCount();
 
     /// <summary>
     /// The regex to be used on a package name to rename it. Use <see cref="BuildRegex(string, int)"/> to get the compiled form.
@@ -30,19 +27,10 @@ public class AdvancedApkRenameSettings : IKognitoConfig
         get;
         set
         {
-            if (0 > value)
-            {
-                field = 1;
-            }
-            else if (value < Environment.ProcessorCount)
-            {
-                field = Environment.ProcessorCount;
-            }
-
             field = value;
             ThreadPool.SetMaxThreads(value, value);
         }
-    } = _coreCount;
+    } = Environment.ProcessorCount;
 
     /// <summary>
     /// Renames the literal library file (e.g., "libappname.so" -> "libapkognito.so")
@@ -151,19 +139,6 @@ public class AdvancedApkRenameSettings : IKognitoConfig
         }
 
         return output.ToString();
-    }
-
-    private static int GetCoreCount()
-    {
-        int coreCount = 0;
-        using ManagementObjectCollection objCollection = new ManagementObjectSearcher("Select * from Win32_Processor").Get();
-
-        foreach (var proc in objCollection)
-        {
-            coreCount += int.Parse(proc["NumberOfCores"].ToString()!);
-        }
-
-        return coreCount;
     }
 
     public class InvalidExtraPathException(string message) : Exception(message)

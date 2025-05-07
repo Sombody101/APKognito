@@ -104,16 +104,6 @@ public partial class HomeViewModel : LoggableObservableObject
         }
     }
 
-    public bool ShowAdvancedSettings
-    {
-        get => kognitoConfig.ShowAdvancedSettings;
-        set
-        {
-            kognitoConfig.ShowAdvancedSettings = value;
-            OnPropertyChanged(nameof(ShowAdvancedSettings));
-        }
-    }
-
     /// <summary>
     /// A string of all APK paths separated by <see cref="PATH_SEPARATOR"/>
     /// </summary>
