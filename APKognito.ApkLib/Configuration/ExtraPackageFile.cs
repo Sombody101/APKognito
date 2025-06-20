@@ -1,13 +1,9 @@
-﻿using Newtonsoft.Json;
-
-namespace APKognito.Models;
+﻿namespace APKognito.ApkLib.Configuration;
 
 public sealed class ExtraPackageFile
 {
-    [JsonProperty("file_path")]
     public string FilePath { get; set; } = string.Empty;
 
-    [JsonProperty("file_type")]
     public FileType FileType { get; set; } = FileType.RegularText;
 }
 

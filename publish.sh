@@ -135,7 +135,7 @@ commit_messages="${commit_messages}${NL}[VirusTotal for ${release_tag}](${permli
 
 readonly commit_messages
 
-release_title="Release $appversion"
+release_title="Release $release_tag"
 [[ "$release_type" != "Release" ]] && {
     release_title="[$release_type] $release_title"
 }

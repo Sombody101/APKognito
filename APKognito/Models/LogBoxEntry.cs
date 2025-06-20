@@ -1,4 +1,5 @@
-﻿using System.Windows.Media;
+﻿using APKognito.Utilities;
+using System.Windows.Media;
 
 namespace APKognito.Models;
 
@@ -18,5 +19,20 @@ public class LogBoxEntry
         Warning,
         Error,
         Debug,
+    }
+
+    public static LogEntryType ConvertLogLevel(LogLevel level)
+    {
+        return level switch
+        {
+            LogLevel.INFO => LogEntryType.Info,
+            LogLevel.ERROR or LogLevel.FATAL => LogEntryType.Error,
+            LogLevel.DEBUG or LogLevel.TRACE => LogEntryType.Debug,
+            LogLevel.WARNING => LogEntryType.Warning,
+            LogLevel.NONE => LogEntryType.None,
+
+            // This might break things... Only time will tell.
+            _ => LogEntryType.Success
+        };
     }
 }

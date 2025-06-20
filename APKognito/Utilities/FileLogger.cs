@@ -28,6 +28,7 @@ public enum LogLevel
     FATAL,
     DEBUG,
     TRACE,
+    NONE,
 }
 
 /// <summary>
@@ -273,6 +274,20 @@ public static class FileLogger
         };
     }
 
+    public static LogLevel MicrosoftLogLevelToLocal(Microsoft.Extensions.Logging.LogLevel level)
+    {
+        return level switch
+        {
+            Microsoft.Extensions.Logging.LogLevel.Trace=>LogLevel.TRACE,
+            Microsoft.Extensions.Logging.LogLevel.Debug => LogLevel.DEBUG,
+            Microsoft.Extensions.Logging.LogLevel.Information => LogLevel.INFO,
+            Microsoft.Extensions.Logging.LogLevel.Warning => LogLevel.WARNING,
+            Microsoft.Extensions.Logging.LogLevel.Error => LogLevel.ERROR,
+            Microsoft.Extensions.Logging.LogLevel.Critical => LogLevel.FATAL,
+            _ => LogLevel.NONE,
+        };
+    }
+
     private static void LogGenericFinal(string entry, Exception? ex = null)
     {
         try
@@ -412,7 +427,7 @@ public static class FileLogger
             Info = ToBrush(0x1cb1f5);
             Warning = ToBrush(0xFF9800);
             Fatal = ToBrush(0xFF5722);
-            Debug = ToBrush(0x009688);
+            Debug = ToBrush(0x00ffff);
             Trace = ToBrush(0x3F51B5);
         }
 
@@ -421,7 +436,7 @@ public static class FileLogger
             Info = ToBrush(0x5BB6FF);
             Warning = ToBrush(0xFF9800);
             Fatal = ToBrush(0xFF7043);
-            Debug = ToBrush(0x009688);
+            Debug = ToBrush(0x00ffff);
             Trace = ToBrush(0x3F51B5);
         }
     }

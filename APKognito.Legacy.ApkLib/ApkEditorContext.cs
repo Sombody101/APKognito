@@ -3,59 +3,47 @@
 //#define SINGLE_THREAD_INSTANCE_REPLACING
 #endif
 
-using APKognito.AdbTools;
-using APKognito.ApkMod.Automation;
-using APKognito.Configurations.ConfigModels;
-using APKognito.Exceptions;
-using APKognito.Models;
-using APKognito.Utilities;
-using APKognito.Utilities.MVVM;
-using APKognito.ViewModels.Pages;
-using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
+using APKognito.ApkLib.Exceptions;
+using APKognito.Legacy.ApkLib.Automation;
+using APKognito.Legacy.ApkLib.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 
-#if CHANGE_BINARY_NAMES
+namespace APKognito.Legacy.ApkLib;
 
-#endif
-
-namespace APKognito.ApkMod;
-
-public class ApkEditorContext : IProgressReporter
+public class ApkEditorContext
 {
     private const int MAX_SMALI_LOAD_SIZE = 1024 * 20; // 20KB
 
     private Regex lineReplaceRegex = null!;
 
-    private readonly IViewLogger logger;
-    private readonly KognitoConfig kognitoConfig;
+    private readonly ILogger logger;
 
     private readonly ApkNameData nameData;
 
     private readonly ApkRenameSettings renameSettings;
-    private readonly AdvancedApkRenameSettings advancedRenameSettings;
 
-    public event EventHandler<ProgressUpdateEventArgs> ProgressChanged = null!;
+    private readonly IProgress<ProgressInfo>? progressReporter;
 
-    public string? AssetPath { get; private set; }
-    public string OutputApkPath { get; private set; } = string.Empty;
+    private string? assetPath;
+    private string outputApkPath = string.Empty;
 
     public ApkEditorContext(
         ApkRenameSettings renameSettings,
-        AdvancedApkRenameSettings advancedRenameSettings,
-        IViewLogger logger,
-        KognitoConfig _kognitoConfig,
-        bool limited = false
+        IProgress<ProgressInfo>? progressReporter,
+        ILogger logger
     )
     {
-        kognitoConfig = _kognitoConfig;
+        ArgumentNullException.ThrowIfNull(renameSettings);
+        ArgumentNullException.ThrowIfNull(logger);
 
         this.renameSettings = renameSettings;
-        this.advancedRenameSettings = advancedRenameSettings;
+        this.progressReporter = progressReporter;
         this.logger = logger;
 
         string sourceApkName = Path.GetFileName(renameSettings.SourceApkPath);
@@ -64,10 +52,30 @@ public class ApkEditorContext : IProgressReporter
             sourceApkName = sourceApkName[..^4];
         }
 
-        if (limited)
+        nameData = new()
         {
-            nameData = new();
-            return;
+            FullSourceApkPath = renameSettings.SourceApkPath,
+            FullSourceApkFileName = sourceApkName,
+            NewCompanyName = renameSettings.ApkReplacementName,
+            ApkSmaliTempDirectory = Path.Combine(renameSettings.TempDirectory, "$smali"),
+            ApkAssemblyDirectory = renameSettings.TempDirectory
+        };
+
+        // Temporary directories
+        _ = Directory.CreateDirectory(nameData.ApkAssemblyDirectory);
+    }
+
+    public ApkEditorContext(ApkRenameSettings? settings, ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+
+        renameSettings = settings;
+        this.logger = logger;
+
+        string sourceApkName = Path.GetFileName(renameSettings.SourceApkPath);
+        if (sourceApkName.EndsWith(".apk"))
+        {
+            sourceApkName = sourceApkName[..^4];
         }
 
         nameData = new()
@@ -76,11 +84,8 @@ public class ApkEditorContext : IProgressReporter
             FullSourceApkFileName = sourceApkName,
             NewCompanyName = renameSettings.ApkReplacementName,
             ApkSmaliTempDirectory = Path.Combine(renameSettings.TempDirectory, "$smali"),
-            ApkAssemblyDirectory = Path.Combine(renameSettings.TempDirectory, GetFormattedTimeDirectory(sourceApkName))
+            ApkAssemblyDirectory = renameSettings.TempDirectory
         };
-
-        // Temporary directories
-        _ = Directory.CreateDirectory(nameData.ApkAssemblyDirectory);
     }
 
     /// <summary>
@@ -89,136 +94,154 @@ public class ApkEditorContext : IProgressReporter
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     /// <exception cref="RenameFailedException"></exception>
-    public async Task<string?> RenameLoadedPackageAsync(CancellationToken cancellationToken)
+    public async Task<PackageRenameResult> RenameLoadedPackageAsync(CancellationToken token = default)
     {
         // This method is a big mess due to the usage of Path.Combine(). I've tried to clean it up as
         // much as I can without defining so many strings.
 
+        ArgumentException.ThrowIfNullOrWhiteSpace(renameSettings.ApksignerJarPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(renameSettings.ApktoolBatPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(renameSettings.ApksignerJarPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(renameSettings.ZipalignPath);
+
         try
         {
-            // Unpack
-            logger.Log($"Unpacking {nameData.FullSourceApkFileName}");
-            await UnpackApkAsync(cancellationToken);
-
-            // Get original package name
-            logger.Log("Getting package name...");
-            nameData.OriginalPackageName = GetPackageName(Path.Combine(nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
-
-            // Format new package name and get original company name
-            (
-                _,
-                nameData.OriginalCompanyName,
-                nameData.NewPackageName
-            ) = SplitPackageName(nameData);
-
-            renameSettings.OnPackageNameFound?.Invoke(nameData.NewPackageName);
-
-            if (advancedRenameSettings.RenameLibsInternal && nameData.OriginalCompanyName.Length != nameData.NewCompanyName.Length)
-            {
-                throw new InvalidReplacementCompanyNameException(nameData.OriginalCompanyName, nameData.NewCompanyName);
-            }
-
-            nameData.RenamedApkOutputDirectory = Path.Combine(renameSettings.OutputDirectory, GetFormattedTimeDirectory(nameData.NewPackageName));
-
-            if (!kognitoConfig.ClearTempFilesOnRename)
-            {
-                Directory.CreateDirectory(nameData.RenamedApkOutputDirectory);
-                DriveUsageViewModel.ClaimDirectory(nameData.RenamedApkOutputDirectory);
-            }
-
-            // 'nameData' should not be modified after this point.
-
-            var automationConfig = await GetParsedAutoConfigAsync();
-
-            // Nothing happens for the unpack stage that should be saved, but we still run the commands
-            _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack);
-
-            // Replace all instances in the APK and any OBBs
-            logger.Log($"Changing '{nameData.OriginalPackageName}'  |>  '{nameData.NewPackageName}'");
-            lineReplaceRegex = advancedRenameSettings.BuildRegex(nameData.OriginalCompanyName);
-
-#if SINGLE_THREAD_INSTANCE_REPLACING
-            ThreadPool.SetMaxThreads(1, 1);
-#endif
-
-            await ReplaceAllNameInstancesAsync(automationConfig, cancellationToken);
-
-            // Visit the pack stage commands as well
-            _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack);
-
-            // Repack
-            logger.Log("Packing APK...");
-            string unsignedApk = await PackApkAsync(cancellationToken);
-
-            // Align
-            logger.Log("Aligning package...");
-            await AlignPackageAsync(unsignedApk);
-
-            // Sign
-            logger.Log("Signing APK...");
-            await SignApkToolAsync(unsignedApk, cancellationToken);
-
-            // Copy to output and cleanup
-            logger.Log($"Finished APK {nameData.NewPackageName}");
-            logger.Log($"Placed into: {nameData.RenamedApkOutputDirectory}");
-            logger.Log("Cleaning up...");
-
-            if (kognitoConfig.ClearTempFilesOnRename)
-            {
-                logger.LogDebug($"Clearing temp directory `{nameData.ApkAssemblyDirectory}`");
-                Directory.Delete(nameData.ApkAssemblyDirectory, true);
-            }
-
-            if (!kognitoConfig.CopyFilesWhenRenaming)
-            {
-                logger.LogDebug($"CopyWhenRenaming enabled, deleting directory `{nameData.FullSourceApkPath}`");
-
-                try
-                {
-                    File.Delete(nameData.FullSourceApkPath);
-
-                    string obbDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath)
-                        ?? throw new RenameFailedException("Failed to clean OBB directory ");
-
-                    Directory.Delete(obbDirectory);
-                }
-                catch (Exception ex)
-                {
-                    FileLogger.LogException(ex);
-                    logger.LogWarning($"Failed to clear source APK (CopyWhenRenaming=Enabled): {ex.Message}");
-                }
-            }
-
-            // Claim the directory as an app so it appears in the drive footprint page
-            DriveUsageViewModel.ClaimDirectory(nameData.RenamedApkOutputDirectory);
+            await RunRenameInternalAsync(token);
         }
         catch (OperationCanceledException)
         {
-            return "Job canceled.";
+            return new()
+            {
+                ResultStatus = "Job canceled.",
+                Successful = false,
+                OutputLocations = new(assetPath, outputApkPath)
+            };
         }
         catch (Exception ex)
         {
-            FileLogger.LogException(ex);
+            ex = ex.InnerException ?? ex;
 
-            // All methods called in this try/catch will not handle their own exceptions.
-            // If they do, it's to reformat the error message and re-throw it to be caught here.
+            logger.LogError("{Message}", ex.Message);
 #if DEBUG
-            // Exceptions are added to the exceptions log file, so there's no reason to add a stack trace here. It could overwhelm or distract the user if
-            // they're not used to that kind of thing. Will that stop people from copying the entire LogBox control and pasting it in
-            // their GitHub issue along with the logpack which already contains that information?
-            // Nope.
-            return $"{(ex.InnerException ?? ex).GetType().Name}: {ex.Message}\n{ex.StackTrace}";
-#else
-            return $"{(ex.InnerException ?? ex).GetType().Name}: {ex.Message}";
+            logger.LogDebug("{StackTrace}", ex.StackTrace);
 #endif
+
+            string result = $"{ex.GetType().Name}: {ex.Message}";
+            return new PackageRenameResult()
+            {
+                ResultStatus = result,
+                Successful = false,
+                OutputLocations = new(assetPath, outputApkPath)
+            };
         }
 
-        return null;
+        return new()
+        {
+            ResultStatus = "Successful",
+            Successful = true,
+            OutputLocations = new(assetPath, outputApkPath)
+        };
+    }
+
+    private async Task RunRenameInternalAsync(CancellationToken token = default)
+    {
+        // Unpack
+        logger.LogInformation("Unpacking {FullSourceApkFileName}", nameData.FullSourceApkFileName);
+        await UnpackApkAsync(token);
+
+        // Get original package name
+        logger.LogInformation("Getting package name...");
+        nameData.OriginalPackageName = GetPackageName(Path.Combine(nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
+
+        // Format new package name and get original company name
+        (
+            _,
+            nameData.OriginalCompanyName,
+            nameData.NewPackageName
+        ) = SplitPackageName(nameData);
+
+        if (renameSettings.OutputDirectory is null)
+        {
+            ArgumentNullException.ThrowIfNull(renameSettings.OutputBaseDirectory);
+            nameData.RenamedApkOutputDirectory = Path.Combine(renameSettings.OutputBaseDirectory, GetFormattedTimeDirectory(nameData.NewPackageName));
+        }
+        else
+        {
+            nameData.RenamedApkOutputDirectory = renameSettings.OutputDirectory;
+        }
+
+        // 'nameData' should not be modified after this point.
+
+        if (renameSettings.RenameLibsInternal && nameData.OriginalCompanyName.Length != nameData.NewCompanyName.Length)
+        {
+            throw new InvalidReplacementCompanyNameException(nameData.OriginalCompanyName, nameData.NewCompanyName);
+        }
+
+        if (!renameSettings.ClearTempFilesOnRename)
+        {
+            _ = Directory.CreateDirectory(nameData.RenamedApkOutputDirectory);
+        }
+
+        AutoConfigModel? automationConfig = await GetParsedAutoConfigAsync();
+
+        // Nothing happens for the unpack stage that should be saved, but we still run the commands
+        _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack);
+
+        // Replace all instances in the APK and any OBBs
+        logger.LogInformation("Changing '{OriginalPackageName}'  |>  '{NewPackageName}'", nameData.OriginalPackageName, nameData.NewPackageName);
+        lineReplaceRegex = renameSettings.BuildRegex(nameData.OriginalCompanyName);
+
+        await ReplaceAllNameInstancesAsync(automationConfig, token);
+
+        // Visit the pack stage commands as well
+        _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack);
+
+        // Repack
+        logger.LogInformation("Packing APK...");
+        string unsignedApk = await PackApkAsync(token);
+
+        // Align
+        logger.LogInformation("Aligning package...");
+        await AlignPackageAsync(unsignedApk);
+
+        // Sign
+        logger.LogInformation("Signing APK...");
+        await SignApkToolAsync(unsignedApk, token);
+
+        // Copy to output and cleanup
+        logger.LogInformation("Finished APK {NewPackageName}", nameData.NewPackageName);
+        logger.LogInformation("Placed into: {RenamedApkOutputDirectory}", nameData.RenamedApkOutputDirectory);
+        logger.LogInformation("Cleaning up...");
+
+        if (renameSettings.ClearTempFilesOnRename)
+        {
+            logger.LogDebug("Clearing temp directory `{ApkAssemblyDirectory}`", nameData.ApkAssemblyDirectory);
+            Directory.Delete(nameData.ApkAssemblyDirectory, true);
+        }
+
+        if (!renameSettings.CopyFilesWhenRenaming)
+        {
+            logger.LogDebug("CopyWhenRenaming disabled, deleting directory `{FullSourceApkPath}`", nameData.FullSourceApkPath);
+
+            try
+            {
+                File.Delete(nameData.FullSourceApkPath);
+
+                string obbDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath)
+                    ?? throw new RenameFailedException("Failed to clean OBB directory ");
+
+                Directory.Delete(obbDirectory);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to clear source APK.");
+            }
+        }
     }
 
     public async Task UnpackApkAsync(string apkPath, string outputDirectory, CancellationToken cToken = default)
     {
-        string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f d \"{apkPath}\" -o \"{outputDirectory}\"";
+        string args = $"-jar \"{renameSettings.ApktoolJarPath}\" -f d \"{apkPath}\" -o \"{outputDirectory}\"";
         using Process process = CreateJavaProcess(args);
 
         _ = process.Start();
@@ -230,7 +253,7 @@ public class ApkEditorContext : IProgressReporter
         }
 
         string error = await process.StandardError.ReadToEndAsync(cToken);
-        logger.LogError($"Failed to unpack {apkPath}. Error: {error}");
+        logger.LogError("Failed to unpack {ApkPath}. Error: {Error}", apkPath, error);
         throw new RenameFailedException(error);
     }
 
@@ -240,7 +263,7 @@ public class ApkEditorContext : IProgressReporter
         ReportUpdate("Starting apktools...");
 
         // Output the unpacked APK in the temp folder
-        string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f d \"{nameData.FullSourceApkPath}\" -o \"{nameData.ApkAssemblyDirectory}\"";
+        string args = $"-jar \"{renameSettings.ApktoolJarPath}\" -f d \"{nameData.FullSourceApkPath}\" -o \"{nameData.ApkAssemblyDirectory}\"";
         using Process process = CreateJavaProcess(args);
 
         ReportUpdate($"Unpacking {nameData.FullSourceApkFileName}");
@@ -249,7 +272,7 @@ public class ApkEditorContext : IProgressReporter
 
         if (process.ExitCode is 0)
         {
-            if (!kognitoConfig.CopyFilesWhenRenaming)
+            if (!renameSettings.CopyFilesWhenRenaming)
             {
                 File.Delete(nameData.FullSourceApkPath);
             }
@@ -258,13 +281,13 @@ public class ApkEditorContext : IProgressReporter
         }
 
         string error = await process.StandardError.ReadToEndAsync(cToken);
-        logger.LogError($"Failed to unpack {nameData.FullSourceApkFileName}. Error: {error}");
+        logger.LogError("Failed to unpack {FullSourceApkFileName}. Error: {Error}", nameData.FullSourceApkFileName, error);
         throw new RenameFailedException(error);
     }
 
     public async Task PackApkAsync(string apkDirectory, string outputFile, CancellationToken token = default)
     {
-        string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f b \"{apkDirectory}\" -o \"{outputFile}\"";
+        string args = $"-jar \"{renameSettings.ApktoolJarPath}\" -f b \"{apkDirectory}\" -o \"{outputFile}\"";
         using Process process = CreateJavaProcess(args);
 
         _ = process.Start();
@@ -276,7 +299,7 @@ public class ApkEditorContext : IProgressReporter
         }
 
         string error = await process.StandardError.ReadToEndAsync(token);
-        logger.LogError($"Failed to pack {apkDirectory}. Error: {error}");
+        logger.LogError("Failed to pack {ApkDirectory}. Error: {Error}", apkDirectory, error);
         throw new RenameFailedException(error);
     }
 
@@ -290,7 +313,7 @@ public class ApkEditorContext : IProgressReporter
             $"{nameData.NewPackageName}.unsigned.apk"
         );
 
-        string args = $"-jar \"{ApkEditorToolPaths.ApktoolJarPath}\" -f b \"{nameData.ApkAssemblyDirectory}\" -o \"{outputApkPath}\"";
+        string args = $"-jar \"{renameSettings.ApktoolJarPath}\" -f b \"{nameData.ApkAssemblyDirectory}\" -o \"{outputApkPath}\"";
         using Process process = CreateJavaProcess(args);
 
         _ = process.Start();
@@ -309,7 +332,11 @@ public class ApkEditorContext : IProgressReporter
         ReportUpdate(Path.GetFileName(alignedPackagePath));
 
         string args = $"-f -p 4 \"{apkPath}\" \"{alignedPackagePath}\"";
-        _ = await AdbManager.QuickGenericCommandAsync(ApkEditorToolPaths.ZipalignPath, args);
+
+        Process alignProcess = CreateJavaProcess(args, renameSettings.ZipalignPath);
+
+        _ = alignProcess.Start();
+        await alignProcess.WaitForExitAsync();
 
         // c.z.a.apk.aligned -> c.z.a.apk
         File.Delete(apkPath);
@@ -321,7 +348,7 @@ public class ApkEditorContext : IProgressReporter
         ReportUpdate("Signing", ProgressUpdateType.Title);
         ReportUpdate(Path.GetFileName(apkPath));
 
-        string args = $"-jar \"{ApkEditorToolPaths.ApksignerJarPath}\" -a \"{apkPath}\" -o \"{nameData.RenamedApkOutputDirectory}\" --allowResign";
+        string args = $"-jar \"{renameSettings.ApksignerJarPath}\" -a \"{apkPath}\" -o \"{nameData.RenamedApkOutputDirectory}\" --allowResign";
         using Process process = CreateJavaProcess(args);
 
         _ = process.Start();
@@ -340,26 +367,15 @@ public class ApkEditorContext : IProgressReporter
         string newSignedName = $"{fullTrueName}.unsigned-aligned-debugSigned";
 
         // Paths for pushing to a device
-        AssetPath = fullTrueName;
-        OutputApkPath = $"{fullTrueName}.apk";
+        assetPath = fullTrueName;
+        outputApkPath = $"{fullTrueName}.apk";
 
-        File.Move($"{newSignedName}.apk", OutputApkPath, true);
+        File.Move($"{newSignedName}.apk", outputApkPath, true);
         File.Move($"{newSignedName}.apk.idsig", $"{fullTrueName}.apk.idsig", true);
     }
 
     private async Task ReplaceAllNameInstancesAsync(AutoConfigModel? config, CancellationToken cToken)
     {
-        ThreadPool.GetMaxThreads(out int maxTaskThreads, out int maxIoThreads);
-
-        if (maxTaskThreads == 1 && maxIoThreads == 1)
-        {
-            logger.Log("Multi threading disabled.");
-        }
-        else
-        {
-            logger.Log($"Using {maxTaskThreads} max task threads, {maxIoThreads} max I/O threads.");
-        }
-
         ReplaceAllDirectoryNames(
             await GetCommandResultAsync(config, CommandStage.Directory),
             nameData.ApkAssemblyDirectory
@@ -376,6 +392,7 @@ public class ApkEditorContext : IProgressReporter
         );
 
         // This will take the most disk space, so do it only if the smali renaming was successful
+        // There should definitely be an option in the future to just push these files to a headset under a new name (as long as the assets don't need to be edited)
         await RenameObbFilesAsync(
             await GetCommandResultAsync(config, CommandStage.Assets),
             cToken
@@ -405,7 +422,7 @@ public class ApkEditorContext : IProgressReporter
                 .Concat(renameFiles);
         }
 
-        renameFiles = renameFiles.Concat(advancedRenameSettings.ExtraInternalPackagePaths
+        renameFiles = renameFiles.Concat(renameSettings.ExtraInternalPackagePaths
             .Where(p => p.FileType is FileType.RegularText)
             .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)));
 
@@ -415,7 +432,7 @@ public class ApkEditorContext : IProgressReporter
 
 #if SINGLE_THREAD_INSTANCE_REPLACING
         string[] filesArr = [.. renameFiles];
-        logger.LogDebug($"Beginning sequential rename on {filesArr.Length:n0} smali files.");
+        logger.LogInformationDebug($"Beginning sequential rename on {filesArr.Length:n0} smali files.");
 
         foreach (string filePath in filesArr)
         {
@@ -427,7 +444,7 @@ public class ApkEditorContext : IProgressReporter
 #else
         object updateLock = new();
 
-        logger.LogDebug($"Beginning threaded rename on {renameFiles.Count():n0} smali files.");
+        logger.LogDebug("Beginning threaded rename on {Count:n0} smali files.", renameFiles.Count());
         ReportUpdate("Renaming file", ProgressUpdateType.Title);
 
         await Parallel.ForEachAsync(renameFiles, cToken,
@@ -467,7 +484,7 @@ public class ApkEditorContext : IProgressReporter
         ReportUpdate(sourceDirectory);
 
         string newObbDirectory = Path.Combine(nameData.RenamedApkOutputDirectory, Path.GetFileName(sourceObbDirectory));
-        if (kognitoConfig.CopyFilesWhenRenaming)
+        if (renameSettings.CopyFilesWhenRenaming)
         {
             ReportUpdate("Copying OBBs", ProgressUpdateType.Title);
 
@@ -482,8 +499,8 @@ public class ApkEditorContext : IProgressReporter
         }
 
         // Rename the files
-        var obbArchives = Directory.EnumerateFiles(newObbDirectory, $"*{nameData.FullSourceApkFileName}.obb")
-            .Concat(advancedRenameSettings.ExtraInternalPackagePaths
+        IEnumerable<string> obbArchives = Directory.EnumerateFiles(newObbDirectory, $"*{nameData.FullSourceApkFileName}.obb")
+            .Concat(renameSettings.ExtraInternalPackagePaths
                 .Where(p => p.FileType == FileType.Archive)
                 .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)))
             .FilterByCommandResult(additionals);
@@ -493,15 +510,13 @@ public class ApkEditorContext : IProgressReporter
             ReportUpdate(Path.GetFileName(filePath));
             string newAssetName = $"{Path.GetFileNameWithoutExtension(filePath).Replace(originalCompanyName, nameData.NewCompanyName)}.obb";
 
-            logger.Log($"Renaming asset file: {Path.GetFileName(filePath)}  |>  {newAssetName}");
+            logger.LogInformation("Renaming asset file: {GetFileName}  |>  {NewAssetName}", Path.GetFileName(filePath), newAssetName);
 
-            if (advancedRenameSettings.RenameObbsInternal)
+            if (renameSettings.RenameObbsInternal)
             {
-                var binaryReplace = new BinaryReplace(filePath, logger);
+                var binaryReplace = new BinaryReplace(filePath, progressReporter, logger);
 
-                binaryReplace.ProgressChanged += (object? sender, ProgressUpdateEventArgs args) => ForwardUpdate(args);
-
-                await binaryReplace.ModifyArchiveStringsAsync(lineReplaceRegex, nameData.NewCompanyName, [.. advancedRenameSettings.RenameObbsInternalExtras], token);
+                await binaryReplace.ModifyArchiveStringsAsync(lineReplaceRegex, nameData.NewCompanyName, [.. renameSettings.RenameObbsInternalExtras], token);
             }
 
             File.Move(filePath, Path.Combine(newObbDirectory, newAssetName));
@@ -509,14 +524,14 @@ public class ApkEditorContext : IProgressReporter
 
         string newApkName = nameData.OriginalPackageName.Replace(originalCompanyName, nameData.NewCompanyName);
         RenameDirectory(newObbDirectory, newApkName, nameData);
-        AssetPath = Path.Combine(newObbDirectory, newApkName);
+        assetPath = Path.Combine(newObbDirectory, newApkName);
     }
 
     private async Task ReplaceTextInFileAsync(string filePath, CancellationToken cToken)
     {
         if (!File.Exists(filePath))
         {
-            logger.LogWarning($"Failed to find file {ApkNameData.SubtractPathFrom(nameData.ApkAssemblyDirectory, filePath)}");
+            logger.LogWarning("Failed to find file {SubtractPathFrom}", ApkNameData.SubtractPathFrom(nameData.ApkAssemblyDirectory, filePath));
             return;
         }
 
@@ -553,10 +568,7 @@ public class ApkEditorContext : IProgressReporter
         File.Delete(fileInfo.FullName);
         File.Move(tempSmaliFile, fileInfo.FullName);
 
-        string Replace(string original)
-        {
-            return lineReplaceRegex.Replace(original, nameData.NewCompanyName);
-        }
+        string Replace(string original) => lineReplaceRegex.Replace(original, nameData.NewCompanyName);
     }
 
     private async Task ReplaceLibInstancesAsync(CommandStageResult? additionals, CancellationToken token)
@@ -564,19 +576,19 @@ public class ApkEditorContext : IProgressReporter
         string libs = Path.Combine(nameData.ApkAssemblyDirectory, "lib");
         if (!Directory.Exists(libs))
         {
-            logger.Log("No libs found. Not renaming binaries.");
+            logger.LogInformation("No libs found. Not renaming binaries.");
             return;
         }
 
-        if (!advancedRenameSettings.RenameLibs)
+        if (!renameSettings.RenameLibs)
         {
             return;
         }
 
         ReportUpdate("Renaming libraries", ProgressUpdateType.Title);
 
-        var elfBinaries = Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories)
-            .Concat(advancedRenameSettings.ExtraInternalPackagePaths
+        IEnumerable<string> elfBinaries = Directory.EnumerateFiles(libs, "*.so", SearchOption.AllDirectories)
+            .Concat(renameSettings.ExtraInternalPackagePaths
                 .Where(p => p.FileType is FileType.Elf)
                 .Select(p => Path.Combine(nameData.ApkAssemblyDirectory, p.FilePath)))
             .FilterByCommandResult(additionals);
@@ -589,26 +601,26 @@ public class ApkEditorContext : IProgressReporter
             }
 
             string originalName = Path.GetFileName(originalFilePath);
-            string newFileName = advancedRenameSettings.RenameLibs
+            string newFileName = renameSettings.RenameLibs
                 ? lineReplaceRegex.Replace(originalName, nameData.NewCompanyName)
                 : originalName;
 
             string newFilePath = Path.Combine(Path.GetDirectoryName(originalFilePath)!, newFileName);
 
+            string formattedOptionalReplacement = originalName != newFileName
+                ? $" |> {newFileName}"
+                : string.Empty;
+
             // The actual rename action has to be deferred to prevent access exceptions :p
-            logger.Log($"Renaming lib file: {originalName}{(originalName != newFileName ? $" |> {newFileName}" : string.Empty)}");
+            logger.LogInformation("Renaming lib file: {OriginalName}{FormattedOptionalReplacement}", originalName, formattedOptionalReplacement);
 
-            if (advancedRenameSettings.RenameLibsInternal)
+            if (renameSettings.RenameLibsInternal)
             {
-                logger.AddIndent();
+                using IDisposable? scope = logger.BeginScope('\t');
 
-                var binaryReplace = new BinaryReplace(originalFilePath, logger);
-
-                binaryReplace.ProgressChanged += (object? sender, ProgressUpdateEventArgs args) => ForwardUpdate(args);
+                var binaryReplace = new BinaryReplace(originalFilePath, progressReporter, logger);
 
                 await binaryReplace.ModifyElfStringsAsync(lineReplaceRegex, nameData.NewCompanyName, token);
-
-                logger.ResetIndent();
             }
 
             ReportUpdate(newFilePath);
@@ -616,13 +628,13 @@ public class ApkEditorContext : IProgressReporter
         }
     }
 
-    private Process CreateJavaProcess(string arguments)
+    private Process CreateJavaProcess(string arguments, string? filename = null)
     {
         return new()
         {
             StartInfo = new()
             {
-                FileName = renameSettings.JavaPath,
+                FileName = filename ?? renameSettings.JavaPath,
                 Arguments = arguments,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -662,22 +674,22 @@ public class ApkEditorContext : IProgressReporter
 
     private async Task<AutoConfigModel?> GetParsedAutoConfigAsync()
     {
-        if (!advancedRenameSettings.AutoPackageEnabled)
+        if (!renameSettings.AutoPackageEnabled)
         {
             return null;
         }
 
-        if (advancedRenameSettings.AutoPackageConfig is null)
+        if (renameSettings.AutoPackageConfig is null)
         {
             logger.LogWarning("Found auto config is null (won't be parsed).");
             return null;
         }
 
-        using MemoryStream configStream = new(Encoding.Default.GetBytes(advancedRenameSettings.AutoPackageConfig));
+        using MemoryStream configStream = new(Encoding.Default.GetBytes(renameSettings.AutoPackageConfig));
         using StreamReader streamReader = new(configStream);
 
         // We all know damn well this is not compiling, but "parsing" didn't sound as cool :p
-        logger.Log("Compiling auto configuration...");
+        logger.LogInformation("Compiling auto configuration...");
 
         var parser = new ConfigParser(streamReader);
         return await parser.BeginParseAsync();
@@ -690,36 +702,34 @@ public class ApkEditorContext : IProgressReporter
             return null;
         }
 
-        var foundStage = config.GetStage(stage);
+        RenameStage? foundStage = config.GetStage(stage);
 
         if (foundStage is null)
         {
-            logger.LogDebug($"No stage found for {stage}, no alterations made.");
+            logger.LogDebug("No stage found for {Stage}, no alterations made.", stage);
             return null;
         }
 
-        logger.Log("-- Entering auto configuration script.");
-        logger.AddIndentString("[SCRIPT]: ");
+        logger.LogInformation("-- Entering auto configuration script for stage {Stage}.", stage);
 
         try
         {
+            using IDisposable? scope = logger.BeginScope("[SCRIPT]");
             return await new CommandDispatcher(foundStage, nameData.ApkAssemblyDirectory, new()
             {
                 { "originalCompany", nameData.OriginalCompanyName },
                 { "originalPackage", nameData.OriginalPackageName },
                 { "newCompany", nameData.NewCompanyName },
                 { "newPackage", nameData.NewPackageName },
-            }, logger)
-                .DispatchCommandsAsync();
+            }, logger).DispatchCommandsAsync();
         }
         finally
         {
-            logger.ResetIndent();
-            logger.Log("-- Exiting auto configuration script.");
+            logger.LogInformation("-- Exiting auto configuration script for stage {Stage}.", stage);
         }
     }
 
-    private static void RenameDirectory(string originalDirectory, string newName, ApkNameData nameData)
+    private void RenameDirectory(string originalDirectory, string newName, ApkNameData nameData)
     {
         if (Path.GetFileName(originalDirectory) == newName)
         {
@@ -727,17 +737,17 @@ public class ApkEditorContext : IProgressReporter
             return;
         }
 
-        string trimmedDirectory = originalDirectory.Length > nameData.ApkAssemblyDirectory.Length
+        string trimmedDirectory = originalDirectory.Length > nameData.ApkAssemblyDirectory.Length && originalDirectory.StartsWith(nameData.ApkAssemblyDirectory)
             ? originalDirectory[nameData.ApkAssemblyDirectory.Length..]
             : originalDirectory;
 
-        FileLogger.Log($"Changing .{trimmedDirectory} -> {newName}");
+        logger.LogDebug("Changing .{TrimmedDirectory} -> {NewName}", trimmedDirectory, newName);
 
         string newFolderPath = Path.Combine(Path.GetDirectoryName(originalDirectory)!, newName);
 
         if (Directory.Exists(newFolderPath))
         {
-            FileLogger.LogWarning($"The directory '{trimmedDirectory}' has already been renamed to {newName}, skipping.");
+            logger.LogInformation("The directory '{TrimmedDirectory}' has already been renamed to {NewName}, skipping.", trimmedDirectory, newName);
             return;
         }
 
@@ -753,9 +763,9 @@ public class ApkEditorContext : IProgressReporter
             throw new DirectoryNotFoundException($"Source directory not found: {dir.FullName}");
         }
 
-        _ = await Task.Run(() => Directory.CreateDirectory(destinationDir)); // Offload synchronous operation
+        _ = await Task.Run(() => Directory.CreateDirectory(destinationDir));
 
-        List<FileInfo> files = await Task.Run(() => dir.GetFiles().ToList()); // Offload synchronous operation
+        List<FileInfo> files = await Task.Run(() => dir.GetFiles().ToList());
 
         IEnumerable<Task> copyTasks = files.Select(async file =>
         {
@@ -770,7 +780,7 @@ public class ApkEditorContext : IProgressReporter
 
         if (recursive)
         {
-            List<DirectoryInfo> subDirectories = await Task.Run(() => dir.GetDirectories().ToList()); // Offload synchronous operation
+            List<DirectoryInfo> subDirectories = await Task.Run(() => dir.GetDirectories().ToList());
             foreach (DirectoryInfo subDir in subDirectories)
             {
                 string newDestinationDir = Path.Combine(destinationDir, subDir.Name);
@@ -814,11 +824,6 @@ public class ApkEditorContext : IProgressReporter
         return (split[0], oldCompanyName, nameData.OriginalPackageName.Replace(oldCompanyName, nameData.NewCompanyName));
     }
 
-    private static string GetFormattedTimeDirectory(string sourceApkName)
-    {
-        return $"{sourceApkName}_{DateTime.Now:yyyy-MMMM-dd_h.mm}";
-    }
-
     public static long CalculateUnpackedApkSize(string apkPath, bool copyingFile = true)
     {
         try
@@ -838,21 +843,20 @@ public class ApkEditorContext : IProgressReporter
 
             return estimatedUnpackedSize;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            FileLogger.LogException(ex);
             return 0;
         }
     }
 
-    public void ReportUpdate(string update, ProgressUpdateType updateType = ProgressUpdateType.Content)
+    private static string GetFormattedTimeDirectory(string sourceApkName)
     {
-        ProgressChanged?.Invoke(this, new(update, updateType));
+        return $"{sourceApkName}_{DateTime.Now:yyyy-MMMM-dd_h.mm}";
     }
 
-    public void ForwardUpdate(ProgressUpdateEventArgs args)
+    public void ReportUpdate(string update, ProgressUpdateType updateType = ProgressUpdateType.Content)
     {
-        ProgressChanged?.Invoke(this, args);
+        progressReporter?.Report(new(update, updateType));
     }
 
     /// <summary>
@@ -878,17 +882,17 @@ public class ApkEditorContext : IProgressReporter
         /// <summary>
         /// The replacement package company name. (Passed from caller)
         /// </summary>
-        public string NewCompanyName { get; init; } = string.Empty;
+        public required string NewCompanyName { get; init; } = string.Empty;
 
         /// <summary>
         /// The full path to the source APK file.
         /// </summary>
-        public string FullSourceApkPath { get; init; } = string.Empty;
+        public required string FullSourceApkPath { get; init; } = string.Empty;
 
         /// <summary>
         /// The full name for the source APK file.
         /// </summary>
-        public string FullSourceApkFileName { get; init; } = string.Empty;
+        public required string FullSourceApkFileName { get; init; } = string.Empty;
 
         /// <summary>
         /// The final directory that the renamed APK is placed. (Passed from caller)
@@ -898,22 +902,19 @@ public class ApkEditorContext : IProgressReporter
         /// <summary>
         /// The temporary directory that the unpacked APK is placed.
         /// </summary>
-        public string ApkAssemblyDirectory { get; init; } = string.Empty;
+        public required string ApkAssemblyDirectory { get; init; } = string.Empty;
 
         /// <summary>
         /// A sub-directory in side of <see cref="ApkAssemblyDirectory"/> for replacing company name instances.
         /// (Only used when file is larger than <see cref="MAX_SMALI_LOAD_SIZE"/>)
         /// </summary>
-        public string ApkSmaliTempDirectory { get; init; } = string.Empty;
+        public required string ApkSmaliTempDirectory { get; init; } = string.Empty;
 
         public static string SubtractPathFrom(string path, string subtractor)
         {
-            if (!path.StartsWith(subtractor))
-            {
-                return path;
-            }
-
-            return path[subtractor.Length..];
+            return path.StartsWith(subtractor)
+                ? path[subtractor.Length..]
+                : path;
         }
     }
 

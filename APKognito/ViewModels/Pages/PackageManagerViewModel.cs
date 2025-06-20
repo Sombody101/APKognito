@@ -1,5 +1,5 @@
 ﻿using APKognito.AdbTools;
-using APKognito.ApkMod;
+using APKognito.Legacy.ApkLib;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;

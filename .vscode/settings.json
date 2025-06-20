@@ -4,6 +4,20 @@
     "markdown.copyFiles.destination": {
         "/docs/**/*": "/docs/images/${documentBaseName}/"
     },
+    "path-autocomplete.pathMappings": {
+        "/": {
+            "conditions": [
+                {
+                    "when": "/docs/**",
+                    "value": "${workspaceFolder}/docs"
+                },
+                {
+                    "when": "/mkdocs.yml",
+                    "value": "${workspaceFolder}/docs"
+                }
+            ]
+        }
+    },
     "yaml.schemas": {
         "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
     },

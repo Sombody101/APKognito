@@ -15,7 +15,7 @@
     <StartupObject>APKognito.MainOverride</StartupObject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>preview</LangVersion>
-    <Configurations>Debug;Release;Debug (Console)</Configurations>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -30,16 +30,8 @@
     <Optimize>True</Optimize>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)'=='Debug (Console)'">
-    <DefineConstants>$(DefineConstants);CONSOLE_DEBUG;DEBUG;TRACE</DefineConstants>
-  </PropertyGroup>
 	
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)'=='Debug (Console)'">
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
 
@@ -47,15 +39,7 @@
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug (Console)|AnyCPU'">
-    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug (Console)|x64'">
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
 
@@ -81,11 +65,11 @@
   </ItemGroup>
 
   <ItemGroup>
+	  <PackageReference Include="DotNetZip.Original" Version="2025.2.15" />
+	  <PackageReference Include="ELFSharp" Version="2.17.3" />
     <PackageReference Include="Costura.Fody" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="DotNetZip.Original" Version="2025.2.15" />
-    <PackageReference Include="ELFSharp" Version="2.17.3" />
     <PackageReference Include="Humanizer.Core" Version="2.14.1" />
     <PackageReference Include="MemoryPack" Version="1.21.4" />
     <PackageReference Include="MemoryPack.Core" Version="1.21.4" />
@@ -125,6 +109,11 @@
 
   <ItemGroup>
     <Folder Include="Assets\AdbScripts\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\APKognito.ApkLib\APKognito.ApkLib.csproj" />
+    <ProjectReference Include="..\APKognito.Legacy.ApkLib\APKognito.Legacy.ApkLib.csproj" />
   </ItemGroup>
 
   <ItemGroup>

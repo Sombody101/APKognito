@@ -1,11 +1,11 @@
-﻿using APKognito.Models;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Text;
+using APKognito.Models;
+using Microsoft.Extensions.Logging;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
-
 using LogEntryType = APKognito.Models.LogBoxEntry.LogEntryType;
 
 namespace APKognito.Utilities.MVVM;
@@ -34,6 +34,45 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     public void SetCurrentLogger()
     {
         CurrentLoggableObject = this;
+    }
+
+    public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+#if RELEASE
+        if (logLevel == Microsoft.Extensions.Logging.LogLevel.Debug)
+        {
+            return;
+        }
+#endif
+
+        IEnumerable<object> scopes = LogScopeManager.GetCurrentScopeStates();
+
+        LogLevel level = FileLogger.MicrosoftLogLevelToLocal(logLevel);
+        LogEntryType entryType = LogBoxEntry.ConvertLogLevel(level);
+        Brush color = FileLogger.LogLevelToBrush(level);
+
+        string message = formatter(state, null);
+
+        string scope = string.Join(' ', scopes);
+
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            message = $"{scope}: {message}";
+        }
+
+        if (!DisableFileLogging)
+        {
+            FileLogger.LogGeneric(message, level);
+        }
+
+        WriteGenericLog(message, color, entryType);
+
+#if DEBUG
+        if (exception is not null)
+        {
+            LogDebug(exception);
+        }
+#endif
     }
 
     public void WriteGenericLog(string text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None, bool newline = true)
@@ -79,6 +118,12 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
         WriteGenericLogLine(log, logType: LogEntryType.Info);
     }
 
+    public void LogInformation(string log)
+    {
+        FileLogger.Log(log, DisableFileLogging);
+        WriteGenericLogLine(log, FileLogger.LogLevelColors.Info, logType: LogEntryType.Info);
+    }
+
     public void LogSuccess(string log)
     {
         FileLogger.Log(log, DisableFileLogging);
@@ -88,19 +133,20 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     public void LogWarning(string log)
     {
         FileLogger.LogWarning(log, DisableFileLogging);
-        WriteGenericLogLine(log, Brushes.Yellow, logType: LogEntryType.Warning);
+        WriteGenericLogLine(log, FileLogger.LogLevelColors.Warning, logType: LogEntryType.Warning);
     }
 
     public void LogError(string log)
     {
         FileLogger.LogError(log, DisableFileLogging);
-        WriteGenericLogLine(log, Brushes.Red, logType: LogEntryType.Error);
+        WriteGenericLogLine(log, FileLogger.LogLevelColors.Error, logType: LogEntryType.Error);
     }
 
     public void LogError(Exception ex)
     {
         FileLogger.LogException(ex, DisableFileLogging);
-        WriteGenericLog(ex.ToString(), Brushes.Red, logType: LogEntryType.Error);
+        WriteGenericLog(ex.Message, FileLogger.LogLevelColors.Error, logType: LogEntryType.Error);
+        LogDebug(ex);
     }
 
     public void LogDebug(string log)
@@ -108,7 +154,7 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
         FileLogger.LogDebug(log);
 
 #if DEBUG
-        WriteGenericLogLine(log, Brushes.Cyan, logType: LogEntryType.Debug);
+        WriteGenericLogLine(log, FileLogger.LogLevelColors.Debug, logType: LogEntryType.Debug);
 #endif
     }
 
@@ -117,7 +163,7 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
         FileLogger.LogDebug(ex);
 
 #if DEBUG
-        WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", Brushes.Cyan, logType: LogEntryType.Debug);
+        WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", FileLogger.LogLevelColors.Debug, logType: LogEntryType.Debug);
 #endif
     }
 
@@ -201,5 +247,78 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     protected void SetSnackbarProvider(ISnackbarService _snackbarService)
     {
         SnackbarService = _snackbarService;
+    }
+
+    public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel)
+    {
+        return true;
+    }
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+    {
+        return new LogScope(state);
+    }
+
+    public static class LogScopeManager
+    {
+        private static readonly AsyncLocal<Stack<object>> _scopeStack = new();
+
+        internal static void PushScope(object scope)
+        {
+            Stack<object>? stack = _scopeStack.Value;
+            if (stack is null)
+            {
+                stack = new Stack<object>();
+                _scopeStack.Value = stack;
+            }
+
+            stack.Push(scope);
+        }
+
+        internal static void PopScope()
+        {
+            Stack<object>? stack = _scopeStack.Value;
+            if (stack is not null && stack.Count > 0)
+            {
+                _ = stack.Pop();
+
+                if (stack.Count is 0)
+                {
+                    _scopeStack.Value = null!;
+                }
+            }
+        }
+
+        public static IEnumerable<object> GetCurrentScopeStates()
+        {
+            return _scopeStack.Value?.Reverse() ?? [];
+        }
+    }
+
+    public sealed class LogScope : IDisposable
+    {
+        private bool _disposed;
+
+        public LogScope(object state)
+        {
+            State = state;
+            LogScopeManager.PushScope(this);
+        }
+
+        public object State { get; }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                LogScopeManager.PopScope();
+                _disposed = true;
+            }
+        }
+
+        public override string? ToString()
+        {
+            return State.ToString();
+        }
     }
 }

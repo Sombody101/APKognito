@@ -1,5 +1,5 @@
 ---
-title: " "
+title: None
 ---
 
 ![APKognito Logo](images/dark-wide.webp#only-dark){ width="500" }

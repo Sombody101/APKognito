@@ -2,6 +2,7 @@
     x:Class="APKognito.Views.Pages.AdvancedRenameConfigurationPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:apklib="clr-namespace:APKognito.ApkLib.Configuration;assembly=APKognito.ApkLib"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:APKognito.Helpers"
     xmlns:local="clr-namespace:APKognito.Views.Pages"
@@ -121,20 +122,6 @@
                         Command="{Binding ViewModel.ResetRegexCommand}"
                         Icon="{ui:SymbolIcon Symbol=ArrowCounterclockwise48}" />
                 </Grid>
-            </ui:CardControl>
-
-            <ui:CardControl Header="Thread Count" Icon="{ui:SymbolIcon Symbol=Memory16}">
-                <ui:CardControl.Resources>
-                    <ObjectDataProvider
-                        x:Key="ProcessorCountProvider"
-                        MethodName="get_ProcessorCount"
-                        ObjectType="{x:Type sys:Environment}" />
-                </ui:CardControl.Resources>
-
-                <ui:NumberBox
-                    Maximum="{Binding Source={StaticResource ProcessorCountProvider}}"
-                    Minimum="1"
-                    Value="{Binding ViewModel.ThreadCount}" />
             </ui:CardControl>
         </StackPanel>
 
@@ -291,7 +278,7 @@
                                         <ComboBox
                                             Grid.Column="0"
                                             Margin="0,0,7.5,0"
-                                            ItemsSource="{helpers:EnumCollection EnumType=models:FileType}"
+                                            ItemsSource="{helpers:EnumCollection EnumType=apklib:FileType}"
                                             SelectedItem="{Binding FileType}" />
 
                                         <TextBox

@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Media;
 using Wpf.Ui.Controls;
@@ -6,7 +7,7 @@ using static APKognito.Models.LogBoxEntry;
 
 namespace APKognito.Utilities.MVVM;
 
-public interface IViewLogger
+public interface IViewLogger : ILogger
 {
     /// <summary>
     /// Writes a log.

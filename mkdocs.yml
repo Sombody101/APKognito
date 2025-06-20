@@ -66,5 +66,14 @@ plugins:
           css_files:
               - stylesheets/badges.css
 
+extra:
+    generator: false
+    social:
+        - icon: fontawesome/brands/discord
+          link: https://discord.gg/rNR2VHySgF
+          name: APKognito Support Discord
+
+copyright: Copyright &copy; 2024 - 2025 Sombody101
+
 hooks:
     - docs/overrides/hooks/shortcodes.py
