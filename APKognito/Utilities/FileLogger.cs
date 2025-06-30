@@ -59,6 +59,10 @@ public static class FileLogger
         {
             // Probably doesn't exist yet
         }
+
+#if DEBUG
+        Log("User information redaction disabled on debug build. Switch to a public debug or public release to have user information redacted.");
+#endif
     }
 
     public static void LogGeneric(string text, LogLevel logLevel = LogLevel.INFO)
@@ -292,7 +296,9 @@ public static class FileLogger
     {
         try
         {
+#if RELEASE
             entry = entry.Redact();
+#endif
 
             if (CliMain.ConsoleActive)
             {
