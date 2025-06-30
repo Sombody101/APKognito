@@ -1,6 +1,3 @@
-﻿#if DEBUG
-#define USE_NEW_APKLIB
-#endif
 
 using System.Diagnostics;
 using System.IO;
@@ -20,15 +17,6 @@ using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages;
 using Microsoft.Win32;
 using Wpf.Ui;
-
-#if USE_NEW_APKLIB
-using APKognito.ApkLib;
-using APKognito.ApkLib.Editors;
-using APKognito.ApkLib.Configuration;
-#else
-using APKognito.Legacy.ApkLib;
-using APKognito.Legacy.ApkLib.Configuration;
-#endif
 
 namespace APKognito.ViewModels.Pages;
 
@@ -74,9 +62,6 @@ public partial class HomeViewModel : LoggableObservableObject
 
     [ObservableProperty]
     public partial string OriginalPackageName { get; set; } = DEFAULT_PROP_MESSAGE;
-
-    [ObservableProperty]
-    public partial string FinalName { get; set; } = DEFAULT_PROP_MESSAGE;
 
     [ObservableProperty]
     public partial string JobbedApk { get; set; } = DEFAULT_JOB_MESSAGE;
@@ -547,14 +532,7 @@ public partial class HomeViewModel : LoggableObservableObject
             }
 
             string finalName;
-            if (FinalName is "Unpacking...")
-            {
-                finalName = "[Job Canceled]";
-            }
-            else
-            {
                 finalName = !renameResult.Successful ? "[Rename Failed]" : "[Unknown]";
-            }
 
             pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? JobbedApk, finalName, renameResult.Successful);
             ++jobIndex;
@@ -589,7 +567,7 @@ public partial class HomeViewModel : LoggableObservableObject
         StartButtonVisible = true;
 
         ResetViewFields();
-        JobbedApk = FinalName = $"Finished {completeJobs}/{files.Length} APKs";
+        JobbedApk = $"Finished {completeJobs}/{files.Length} APKs";
 
     ChecksFailed:
         RunningJobs = false;
@@ -602,8 +580,6 @@ public partial class HomeViewModel : LoggableObservableObject
 
         try
         {
-            FinalName = "Unpacking...";
-
             Progress<ProgressInfo> progress = new((args) =>
             {
                 switch (args.UpdateType)
@@ -618,13 +594,8 @@ public partial class HomeViewModel : LoggableObservableObject
                 }
             });
 
-#if USE_NEW_APKLIB
             PackageRenamer renamer = new(renameSettings, advConfig, this, progress);
             result = await renamer.RenamePackageAsync(ToolingPaths, token);
-#else
-            ApkEditorContext editorContext = new(renameSettings, progress, this);
-            result = await editorContext.RenameLoadedPackageAsync(cancellationToken);
-#endif
 
             if (Directory.Exists(renameSettings.OutputDirectory))
             {
