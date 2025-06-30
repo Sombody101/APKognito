@@ -336,6 +336,7 @@ public static class FileLogger
 
         Type fileLoggerType = typeof(FileLogger);
         Type loggableObservableObjectType = typeof(LoggableObservableObject);
+        Type loggerExtensionsType = typeof(LoggerExtensions);
 
         StackTrace stackTrace = new();
 
@@ -348,7 +349,8 @@ public static class FileLogger
             if (method is null
                 || method.DeclaringType is null
                 || method.DeclaringType == fileLoggerType
-                || method.DeclaringType == loggableObservableObjectType)
+                || method.DeclaringType == loggableObservableObjectType
+                || method.DeclaringType == loggerExtensionsType)
             {
                 continue;
             }
