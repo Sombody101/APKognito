@@ -284,19 +284,11 @@
                             <TextBlock
                                 Margin="1"
                                 FontWeight="Bold"
-                                Text="Final Package Name:" />
-                            <TextBlock
-                                Margin="1"
-                                FontWeight="Bold"
                                 Text="Output Path:" />
                         </StackPanel>
 
                         <StackPanel Grid.Row="2" Grid.Column="1">
                             <!--  Output Field Values  -->
-                            <TextBlock
-                                Margin="1"
-                                Text="{Binding FinalName}"
-                                TextTrimming="CharacterEllipsis" />
 
                             <TextBlock
                                 Margin="1"
