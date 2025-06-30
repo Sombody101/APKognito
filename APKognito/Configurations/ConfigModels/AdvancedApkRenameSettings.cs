@@ -1,7 +1,4 @@
-﻿using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
-using APKognito.ApkLib.Configuration;
+﻿using APKognito.ApkLib.Configuration;
 using Newtonsoft.Json;
 
 namespace APKognito.Configurations.ConfigModels;
@@ -70,75 +67,6 @@ public class AdvancedApkRenameSettings : IKognitoConfig
     /// </summary>
     [JsonProperty("auto_package_config")]
     public string? AutoPackageConfig { get; set; }
-
-    /// <summary>
-    /// Gets the <see cref="Regex"/> <see cref="PackageReplaceRegexString"/>, compiled, with a default 60 second timeout.
-    /// </summary>
-    /// <param name="value"></param>
-    /// <param name="regexTimeoutMs"></param>
-    /// <returns></returns>
-    public Regex BuildRegex(string value, int regexTimeoutMs = 60_000)
-    {
-        string pattern = PackageReplaceRegexString.Replace("{value}", value);
-
-        return new Regex(pattern,
-            RegexOptions.Compiled,
-            TimeSpan.FromMilliseconds(regexTimeoutMs)
-        );
-    }
-
-    /// <summary>
-    /// Combines a user supplied package path with the real-world drive path. An <see cref="InvalidExtraPathException"/>
-    /// will be thrown if the user supplied path escapes the package directory (i.e., "C:\Path\To\Package + /../../../../random-file.json")
-    /// </summary>
-    /// <param name="drivePath"></param>
-    /// <param name="userPath"></param>
-    /// <param name="noRoot"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidExtraPathException"></exception>
-    public static string SafeCombine(string drivePath, string userPath, bool noRoot = true)
-    {
-        if (userPath.Any(char.IsControl))
-        {
-            throw new UnsafeExtraPathException($"The given path '{CleanStringBytes(userPath)}' contains control characters.");
-        }
-
-        drivePath = drivePath.TrimEnd('\\');
-        string packagePath = userPath.Replace('/', '\\').TrimStart('\\');
-
-        string normalizedBasePath = Path.GetFullPath(drivePath);
-        string combinedPath = Path.GetFullPath(Path.Combine(normalizedBasePath, packagePath));
-
-        if (noRoot && combinedPath.Equals(normalizedBasePath, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new UnsafeExtraPathException($"The given path '{userPath}' attempts to modify the project root directory.");
-        }
-
-        if (combinedPath.StartsWith(normalizedBasePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-        {
-            return combinedPath;
-        }
-
-        throw new UnsafeExtraPathException($"The given path '{userPath}' escapes the package directory.");
-    }
-
-    private static string CleanStringBytes(string offending)
-    {
-        StringBuilder output = new();
-
-        foreach (char c in offending)
-        {
-            if (!char.IsControl(c))
-            {
-                output.Append(c);
-                continue;
-            }
-
-            output.Append($"(0x{(byte)c:x2})");
-        }
-
-        return output.ToString();
-    }
 
     public class InvalidExtraPathException(string message) : Exception(message)
     {
