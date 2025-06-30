@@ -92,6 +92,13 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
             _ = text.Insert(0, indent);
         }
 
+        // This suddenly became an issue. I hadn't gotten any exceptions for it, but suddenly
+        // no logs could be made with color.
+        if (color is { CanFreeze: true })
+        {
+            color.Freeze();
+        }
+
         LogBoxEntry newEntry = new()
         {
             Text = text.ToString(),
