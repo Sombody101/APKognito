@@ -3,7 +3,6 @@ using System.IO.Compression;
 using System.Xml;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Exceptions;
-using ELFSharp.ELF.Sections;
 using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;

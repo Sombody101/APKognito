@@ -37,10 +37,10 @@ public sealed class DirectoryEditor : Additionals<DirectoryEditor>,
         }
 
         string trimmedDirectory = baseDirectory is not null && originalDirectory.Length > baseDirectory.Length
-            ? originalDirectory[baseDirectory.Length..]
+            ? $".{originalDirectory[baseDirectory.Length..]}"
             : originalDirectory;
 
-        _logger.LogDebug("Changing .{TrimmedDirectory}{RenameLogDelimiter}{NewName}", trimmedDirectory, _renameConfig.InternalRenameInfoLogDelimiter, newName);
+        _logger.LogDebug("Changing {TrimmedDirectory}{RenameLogDelimiter}{NewName}", trimmedDirectory, _renameConfig.InternalRenameInfoLogDelimiter, newName);
 
         string newFolderPath = Path.Combine(Path.GetDirectoryName(originalDirectory)!, newName);
 
@@ -78,7 +78,7 @@ public sealed class DirectoryEditor : Additionals<DirectoryEditor>,
                 : newCompanyName;
 
             _reporter.ReportProgressMessage(directoryName);
-            RenameDirectory(directory, adjustedDirectoryName);
+            RenameDirectory(directory, adjustedDirectoryName, _nameData.ApkAssemblyDirectory);
         }
     }
 

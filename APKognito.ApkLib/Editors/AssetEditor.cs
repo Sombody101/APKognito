@@ -1,6 +1,7 @@
 ﻿using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Exceptions;
 using APKognito.ApkLib.Interfaces;
+using APKognito.ApkLib.Utilities;
 using Ionic.Zip;
 using Microsoft.Extensions.Logging;
 
@@ -142,7 +143,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
     {
         try
         {
-            var binaryReplace = new BinaryReplace(assetPath, _reporter, _logger);
+            var binaryReplace = new ArchiveReplace(assetPath, _reporter, _logger);
             await binaryReplace.ModifyArchiveStringsAsync(
                 _renameConfiguration.BuildAndCacheRegex(_nameData.OriginalCompanyName),
                 _nameData.NewCompanyName,
@@ -152,7 +153,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
         }
         catch (ZipException)
         {
-            _logger.LogWarning("The file '{Path}' is not an archive. Skipping.", PackageNameData.SubtractPathFrom(assetPath, _nameData.ApkAssemblyDirectory));
+            _logger.LogWarning("The file '{Path}' is not an archive. Skipping.", Path.GetFileName(assetPath));
         }
     }
 

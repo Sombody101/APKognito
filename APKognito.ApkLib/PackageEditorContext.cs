@@ -12,7 +12,6 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, 
     private readonly PackageNameData _nameData;
     private IProgress<ProgressInfo>? _reporter;
 
-    public ApkProcessingContext? ApkProcessingContext { get; private set; }
     internal PackageRenameConfiguration? RenameConfiguration { get; private set; }
 
     /// <summary>
@@ -40,9 +39,6 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, 
         _toolingPaths = toolingPaths;
         RenameConfiguration = renameConfiguration;
         _nameData = nameData;
-
-        // precache the regex
-        _ = renameConfiguration.BuildAndCacheRegex(nameData.NewCompanyName);
     }
 
     /// <summary>
@@ -53,30 +49,6 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, 
     {
         ArgumentNullException.ThrowIfNull(config);
         RenameConfiguration = config;
-    }
-
-    /// <summary>
-    /// Manually sets the properties for the <see cref="ApkProcessingContext"/>. This is not needed when using the built in renaming process.
-    /// </summary>
-    /// <param name="packageName"></param>
-    /// <param name="originalCompanyName"></param>
-    public void PopulateApkContext(string packageName, string? originalCompanyName)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(packageName);
-        ArgumentNullException.ThrowIfNull(_nameData);
-
-        if (ApkProcessingContext is null)
-        {
-            ApkProcessingContext = new ApkProcessingContext();
-
-            if (RenameConfiguration is not null)
-            {
-                ApkProcessingContext.ReplacementCompanyName = _nameData.NewCompanyName;
-            }
-        }
-
-        ApkProcessingContext.FullPackageName = packageName;
-        ApkProcessingContext.OriginalCompanyName = originalCompanyName;
     }
 
     #region Editor Instance Creators

@@ -1,4 +1,8 @@
-﻿using APKognito.ApkLib.Configuration;
+﻿#if DEBUG
+#define ASYNC_RENAME_DISABLED
+#endif
+
+using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Exceptions;
 using APKognito.ApkLib.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -37,7 +41,6 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
         Directory.CreateDirectory(_nameData.ApkSmaliTempDirectory);
 
         int workingOnFile = 0;
-        object lockobj = new();
 
         IEnumerable<string> renameFiles = GetSmaliFiles();
 
@@ -49,6 +52,16 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
 
         _reporter.ReportProgressTitle("Renaming file");
 
+#if ASYNC_RENAME_DISABLED
+        foreach (string file in renameFiles)
+        {
+            workingOnFile++;
+            _reporter.ReportProgressMessage(workingOnFile.ToString());
+
+            await ReplaceTextInFileAsync(file, token);
+        }
+#else
+        object lockobj = new();
         await Parallel.ForEachAsync(renameFiles, token,
             async (filePath, subcToken) =>
             {
@@ -62,14 +75,8 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
                 await ReplaceTextInFileAsync(filePath, subcToken);
             }
         );
+#endif
     }
-
-    // /// <inheritdoc/>
-    // public SmaliEditor SetNameData(PackageNameData? nameData)
-    // {
-    //     _nameData = nameData;
-    //     return this;
-    // }
 
     /// <inheritdoc/>
     public SmaliEditor SetReporter(IProgress<ProgressInfo>? reporter)
@@ -147,7 +154,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
         string Replace(string original)
         {
             return _renameConfiguration.BuildAndCacheRegex(_nameData!.OriginalCompanyName)
-            .Replace(original, _nameData.NewCompanyName);
+                .Replace(original, _nameData.NewCompanyName);
         }
     }
 }

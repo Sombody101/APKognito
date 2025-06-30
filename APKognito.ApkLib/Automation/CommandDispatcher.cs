@@ -332,40 +332,29 @@ public partial class CommandDispatcher
         return sb.ToString();
     }
 
-    internal class CommandInfo
-    {
-        public string Name { get; }
-
-        public FileAccess[] Accessors { get; }
-
-        public int ArgumentCount { get; }
-
-        public bool RequestsLogger { get; }
-
-        public bool IsAsync { get; }
-
-        public MethodInfo Method { get; }
-
-        public ParameterInfo[] Parameters { get; }
-
-        public CommandInfo(CommandAttribute attribute, MethodInfo method, bool requestsLogger)
-        {
-            Name = attribute.Name;
-            Accessors = attribute.Accessors;
-            ArgumentCount = attribute.ArgumentCount;
-            Method = method;
-            RequestsLogger = requestsLogger;
-            IsAsync = method.ReturnType == typeof(Task);
-            Parameters = method.GetParameters();
-        }
-    }
-
     private static bool IsElevated()
     {
         using var identity = WindowsIdentity.GetCurrent();
 
         var principal = new WindowsPrincipal(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    internal class CommandInfo(CommandAttribute attribute, MethodInfo method, bool requestsLogger)
+    {
+        public string Name { get; } = attribute.Name;
+
+        public FileAccess[] Accessors { get; } = attribute.Accessors;
+
+        public int ArgumentCount { get; } = attribute.ArgumentCount;
+
+        public bool RequestsLogger { get; } = requestsLogger;
+
+        public bool IsAsync { get; } = method.ReturnType == typeof(Task);
+
+        public MethodInfo Method { get; } = method;
+
+        public ParameterInfo[] Parameters { get; } = method.GetParameters();
     }
 
     public class LaunchedAsAdminException() : Exception("Auto config rename files cannot be used while APKognito is launched as admin. " +
