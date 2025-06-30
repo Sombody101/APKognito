@@ -1,11 +1,4 @@
-﻿using APKognito.AdbTools;
-using APKognito.Cli;
-using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
-using APKognito.Utilities.MVVM;
-using APKognito.ViewModels.Windows;
-using APKognito.Views.Pages;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -14,6 +7,14 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Documents;
 using System.Windows.Media;
+using APKognito.AdbTools;
+using APKognito.Cli;
+using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Utilities.MVVM;
+using APKognito.ViewModels.Windows;
+using APKognito.Views.Pages;
+using Microsoft.Extensions.Logging;
 using Wpf.Ui.Appearance;
 
 namespace APKognito.Utilities;
@@ -39,9 +40,9 @@ public static class FileLogger
     public const string TIME_FORMAT_STRING = "hh:mm:ss.fff tt:";
     public const string USER_REPLACEMENT_STRING = "[:USER:]";
 
-    private static readonly object _lock = new();
-    private static readonly string logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
-    private static readonly string exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
+    private static readonly object s_lock = new();
+    private static readonly string s_logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
+    private static readonly string s_exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
 
     private static string UtcTime => DateTime.UtcNow.ToString(TIME_FORMAT_STRING, CultureInfo.InvariantCulture);
 
@@ -49,7 +50,7 @@ public static class FileLogger
     {
         try
         {
-            FileInfo logFile = new(logFilePath);
+            FileInfo logFile = new(s_logFilePath);
             if (logFile.Length >= (1024 * 1024 * 4)) // 4MB
             {
                 logFile.Delete();
@@ -185,8 +186,8 @@ public static class FileLogger
         ArgumentNullException.ThrowIfNull(configFactory);
 
         string[] filesToPack = [
-            logFilePath,
-            exceptionLogFilePath,
+            s_logFilePath,
+            s_exceptionLogFilePath,
             Path.Combine(configFactory.ConfigurationDirectory, configFactory.GetConfigInfo<RenameSessionList>().FileName)
         ];
 
@@ -282,7 +283,7 @@ public static class FileLogger
     {
         return level switch
         {
-            Microsoft.Extensions.Logging.LogLevel.Trace=>LogLevel.TRACE,
+            Microsoft.Extensions.Logging.LogLevel.Trace => LogLevel.TRACE,
             Microsoft.Extensions.Logging.LogLevel.Debug => LogLevel.DEBUG,
             Microsoft.Extensions.Logging.LogLevel.Information => LogLevel.INFO,
             Microsoft.Extensions.Logging.LogLevel.Warning => LogLevel.WARNING,
@@ -310,16 +311,16 @@ public static class FileLogger
                 }
             }
 
-            lock (_lock)
+            lock (s_lock)
             {
                 if (ex is null)
                 {
-                    File.AppendAllText(logFilePath, entry);
+                    File.AppendAllText(s_logFilePath, entry);
                 }
                 else
                 {
-                    File.AppendAllText(logFilePath, $"Exception: {ex?.GetType().Name ?? "[NULL]"} appended to exception logs.\r\n");
-                    File.AppendAllText(exceptionLogFilePath, entry);
+                    File.AppendAllText(s_logFilePath, $"Exception: {ex?.GetType().Name ?? "[NULL]"} appended to exception logs.\r\n");
+                    File.AppendAllText(s_exceptionLogFilePath, entry);
                 }
             }
         }

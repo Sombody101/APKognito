@@ -1,6 +1,6 @@
-﻿using APKognito.Utilities;
+﻿using System.Runtime.InteropServices;
+using APKognito.Utilities;
 using APKognito.ViewModels.Windows;
-using System.Runtime.InteropServices;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 

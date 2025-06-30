@@ -1,10 +1,12 @@
-
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Threading;
 using APKognito.AdbTools;
+using APKognito.ApkLib;
+using APKognito.ApkLib.Configuration;
+using APKognito.ApkLib.Editors;
 using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
@@ -31,15 +33,15 @@ public partial class HomeViewModel : LoggableObservableObject
     public const char PATH_SEPARATOR = '\n';
 
     // Configs
-    private readonly ConfigurationFactory configFactory;
-    private readonly KognitoConfig kognitoConfig;
-    private readonly CacheStorage kognitoCache;
-    private readonly AdbConfig adbConfig;
+    private readonly ConfigurationFactory _configFactory;
+    private readonly KognitoConfig _kognitoConfig;
+    private readonly CacheStorage _kognitoCache;
+    private readonly AdbConfig _adbConfig;
 
     private static PackageToolingPaths ToolingPaths { get; set; }
 
     // Tool paths
-    internal DirectoryInfo TempData;
+    internal DirectoryInfo _tempData;
 
     // By the time this is used anywhere, it will not be null
     public static HomeViewModel Instance { get; private set; } = null!;
@@ -96,10 +98,10 @@ public partial class HomeViewModel : LoggableObservableObject
 
     public bool PushAfterRename
     {
-        get => kognitoConfig.PushAfterRename;
+        get => _kognitoConfig.PushAfterRename;
         set
         {
-            kognitoConfig.PushAfterRename = value;
+            _kognitoConfig.PushAfterRename = value;
             OnPropertyChanged(nameof(PushAfterRename));
         }
     }
@@ -109,10 +111,10 @@ public partial class HomeViewModel : LoggableObservableObject
     /// </summary>
     public string FilePath
     {
-        get => kognitoCache?.ApkSourcePath ?? DEFAULT_PROP_MESSAGE;
+        get => _kognitoCache?.ApkSourcePath ?? DEFAULT_PROP_MESSAGE;
         set
         {
-            kognitoCache.ApkSourcePath = value;
+            _kognitoCache.ApkSourcePath = value;
             OnPropertyChanged(nameof(FilePath));
         }
     }
@@ -122,11 +124,11 @@ public partial class HomeViewModel : LoggableObservableObject
     /// </summary>
     public string OutputDirectory
     {
-        get => kognitoConfig.ApkOutputDirectory;
+        get => _kognitoConfig.ApkOutputDirectory;
         set
         {
             value = VariablePathResolver.Resolve(value);
-            kognitoConfig.ApkOutputDirectory = value;
+            _kognitoConfig.ApkOutputDirectory = value;
             OnPropertyChanged(nameof(OutputDirectory));
         }
     }
@@ -136,15 +138,15 @@ public partial class HomeViewModel : LoggableObservableObject
     /// </summary>
     public string ApkReplacementName
     {
-        get => kognitoConfig.ApkNameReplacement;
+        get => _kognitoConfig.ApkNameReplacement;
         set
         {
-            if (value == kognitoConfig.ApkNameReplacement)
+            if (value == _kognitoConfig.ApkNameReplacement)
             {
                 return;
             }
 
-            kognitoConfig.ApkNameReplacement = value;
+            _kognitoConfig.ApkNameReplacement = value;
             OnPropertyChanged(nameof(ApkReplacementName));
         }
     }
@@ -176,11 +178,11 @@ public partial class HomeViewModel : LoggableObservableObject
         SetSnackbarProvider(_snackbarService);
         SetCurrentLogger();
 
-        configFactory = _configFactory;
-        kognitoConfig = configFactory.GetConfig<KognitoConfig>();
-        kognitoCache = configFactory.GetConfig<CacheStorage>();
-        adbConfig = configFactory.GetConfig<AdbConfig>();
-        CopyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming;
+        this._configFactory = _configFactory;
+        _kognitoConfig = this._configFactory.GetConfig<KognitoConfig>();
+        _kognitoCache = this._configFactory.GetConfig<CacheStorage>();
+        _adbConfig = this._configFactory.GetConfig<AdbConfig>();
+        CopyWhenRenaming = _kognitoConfig.CopyFilesWhenRenaming;
 
         string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
 
@@ -293,8 +295,8 @@ public partial class HomeViewModel : LoggableObservableObject
     [RelayCommand]
     private void OnSaveSettings()
     {
-        configFactory.SaveConfig(kognitoConfig);
-        configFactory.SaveConfig(kognitoCache);
+        _configFactory.SaveConfig(_kognitoConfig);
+        _configFactory.SaveConfig(_kognitoCache);
         Log("Settings saved!");
     }
 
@@ -320,7 +322,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 {
                     NewCompanyName = string.Empty,
                     ApkAssemblyDirectory = string.Empty,
-                    ApkSmaliTempDirectory = TempData?.FullName ?? Path.GetTempPath(),
+                    ApkSmaliTempDirectory = _tempData?.FullName ?? Path.GetTempPath(),
                     FullSourceApkPath = filePath,
                     FullSourceApkFileName = Path.GetFileName(filePath)
                 });
@@ -419,13 +421,13 @@ public partial class HomeViewModel : LoggableObservableObject
 
             if (result is not MessageBoxResult.Primary)
             {
-                CopyWhenRenaming = kognitoConfig.CopyFilesWhenRenaming
+                CopyWhenRenaming = _kognitoConfig.CopyFilesWhenRenaming
                     = true;
                 return;
             }
         }
 
-        kognitoConfig.CopyFilesWhenRenaming = value;
+        _kognitoConfig.CopyFilesWhenRenaming = value;
     }
 
     public async ValueTask OnRenameCopyCheckedAsync()
@@ -437,7 +439,7 @@ public partial class HomeViewModel : LoggableObservableObject
     {
         CanStart = false;
 
-        if (string.IsNullOrWhiteSpace(kognitoCache.ApkSourcePath))
+        if (string.IsNullOrWhiteSpace(_kognitoCache.ApkSourcePath))
         {
             CantStartReason = "No input APKs selected. Click 'Select' and pick some.";
             return;
@@ -450,7 +452,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
     public string[] GetFilePaths()
     {
-        return kognitoCache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
+        return _kognitoCache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
     }
 
     private async Task StartPackageRenamingAsync(CancellationToken cancellationToken)
@@ -497,16 +499,16 @@ public partial class HomeViewModel : LoggableObservableObject
             string fileName = Path.GetFileName(sourceApkPath);
             JobbedApk = fileName;
 
-            AdvancedApkRenameSettings advcfg = configFactory.GetConfig<AdvancedApkRenameSettings>();
+            AdvancedApkRenameSettings advcfg = _configFactory.GetConfig<AdvancedApkRenameSettings>();
             ApkRenameSettings sharedRenameSettings = new()
             {
                 SourceApkPath = sourceApkPath,
                 OutputBaseDirectory = OutputDirectory,
                 JavaPath = javaPath,
-                TempDirectory = Path.Combine(TempData.FullName, GetFormattedTimeDirectory(fileName)),
+                TempDirectory = Path.Combine(_tempData.FullName, GetFormattedTimeDirectory(fileName)),
                 ApkReplacementName = ApkReplacementName,
-                CopyFilesWhenRenaming = kognitoConfig.CopyFilesWhenRenaming,
-                ClearTempFilesOnRename = kognitoConfig.ClearTempFilesOnRename,
+                CopyFilesWhenRenaming = _kognitoConfig.CopyFilesWhenRenaming,
+                ClearTempFilesOnRename = _kognitoConfig.ClearTempFilesOnRename,
 
                 PackageReplaceRegexString = advcfg.PackageReplaceRegexString,
                 RenameLibs = advcfg.RenameLibs,
@@ -532,7 +534,7 @@ public partial class HomeViewModel : LoggableObservableObject
             }
 
             string finalName;
-                finalName = !renameResult.Successful ? "[Rename Failed]" : "[Unknown]";
+            finalName = !renameResult.Successful ? "[Rename Failed]" : "[Unknown]";
 
             pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? JobbedApk, finalName, renameResult.Successful);
             ++jobIndex;
@@ -550,16 +552,16 @@ public partial class HomeViewModel : LoggableObservableObject
             );
         }
 
-        if (kognitoConfig.ClearTempFilesOnRename)
+        if (_kognitoConfig.ClearTempFilesOnRename)
         {
             await CleanTempFilesAsync();
         }
 
         // Finalize session and write it to the history file
         RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
-        RenameSessionList renameHistory = configFactory.GetConfig<RenameSessionList>();
+        RenameSessionList renameHistory = _configFactory.GetConfig<RenameSessionList>();
         renameHistory.RenameSessions.Add(currentSession);
-        configFactory.SaveConfig(renameHistory);
+        _configFactory.SaveConfig(renameHistory);
 
         elapsedTime.Stop();
         taskTimer.Stop();
@@ -664,9 +666,9 @@ public partial class HomeViewModel : LoggableObservableObject
         }
 
         // Create a temp directory for the APK(s)
-        TempData = Directory.CreateTempSubdirectory("APKognito-");
-        DriveUsageViewModel.ClaimDirectory(TempData.FullName);
-        Log($"Using temp directory: {TempData.FullName}");
+        _tempData = Directory.CreateTempSubdirectory("APKognito-");
+        DriveUsageViewModel.ClaimDirectory(_tempData.FullName);
+        Log($"Using temp directory: {_tempData.FullName}");
 
         return javaPath;
     }
@@ -679,7 +681,7 @@ public partial class HomeViewModel : LoggableObservableObject
             return;
         }
 
-        AdbDeviceInfo? currentDevice = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? currentDevice = _adbConfig.GetCurrentDevice();
 
         if (currentDevice is null)
         {
@@ -815,8 +817,8 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private async Task LoadApkAsync()
     {
-        string openDirectory = Directory.Exists(kognitoCache.LastDialogDirectory)
-            ? kognitoCache.LastDialogDirectory
+        string openDirectory = Directory.Exists(_kognitoCache.LastDialogDirectory)
+            ? _kognitoCache.LastDialogDirectory
             : "C:\\";
 
         OpenFileDialog openFileDialog = new()
@@ -906,11 +908,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 continue;
             }
 
-#if USE_NEW_APKLIB
             FootprintSizeBytes += PackageCompressor.CalculateUnpackedApkSize(file, CopyWhenRenaming);
-#else
-            FootprintSizeBytes += ApkEditorContext.CalculateUnpackedApkSize(file, CopyWhenRenaming);
-#endif
 
             string apkFileName = Path.GetFileNameWithoutExtension(file);
             string obbDirectory = Path.Combine(Path.GetDirectoryName(file)!, apkFileName);
@@ -941,7 +939,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private async Task<bool> VerifyAdbDeviceAsync()
     {
-        switch (await AdbConfigurationViewModel.TryConnectDeviceAsync(adbConfig))
+        switch (await AdbConfigurationViewModel.TryConnectDeviceAsync(_adbConfig))
         {
             case AdbDevicesStatus.NoAdb:
                 LogError("Platform tools are not installed. Either:\n\t1. Go to the ADB Console page and run the command ':install-adb'.\nOr:\n\t2. Install platform tools and manually set the path in the ADB Configuration page.");
@@ -956,7 +954,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 return false;
 
             case AdbDevicesStatus.DefaultDeviceSelected:
-                Log($"Using default device {adbConfig.CurrentDeviceId}");
+                Log($"Using default device {_adbConfig.CurrentDeviceId}");
                 return true;
         }
 
@@ -974,7 +972,7 @@ public partial class HomeViewModel : LoggableObservableObject
             Log("Cleaning temp directory....");
             await Task.Factory.StartNew(
                 path => Directory.Delete((string)path!, true),
-                TempData.FullName, cts.Token);
+                _tempData.FullName, cts.Token);
 
             Log("Temp files cleaned.");
         }

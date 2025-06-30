@@ -19,14 +19,14 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DebugType>embedded</DebugType>
+    <DebugType>none</DebugType>
     <Optimize>True</Optimize>
     <ShouldCreateLogs>True</ShouldCreateLogs>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <DebugType>embedded</DebugType>
+    <DebugType>none</DebugType>
     <Optimize>True</Optimize>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
@@ -113,7 +113,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\APKognito.ApkLib\APKognito.ApkLib.csproj" />
+
+<!--
     <ProjectReference Include="..\APKognito.Legacy.ApkLib\APKognito.Legacy.ApkLib.csproj" />
+-->
   </ItemGroup>
 
   <ItemGroup>

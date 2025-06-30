@@ -1,10 +1,9 @@
-﻿using APKognito.Models;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Windows.Documents;
 using System.Windows.Media;
+using APKognito.Models;
 using Wpf.Ui.Controls;
-
 using LogEntryType = APKognito.Models.LogBoxEntry.LogEntryType;
 
 namespace APKognito.Controls;
