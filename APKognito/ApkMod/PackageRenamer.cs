@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Text;
 using APKognito.ApkLib;
 using APKognito.ApkLib.Automation;
@@ -60,34 +61,64 @@ public sealed class PackageRenamer
             PackageEditorContext context = new PackageEditorContext(renameConfig, nameData, toolingPaths, _logger)
                 .SetReporter(_reporter);
 
-            PackageCompressor compressor = context.CreatePackageCompressor();
-            await compressor.UnpackPackageAsync(token: token);
-            compressor.GatherPackageMetadata();
+            /* Unpack */
 
-            AutoConfigModel? automationConfig = await GetParsedAutoConfigAsync(_renameSettings.AutoPackageConfig);
+            PackageCompressor compressor = context.CreatePackageCompressor();
+            await TimeAsync(async () =>
+            {
+                await compressor.UnpackPackageAsync(token: token);
+                compressor.GatherPackageMetadata();
+            }, nameof(compressor.UnpackPackageAsync));
+
+            AutoConfigModel? automationConfig = _renameSettings.AutoPackageEnabled
+                ? await GetParsedAutoConfigAsync(_renameSettings.AutoPackageConfig)
+                : null;
 
             _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameData);
 
-            context.CreateDirectoryEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Directory, nameData))
-                .Run();
+            await TimeAsync(async () =>
+            {
+                context.CreateDirectoryEditor()
+                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Directory, nameData))
+                    .Run();
+            }, nameof(DirectoryEditor));
 
-            LibraryEditor libraryEditor = context.CreateLibraryEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Library, nameData));
-            await libraryEditor.RunAsync(token: token);
+            /* Libraries */
 
-            SmaliEditor smaliEditor = context.CreateSmaliEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Smali, nameData));
-            await smaliEditor.RunAsync(token: token);
+            await TimeAsync(async () =>
+            {
+                LibraryEditor libraryEditor = context.CreateLibraryEditor()
+                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Library, nameData));
+                await libraryEditor.RunAsync(token: token);
+            }, nameof(LibraryEditor));
 
-            AssetEditor assetEditor = context.CreateAssetEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Assets, nameData));
-            string? outputAssetDirectory = await assetEditor.RunAsync(token: token);
+            /* Smali */
+
+            await TimeAsync(async () =>
+            {
+                SmaliEditor smaliEditor = context.CreateSmaliEditor()
+                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Smali, nameData));
+                await smaliEditor.RunAsync(token: token);
+            }, nameof(SmaliEditor));
+
+            /* Assets */
+
+            string? outputAssetDirectory = null;
+            await TimeAsync(async () =>
+            {
+                AssetEditor assetEditor = context.CreateAssetEditor()
+                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Assets, nameData));
+                outputAssetDirectory = await assetEditor.RunAsync(token: token);
+            }, nameof(AssetEditor));
 
             _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack, nameData);
 
-            await compressor.PackPackageAsync(token: token);
-            await compressor.SignPackageAsync(token: token);
+            /* Pack and Sign */
+
+            await TimeAsync(async () => await compressor.PackPackageAsync(token: token), nameof(compressor.PackPackageAsync));
+            await TimeAsync(async () => await compressor.SignPackageAsync(token: token), nameof(compressor.SignPackageAsync));
+
+            /* Finalize and return paths */
 
             string outputPackagePath = Path.Combine(nameData.FinalOutputDirectory, $"{nameData.NewPackageName}.apk");
 
@@ -149,7 +180,7 @@ public sealed class PackageRenamer
     {
         if (string.IsNullOrWhiteSpace(config))
         {
-            _logger.LogWarning("Found auto config is null or empty (won't be parsed).");
+            _logger.LogInformation("Found auto config is null or empty (won't be parsed).");
             return null;
         }
 
@@ -182,18 +213,37 @@ public sealed class PackageRenamer
 
         try
         {
-            using IDisposable? scope = _logger.BeginScope("[SCRIPT]");
-            return await new CommandDispatcher(foundStage, nameData.ApkAssemblyDirectory, new()
+            Dictionary<string, string> variables = new()
             {
                 { "originalCompany", nameData.OriginalCompanyName },
                 { "originalPackage", nameData.OriginalPackageName },
                 { "newCompany", nameData.NewCompanyName },
                 { "newPackage", nameData.NewPackageName },
-            }, _logger).DispatchCommandsAsync();
+            };
+
+            using IDisposable? scope = _logger.BeginScope("[SCRIPT]");
+            return await new CommandDispatcher(foundStage, nameData.ApkAssemblyDirectory, variables, _logger)
+                .DispatchCommandsAsync();
         }
         finally
         {
             _logger.LogInformation("-- Exiting auto configuration script for stage {Stage}.", stage);
+        }
+    }
+
+    private static async Task TimeAsync(Func<Task> action, string? tag = "Action")
+    {
+        Stopwatch sw = Stopwatch.StartNew();
+
+        try
+        {
+            FileLogger.Log($"--- {tag}: Start");
+            await action();
+        }
+        finally
+        {
+            sw.Stop();
+            FileLogger.Log($"--- {tag}: {sw}");
         }
     }
 }
