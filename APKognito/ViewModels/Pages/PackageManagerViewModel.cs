@@ -1,5 +1,5 @@
 ﻿using APKognito.AdbTools;
-using APKognito.Legacy.ApkLib;
+using APKognito.ApkLib;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;
@@ -135,6 +135,9 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     [RelayCommand]
     private async Task OnPushPackagesAsync()
     {
+        SnackError("Unavailable!", "This option is not available right now!");
+        return;
+
         EnableControls = false;
 
         try
@@ -159,7 +162,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             using MemoryStream manifestStream = new();
             manifest.Extract(manifestStream);
 
-            packageName = ApkEditorContext.GetPackageName(manifestStream);
+            packageName = string.Empty;// ApkEditorContext.GetPackageName(manifestStream);
 
             await AdbManager.WakeDeviceAsync();
             await AdbManager.QuickCommandAsync($@"install -g ""{package}""");
