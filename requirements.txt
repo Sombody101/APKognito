@@ -1,3 +1,6 @@
+# These requirements are only for MkDocs, not the APKognito C# project.
+
 mkdocs-material
 mkdocs-awesome-nav
 mkdocs-minify-plugin
+mkdocs-material[imaging]
