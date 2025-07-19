@@ -14,8 +14,6 @@ title: Auto config API
 
 ### Exclude
 
-Usage:
-
 ```asm
 exclude <target> [targets ...]
 ```
@@ -34,8 +32,6 @@ Excludes the given file from the respective stage.
     ```
 
 ### Include
-
-Usage:
 
 ```asm
 include <target> [targets ...]
@@ -58,13 +54,11 @@ Includes the given file in the respective stage.
 
 ### Create directory
 
-Usage:
+<!-- md:api write -->
 
 ```asm
 mkdir <target>
 ```
-
-<!-- md:api write -->
 
 Creates the respective target directory. If the directory already exists, no action is taken.
 
@@ -76,13 +70,11 @@ Creates the respective target directory. If the directory already exists, no act
 
 ### Move entry
 
-Usage:
+<!-- md:api read write -->
 
 ```asm
 mv <source> <target>
 ```
-
-<!-- md:api read write -->
 
 Moves a file or directory to a new location, renaming it if specified.
 
@@ -102,13 +94,11 @@ Moves a file or directory to a new location, renaming it if specified.
 
 ### Copy entry
 
-Usage:
+<!-- md:api read write -->
 
 ```asm
 cp <source> <target>
 ```
-
-<!-- md:api read write -->
 
 Copies a file or directory to a new location, renaming it if specified.
 
@@ -128,13 +118,11 @@ Copies a file or directory to a new location, renaming it if specified.
 
 ### Remove entry
 
-Usage:
+<!-- md:api write -->
 
 ```asm
 rm <target> [targets ...]
 ```
-
-<!-- md:api write -->
 
 Removes a file or directory. This should be used sparingly.
 
