@@ -58,13 +58,29 @@ plugins:
     # This is going to throw a schema error, but it is valid (so long as mkdocs-awesome-nav was installed)
     - awesome-nav
     - minify:
-          minify_html: true
-          minify_css: true
-          htmlmin_opts:
-              remove_comments: true
-          cache_safe: true
-          css_files:
-              - stylesheets/badges.css
+        minify_html: true
+        minify_css: true
+        htmlmin_opts:
+            remove_comments: true
+        cache_safe: true
+        css_files:
+            - stylesheets/badges.css
+    - tags:
+        enabled: true
+        tags: true
+        tags_slugify_separator: '-'
+        tags_slugify_format: "tag:{slug}"
+        tags_hierarchy: true
+        tags_name_property: tags
+        tags_name_variable: tags
+        listings: true
+        listings_directive: material/tags
+        shadow: false
+        shadow_on_serve: true
+        shadow_tags_prefix: _
+        export: true
+        export_file: tags.json
+        export_only: true
 
 extra:
     generator: false
