@@ -1,5 +1,9 @@
 ---
-title: None
+title: Home
+social:
+  cards_layout_options:
+    background_color: blue # Change background color
+    background_image: null # Remove background image
 ---
 
 ![APKognito Logo](images/dark-wide.webp#only-dark){ width="500" }
