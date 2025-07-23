@@ -5,33 +5,33 @@ using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Utilities;
 
-internal sealed class ArchiveReplace(string _archivePath, IProgress<ProgressInfo>? _reporter, ILogger _logger)
+internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger _logger)
 {
-    public async Task ModifyArchiveStringsAsync(Regex pattern, string replacementValue, string[]? extraFiles, CancellationToken token = default)
+    public async Task ModifyArchiveStringsAsync(string archivePath, Regex pattern, string replacementValue, string[]? extraFiles, CancellationToken token = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(_archivePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(archivePath);
         ArgumentNullException.ThrowIfNull(pattern);
         ArgumentException.ThrowIfNullOrWhiteSpace(replacementValue);
 
-        if (!File.Exists(_archivePath))
+        if (!File.Exists(archivePath))
         {
-            throw new NonexistentAssetException(Path.GetFileName(_archivePath), Path.GetDirectoryName(_archivePath) ?? "[NO_DIRECTORY]");
+            throw new NonexistentAssetException(Path.GetFileName(archivePath), Path.GetDirectoryName(archivePath) ?? "[NO_DIRECTORY]");
         }
 
         extraFiles ??= [];
 
-        await ModifyArchiveStringsInternalAsync(pattern, replacementValue, extraFiles, token);
+        await ModifyArchiveStringsInternalAsync(archivePath, pattern, replacementValue, extraFiles, token);
     }
 
-    private async Task ModifyArchiveStringsInternalAsync(Regex pattern, string replacement, string[] extraFiles, CancellationToken token)
+    private async Task ModifyArchiveStringsInternalAsync(string archivePath, Regex pattern, string replacement, string[] extraFiles, CancellationToken token)
     {
-        _logger?.LogInformation("Renaming OBB file '{GetFileName}'", Path.GetFileName(_archivePath));
+        _logger?.LogInformation("Renaming OBB file '{GetFileName}'", Path.GetFileName(archivePath));
         _reporter.ReportProgressTitle("Renaming OBB internal");
 
         // Not really indexing, but it sounds cooler :p
         _reporter.ReportProgressMessage("Indexing...");
 
-        using ZipFile zip = new(_archivePath);
+        using ZipFile zip = new(archivePath);
 
         List<ZipEntry> selectedFiles = [.. zip.Entries.Where(e => e.FileName.Contains("catalog") || extraFiles.Contains(e.FileName))];
 
@@ -51,7 +51,9 @@ internal sealed class ArchiveReplace(string _archivePath, IProgress<ProgressInfo
         }
 
         _logger?.LogInformation("Saving asset changes...");
-        zip.Save();
+
+        // Not great for the thread pool, but it will lock the UI
+        await Task.Run(zip.Save, token);
     }
 
     private static async Task ProcessTextEntryAsync(ZipFile zip, ZipEntry entry, Regex pattern, string replacement, CancellationToken token)
