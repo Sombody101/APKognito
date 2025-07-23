@@ -14,16 +14,17 @@ public sealed class PackageCompressor
 
     private readonly ILogger _logger;
     private readonly PackageToolingPaths _toolingPaths;
-    private readonly PackageNameData? _nameData;
+    private readonly PackageNameData _nameData;
 
-    public PackageCompressor(PackageToolingPaths toolPaths, PackageNameData? nameData)
+    public PackageCompressor(PackageToolingPaths toolPaths, PackageNameData nameData)
         : this(toolPaths, nameData, null)
     {
     }
 
-    public PackageCompressor(PackageToolingPaths toolPaths, PackageNameData? nameData, ILogger? logger)
+    public PackageCompressor(PackageToolingPaths toolPaths, PackageNameData nameData, ILogger? logger)
     {
         ArgumentNullException.ThrowIfNull(toolPaths);
+        InvalidConfigurationException.ThrowIfNull(nameData);
         ArgumentException.ThrowIfNullOrWhiteSpace(toolPaths.JavaExecutablePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(toolPaths.ApkToolJarPath);
 
@@ -45,10 +46,11 @@ public sealed class PackageCompressor
     /// <exception cref="PackageUnpackFailedException"></exception>
     public async Task UnpackPackageAsync(string? packagePath = null, string? outputDirectory = null, bool overwrite = true, CancellationToken token = default)
     {
-        InvalidConfigurationException.ThrowIfNull(_nameData);
+        packagePath = BaseRenameConfiguration.Coalesce(packagePath, _nameData.FullSourceApkPath);
+        _logger.LogInformation("Unpacking {PackagePath}", Path.GetFileName(packagePath));
 
         await UnpackPackageInternalAsync(
-            BaseRenameConfiguration.Coalesce(packagePath, _nameData.FullSourceApkPath),
+            packagePath,
             BaseRenameConfiguration.Coalesce(outputDirectory, _nameData.ApkAssemblyDirectory),
             overwrite,
             token
@@ -68,7 +70,7 @@ public sealed class PackageCompressor
     /// <exception cref="PackagePackFailedException"></exception>
     public async Task<string> PackPackageAsync(string? unpackedPackageDirectory = null, string? outputPackageFilePath = null, bool overwrite = true, CancellationToken token = default)
     {
-        InvalidConfigurationException.ThrowIfNull(_nameData);
+        _logger.LogInformation("Packing APK...");
 
         // Repacked and placed into the assembly directory because the package still needs to be signed. The caller can override this value, though.
         string outputPackagePath = BaseRenameConfiguration.Coalesce(
@@ -96,13 +98,14 @@ public sealed class PackageCompressor
     /// <returns></returns>
     /// <exception cref="FileNotFoundException"></exception>
     /// <exception cref="PackageSignFailedException"></exception>
-    public async Task SignPackageAsync(string? unsignedPackageFilePath = null, string? signedPackageFilePath = null, CancellationToken token = default)
+    public async Task SignPackageAsync(string? unsignedPackageFilePath = null, string? signedPackageFilePath = null, bool fixOutputNames = true, CancellationToken token = default)
     {
-        InvalidConfigurationException.ThrowIfNull(_nameData);
+        _logger.LogInformation("Signing APK...");
 
         await SignPackageInternalAsync(
             BaseRenameConfiguration.Coalesce(unsignedPackageFilePath, () => Path.Combine(_nameData.ApkAssemblyDirectory, $"{_nameData.NewPackageName}.unsigned.apk")),
             BaseRenameConfiguration.Coalesce(signedPackageFilePath, _nameData.RenamedOutputDirectoryInternal),
+            fixOutputNames,
             token
         );
     }
@@ -113,8 +116,6 @@ public sealed class PackageCompressor
     /// </summary>
     public void GatherPackageMetadata(string? manifestPath = null)
     {
-        ArgumentNullException.ThrowIfNull(_nameData);
-
         manifestPath = BaseRenameConfiguration.Coalesce(manifestPath, () => Path.Combine(_nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
         _nameData.OriginalPackageName = GetPackageName(manifestPath);
 
@@ -156,11 +157,9 @@ public sealed class PackageCompressor
 
         _ = Directory.CreateDirectory(outputDirectory);
 
-        _logger.LogInformation("Unpacking {PackagePath}", Path.GetFileName(packagePath));
-
         IEnumerable<string> args = new string[]
         {
-            "-jar", _toolingPaths.ApkToolJarPath, overwrite ? "-f" : string.Empty, "d", packagePath, "-o", outputDirectory
+            "-jar", _toolingPaths.ApkToolJarPath, "d", overwrite ? "-f" : string.Empty, packagePath, "-o", outputDirectory
         }.Where(arg => arg is not null);
 
         CliToolExecutionResult result = await RunCliCommandAsync(_toolingPaths.JavaExecutablePath, args, token);
@@ -184,12 +183,18 @@ public sealed class PackageCompressor
             _ = Directory.CreateDirectory(outputDir);
         }
 
-        IEnumerable<string> args = new string[]
-        {
-            "-jar", _toolingPaths.ApkToolJarPath, overwrite ? "-f" : string.Empty, "b", unpackedPackageDirectory, "-o", outputPackageFilePath
-        }.Where(arg => arg is not null);
+        List<string> args =
+        [
+            "-jar", _toolingPaths.ApkToolJarPath, "b", overwrite ? "-f" : string.Empty, unpackedPackageDirectory
+        ];
 
-        CliToolExecutionResult result = await RunCliCommandAsync(_toolingPaths.JavaExecutablePath, args, token);
+        if (!string.IsNullOrWhiteSpace(outputPackageFilePath))
+        {
+            args.Add("-o");
+            args.Add(outputPackageFilePath);
+        }
+
+        CliToolExecutionResult result = await RunCliCommandAsync(_toolingPaths.JavaExecutablePath, args.Where(arg => arg is not null), token);
 
         if (result.IsError)
         {
@@ -197,7 +202,7 @@ public sealed class PackageCompressor
         }
     }
 
-    private async Task SignPackageInternalAsync(string unsignedPackageFilePath, string signedPackageDirectory, CancellationToken token)
+    private async Task SignPackageInternalAsync(string unsignedPackageFilePath, string signedPackageDirectory, bool fixOutputNames, CancellationToken token)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(unsignedPackageFilePath);
 
@@ -206,25 +211,34 @@ public sealed class PackageCompressor
             throw new FileNotFoundException($"Unsigned APK file not found at: {unsignedPackageFilePath}", unsignedPackageFilePath);
         }
 
-        IEnumerable<string> args = new string[]
-        {
-            "-jar", _toolingPaths.ApkSignerJarPath, "--allowResign", "-a", unsignedPackageFilePath, "-o", signedPackageDirectory
-        }.Where(arg => arg is not null);
+        List<string> args =
+        [
+            "-jar", _toolingPaths.ApkSignerJarPath, "--allowResign", "-a", unsignedPackageFilePath
+        ];
 
-        CliToolExecutionResult result = await RunCliCommandAsync(_toolingPaths.JavaExecutablePath, args, token);
+        if (!string.IsNullOrWhiteSpace(signedPackageDirectory))
+        {
+            args.Add("-o");
+            args.Add(signedPackageDirectory);
+        }
+
+        CliToolExecutionResult result = await RunCliCommandAsync(_toolingPaths.JavaExecutablePath, args.Where(arg => arg is not null), token);
 
         if (result.IsError)
         {
             throw new PackageSignFailedException(result.ExitCode, $"ApkSign sign failed. Exit Code: {result.ExitCode}", result.StdErr, result.Command);
         }
 
-        // Rename the output APK
-        // fullTrueName is also the OBB asset path when it doesn't have the file extension
-        string fullTrueName = Path.Combine(_nameData.RenamedOutputDirectoryInternal, Path.GetFileName(unsignedPackageFilePath).Replace(".unsigned.apk", string.Empty));
-        string newSignedName = $"{fullTrueName}.unsigned-aligned-debugSigned";
+        if (fixOutputNames)
+        {
+            // Rename the output APK
+            // fullTrueName is also the OBB asset path when it doesn't have the file extension
+            string fullTrueName = Path.Combine(_nameData.RenamedOutputDirectoryInternal, Path.GetFileName(unsignedPackageFilePath).Replace(".unsigned.apk", string.Empty));
+            string newSignedName = $"{fullTrueName}.unsigned-aligned-debugSigned";
 
-        File.Move($"{newSignedName}.apk", $"{fullTrueName}.apk", true);
-        File.Move($"{newSignedName}.apk.idsig", $"{fullTrueName}.apk.idsig", true);
+            File.Move($"{newSignedName}.apk", $"{fullTrueName}.apk", true);
+            File.Move($"{newSignedName}.apk.idsig", $"{fullTrueName}.apk.idsig", true);
+        }
     }
 
     public static string GetPackageName(string manifestPath)
