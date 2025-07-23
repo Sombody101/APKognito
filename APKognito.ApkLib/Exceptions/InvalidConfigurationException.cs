@@ -2,23 +2,9 @@
 
 namespace APKognito.ApkLib.Exceptions;
 
-public sealed class InvalidConfigurationException : Exception
+public sealed class InvalidConfigurationException(string message) : Exception(message)
 {
     private const string DEFAULT_CONFIG_MESSAGE = "The required config type was null.";
-
-    public InvalidConfigurationException(string message)
-        : base(message)
-    {
-    }
-
-    [Obsolete("Use ThrowIfNull<T>(...) instead. It captures the type name.")]
-    public static void ThrowIfNull(object? obj, string message = DEFAULT_CONFIG_MESSAGE)
-    {
-        if (obj is null)
-        {
-            ThrowInvalidConfigException(message);
-        }
-    }
 
     public static void ThrowIfNull<T>([NotNull] T? obj, string message = DEFAULT_CONFIG_MESSAGE)
     {
