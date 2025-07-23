@@ -1,10 +1,10 @@
-﻿using APKognito.Utilities;
-using MemoryPack;
-using Newtonsoft.Json;
-using System.IO;
+﻿using System.IO;
 using System.IO.Compression;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
+using APKognito.Utilities;
+using MemoryPack;
+using Newtonsoft.Json;
 
 namespace APKognito.Configurations;
 
@@ -18,7 +18,7 @@ public class ConfigurationFactory
 
     public ConfigurationFactory()
     {
-        Directory.CreateDirectory(ConfigurationDirectory);
+        _ = Directory.CreateDirectory(ConfigurationDirectory);
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ public class ConfigurationFactory
         // Return a cached config
         if (!forceReload && _cachedConfigs.TryGetValue(configType, out IKognitoConfig? value))
         {
-            FileLogger.Log($"Fetch cached {configType.Name}");
+            FileLogger.LogDebug($"Fetch cached {configType.Name}");
             return (T)value;
         }
 
@@ -47,7 +47,7 @@ public class ConfigurationFactory
             throw exception;
         }
 
-        FileLogger.Log($"'{configAttribute.FileName}' for {configType.Name}, caching");
+        FileLogger.LogDebug($"'{configAttribute.FileName}' for {configType.Name}, caching");
         T config = LoadConfig<T>(configAttribute);
         _cachedConfigs[configType] = config;
 
@@ -103,6 +103,14 @@ public class ConfigurationFactory
             case ConfigType.MemoryPacked:
                 Save_MemoryPack(config, filePath, configAttribute.ConfigModifier);
                 break;
+        }
+    }
+
+    public void SaveConfigs(params IKognitoConfig[] configs)
+    {
+        foreach (IKognitoConfig config in configs)
+        {
+            SaveConfig(config);
         }
     }
 
