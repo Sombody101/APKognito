@@ -1,20 +1,23 @@
 ﻿// #define NO_EXCEPTION_HANDLING
 
-using APKognito.AdbTools;
-using APKognito.Configurations;
-using APKognito.Services;
-using APKognito.Utilities;
-using APKognito.Utilities.MVVM;
-using APKognito.ViewModels.Pages;
-using APKognito.ViewModels.Windows;
-using APKognito.Views.Windows;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Data;
+using APKognito.Configurations;
+using APKognito.Services;
+using APKognito.Utilities;
+using APKognito.ViewModels.Pages;
+using APKognito.ViewModels.Pages.Debugging;
+using APKognito.ViewModels.Windows;
+using APKognito.Views.Pages;
+using APKognito.Views.Pages.Debugging;
+using APKognito.Views.Windows;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
@@ -35,8 +38,14 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
     // https://docs.microsoft.com/dotnet/core/extensions/configuration
     // https://docs.microsoft.com/dotnet/core/extensions/logging
-    private static readonly IHost _host = Host
+    private static readonly IHost s_host = Host
         .CreateDefaultBuilder()
+        .ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddConsole();
+            logging.AddFilter<ConsoleLoggerProvider>("Microsoft.Hosting.Lifetime", Microsoft.Extensions.Logging.LogLevel.Error);
+        })
         .ConfigureAppConfiguration(c =>
         {
             _ = c.SetBasePath(AppContext.BaseDirectory);
@@ -54,7 +63,37 @@ public partial class App
                 .AddSingleton<INavigationService, NavigationService>()
                 .AddSingleton<IContentDialogService, ContentDialogService>()
                 .AddSingleton<INavigationWindow, MainWindow>()
-                .AddSingleton<MainWindowViewModel>();
+                // Pages
+                .AddSingleton<HomePage>()
+                .AddTransient<AdbConsolePage>()
+                .AddTransient<AdbConfigurationPage>()
+                .AddTransient<DriveUsagePage>()
+                .AddTransient<FileExplorerPage>()
+                .AddTransient<FileUploaderPage>()
+                .AddTransient<PackageManagerPage>()
+                .AddTransient<RenameConfigurationPage>()
+                .AddTransient<RenamingHistoryPage>()
+                .AddTransient<SettingsPage>()
+                .AddTransient<LogViewerPage>()
+                // Viewmodels
+                .AddSingleton<HomeViewModel>()
+                .AddSingleton<MainWindowViewModel>()
+                .AddSingleton<SharedViewModel>()
+                .AddTransient<AdbConfigurationViewModel>()
+                .AddTransient<AdbConsoleViewModel>()
+                .AddTransient<DriveUsageViewModel>()
+                .AddTransient<FileExplorerViewModel>()
+                .AddTransient<FileUploaderViewModel>()
+                .AddTransient<PackageManagerViewModel>()
+                .AddTransient<RenameConfigurationViewModel>()
+                .AddTransient<RenamingHistoryViewModel>()
+                .AddTransient<SettingsViewModel>()
+                .AddTransient<LogViewerViewModel>();
+
+            // Wizard
+            _ = services
+                .AddSingleton<SetupWizard>()
+                .AddSingleton<SetupWizardViewModel>();
 
             // Exception window model
             _ = services.AddSingleton<ExceptionWindowViewModel>();
@@ -63,13 +102,18 @@ public partial class App
             _ = services.AddHostedService<AutoUpdaterService>();
 
             // Load all pages (any class that implements IViewable)
-            IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
-                .Where(t => t != typeof(IViewable) && typeof(IViewable).IsAssignableFrom(t));
-
-            foreach (Type? type in types)
-            {
-                _ = services.AddSingleton(type);
-            }
+            //Tools.Time(() =>
+            //{
+            //    IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
+            //        .Where(t => !(t.IsAbstract || t.IsInterface) && typeof(IViewable).IsAssignableFrom(t));
+            //
+            //    foreach (Type? type in types)
+            //    {
+            //        _ = services.AddSingleton(type);
+            //
+            //        Console.WriteLine($".AddSingleton<{type.Name}>()");
+            //    }
+            //}, "IViewable collection");
 
         }).Build();
 
@@ -81,12 +125,17 @@ public partial class App
     public static T? GetService<T>()
         where T : class
     {
-        return _host.Services.GetService(typeof(T)) as T;
+        return s_host.Services.GetService(typeof(T)) as T;
     }
 
     /// <summary>
     /// Occurs when the application is loading.
     /// </summary>
+    private void TimedOnStartup(object sender, StartupEventArgs e)
+    {
+        Tools.Time(() => OnStartup(sender, e), nameof(OnStartup));
+    }
+
     private void OnStartup(object sender, StartupEventArgs e)
     {
         FileLogger.Log($"App start. {Version.GetFullVersion()}, {Version.VersionIdentifier}");
@@ -98,7 +147,7 @@ public partial class App
             {
                 _ = ExceptionWindow.CreateNewExceptionWindow(
                     e.Exception,
-                    (ExceptionWindowViewModel)_host.Services.GetService(typeof(ExceptionWindowViewModel))!,
+                    (ExceptionWindowViewModel)s_host.Services.GetService(typeof(ExceptionWindowViewModel))!,
                     "AppMain [src: TaskScheduler]");
             });
         };
@@ -109,14 +158,13 @@ public partial class App
             {
                 _ = ExceptionWindow.CreateNewExceptionWindow(
                     e.Exception,
-                    (ExceptionWindowViewModel)_host.Services.GetService(typeof(ExceptionWindowViewModel))!,
+                    (ExceptionWindowViewModel)s_host.Services.GetService(typeof(ExceptionWindowViewModel))!,
                     "AppMain [src: Default Dispatcher]");
             });
         };
 #endif
 
-        _host.Start();
-
+        Tools.Time(s_host.Start, "Host.Start");
         ApplicationAccentColorManager.ApplySystemAccent();
     }
 
@@ -129,9 +177,9 @@ public partial class App
         HomeViewModel.Instance?.Log("Saving all settings...");
         GetService<ConfigurationFactory>()!.SaveAllConfigs();
 
-        await _host.StopAsync();
+        await s_host.StopAsync();
 
-        _host.Dispose();
+        s_host.Dispose();
         FileLogger.Log("App exit.");
     }
 
@@ -154,9 +202,14 @@ public partial class App
         e.Handled = true;
     }
 
-    public static void NavigateTo<NavType>()
+    public static void NavigateTo(Type target)
     {
-        _ = ((MainWindow)Current.MainWindow).Navigate(typeof(NavType));
+        GetRequiredService<INavigationService>().Navigate(target);
+    }
+
+    public static T GetRequiredService<T>() where T : class
+    {
+        return s_host.Services.GetRequiredService<T>();
     }
 
     /// <summary>
@@ -206,14 +259,21 @@ public partial class App
 
     public readonly struct Version
     {
+        public static Assembly Assembly { get => field ??= typeof(Version).Assembly; } = null!;
+
         public static string GetFullVersion(Assembly? assembly = null)
         {
-            return $"{VersionPrefix}{(assembly ?? Assembly.GetExecutingAssembly()).GetName().Version}";
+            return $"{VersionPrefix}{(assembly ?? Assembly).GetName().Version}";
         }
 
-        public static string GetVersion(Assembly? assembly = null)
+        public static string GetStringVersion(Assembly? assembly = null)
         {
-            return (assembly ?? Assembly.GetExecutingAssembly()).GetName().Version!.ToString();
+            return GetVersion(assembly).ToString();
+        }
+
+        public static System.Version GetVersion(Assembly? assembly = null)
+        {
+            return (assembly ?? Assembly).GetName().Version!;
         }
 
         public const string VersionPrefix =
