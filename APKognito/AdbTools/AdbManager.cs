@@ -1,13 +1,13 @@
-﻿using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
-using APKognito.Utilities;
-using APKognito.Utilities.MVVM;
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Resources;
 using System.Runtime.InteropServices;
+using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 
 namespace APKognito.AdbTools;
 
@@ -234,20 +234,9 @@ internal sealed class AdbManager : IDisposable
         output.ThrowIfError(noThrow, adbRestartProcess.ExitCode);
     }
 
-    public static bool AdbWorks([Optional] string? platformToolsPath, LoggableObservableObject? logger = null)
+    public static bool AdbWorks([Optional] string? platformToolsPath, IViewLogger? logger = null)
     {
-        platformToolsPath ??= adbConfig.PlatformToolsPath;
-        bool isInstalled = Directory.Exists(platformToolsPath) && File.Exists(Path.Combine(platformToolsPath, "adb.exe"));
-
-        if (isInstalled)
-        {
-            logger?.SnackError("Platform tools are not installed!", "You can:\n" +
-                "1. Install them by running ':install-adb' in the Console Page.\n" +
-                "2. Verify the Platform Tools path in the ADB Configuration Page.\n" +
-                $"3. Install them manually at {PLATFORM_TOOLS_INSTALL_LINK}, then set the path in the ADB Configuration Page.");
-        }
-
-        return isInstalled;
+        return adbConfig.AdbWorks(platformToolsPath, logger);
     }
 
     /// <summary>

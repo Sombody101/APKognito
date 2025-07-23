@@ -1,6 +1,10 @@
-﻿using Newtonsoft.Json;
-using System.Collections;
+﻿using System.Collections;
 using System.IO;
+using System.Runtime.InteropServices;
+using APKognito.AdbTools;
+using APKognito.Models;
+using APKognito.Utilities.MVVM;
+using Newtonsoft.Json;
 
 namespace APKognito.Configurations.ConfigModels;
 
@@ -29,6 +33,22 @@ internal sealed class AdbConfig : IKognitoConfig
         return deviceId is null 
             ? null 
             : AdbDevices.Find(device => device.DeviceId == deviceId);
+    }
+
+    public bool AdbWorks([Optional] string? platformToolsPath, IViewLogger? logger = null)
+    {
+        platformToolsPath ??= PlatformToolsPath;
+        bool isInstalled = Directory.Exists(platformToolsPath) && File.Exists(Path.Combine(platformToolsPath, "adb.exe"));
+
+        if (isInstalled)
+        {
+            logger?.SnackError("Platform tools are not installed!", "You can:\n" +
+                "1. Install them by running ':install-adb' in the Console Page.\n" +
+                "2. Verify the Platform Tools path in the ADB Configuration Page.\n" +
+                $"3. Install them manually at {AdbManager.PLATFORM_TOOLS_INSTALL_LINK}, then set the path in the ADB Configuration Page.");
+        }
+
+        return isInstalled;
     }
 }
 
