@@ -1,10 +1,10 @@
-﻿using APKognito.Utilities.MVVM;
-using Newtonsoft.Json.Linq;
-using System.IO;
+﻿using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
+using APKognito.Utilities.MVVM;
+using Newtonsoft.Json.Linq;
 
 namespace APKognito.Utilities;
 
@@ -36,7 +36,7 @@ public static partial class WebGet
     /// <param name="url"></param>
     /// <param name="num"></param>
     /// <returns></returns>
-    public static async Task<string?> FetchGitHubReleaseAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, int num = 0)
+    public static async Task<string?> FetchGitHubReleaseAsync(string url, IViewLogger? logger, CancellationToken cToken, int num = 0)
     {
         object? result = await FetchParseDocumentAsync(url, [["assets", num, "browser_download_url"]], logger, cToken);
 
@@ -51,12 +51,12 @@ public static partial class WebGet
     /// <param name="url"></param>
     /// <param name="indexes"></param>
     /// <returns></returns>
-    public static async Task<string?[]> FetchAsync(string url, LoggableObservableObject? logger, CancellationToken cToken, params object[][] indexes)
+    public static async Task<string?[]> FetchAsync(string url, IViewLogger? logger, CancellationToken cToken, params object[][] indexes)
     {
         return await FetchParseDocumentAsync(url, indexes, logger, cToken) as string?[] ?? [];
     }
 
-    public static async Task<bool> DownloadAsync(string url, string name, LoggableObservableObject? logger, CancellationToken cToken)
+    public static async Task<bool> DownloadAsync(string url, string name, IViewLogger? logger, CancellationToken token = default)
     {
         if (!await VerifyConnectionAsync(logger))
         {
@@ -67,12 +67,12 @@ public static partial class WebGet
         {
             string fileName = Path.GetFileName(name);
             logger?.Log($"Fetching {fileName}");
-            using HttpResponseMessage response = await SharedHttpClient.GetAsync(url, cToken);
+            using HttpResponseMessage response = await SharedHttpClient.GetAsync(url, token);
             _ = response.EnsureSuccessStatusCode();
 
             await using FileStream fileStream = File.Create(name);
             logger?.Log($"Installing {fileName}");
-            await response.Content.CopyToAsync(fileStream, cToken);
+            await response.Content.CopyToAsync(fileStream, token);
 
             return true;
         }
@@ -90,14 +90,14 @@ public static partial class WebGet
         return false;
     }
 
-    public static async Task<bool> FetchAndDownloadGitHubReleaseAsync(string url, string downloadPath, LoggableObservableObject? logger, CancellationToken cToken, int assetIndex = 0)
+    public static async Task<bool> FetchAndDownloadGitHubReleaseAsync(string url, string downloadPath, IViewLogger? logger, CancellationToken token = default, int assetIndex = 0)
     {
-        string? downloadUrl = await FetchGitHubReleaseAsync(url, logger, cToken, assetIndex);
+        string? downloadUrl = await FetchGitHubReleaseAsync(url, logger, token, assetIndex);
 
-        return downloadUrl is not null && await DownloadAsync(downloadUrl, downloadPath, logger, cToken);
+        return downloadUrl is not null && await DownloadAsync(downloadUrl, downloadPath, logger, token);
     }
 
-    private static async Task<object?> FetchParseDocumentAsync(string url, object[][] indexes, LoggableObservableObject? logger, CancellationToken cToken)
+    private static async Task<object?> FetchParseDocumentAsync(string url, object[][] indexes, IViewLogger? logger, CancellationToken cToken)
     {
         if (!await VerifyConnectionAsync(logger))
         {
@@ -171,8 +171,11 @@ public static partial class WebGet
         return null;
     }
 
-    private static async Task<bool> VerifyConnectionAsync(LoggableObservableObject? logger)
+    private static async Task<bool> VerifyConnectionAsync(IViewLogger? logger)
     {
+        const string CLOUDFLARE_MESSAGE = "If you know you have a valid internet connection but this test is still failing, consider installing Cloudflare WARP or another VPN, " +
+            "even if you uninstall it after APKognito finishes the downloads.\nCloudflare WARP can be found here: https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/download-warp/";
+
         try
         {
             (ConnectionStatus result, IPStatus? status) = await IsConnectedToInternetAsync();
@@ -195,10 +198,12 @@ public static partial class WebGet
 
                 case ConnectionStatus.IpFailed:
                     logger?.LogError($"Failed to ping Cloudflare DNS (1.1.1.1). IP Status: {statusName}");
+                    logger?.LogWarning(CLOUDFLARE_MESSAGE);
                     return false;
 
                 case ConnectionStatus.DnsFailed:
                     logger?.LogError($"Failed to ping Cloudflare (https://www.cloudflare.com/). IP Status: {statusName}");
+                    logger?.LogWarning(CLOUDFLARE_MESSAGE);
                     return false;
             }
         }
