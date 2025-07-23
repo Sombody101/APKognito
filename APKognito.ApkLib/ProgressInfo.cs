@@ -11,4 +11,5 @@ public enum ProgressUpdateType : byte
 {
     Content,
     Title,
+    Reset,
 }

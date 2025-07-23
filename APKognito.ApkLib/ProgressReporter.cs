@@ -16,6 +16,8 @@ internal static class ProgressReporter
 
         string formattedTitle = string.Concat(title);
 
+        ArgumentException.ThrowIfNullOrEmpty(formattedTitle, nameof(title));
+
         ReportProgress(reporter, formattedTitle, ProgressUpdateType.Title);
     }
 
@@ -28,6 +30,13 @@ internal static class ProgressReporter
 
         string formattedMessage = string.Concat(message);
 
+        ArgumentException.ThrowIfNullOrEmpty(formattedMessage, nameof(message));
+
         ReportProgress(reporter, formattedMessage, ProgressUpdateType.Content);
+    }
+
+    public static void ResetReporter(this IProgress<ProgressInfo>? reporter)
+    {
+        reporter?.Report(new(string.Empty, ProgressUpdateType.Reset));
     }
 }
