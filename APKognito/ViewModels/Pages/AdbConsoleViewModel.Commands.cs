@@ -1,83 +1,50 @@
-﻿using APKognito.AdbTools;
-using APKognito.Helpers;
-using APKognito.Utilities;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
-
-using ActionCommand = System.Action<APKognito.ViewModels.Pages.AdbConsoleViewModel.ParsedCommand>;
-using AsyncCommand = System.Func<APKognito.ViewModels.Pages.AdbConsoleViewModel.ParsedCommand, System.Threading.Tasks.Task>;
+using APKognito.AdbTools;
+using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Helpers;
+using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
+using APKognito.ViewModels.Windows;
 
 namespace APKognito.ViewModels.Pages;
 
 public partial class AdbConsoleViewModel
 {
-    private readonly List<CommandInfo> commands = [];
-
-    private int longestCommandName = 0;
-
-#pragma warning disable S3011 // Reflection should not be used to increase accessibility of classes, methods, or fields
-    private void CacheInternalCommands()
+    internal IReadOnlyCollection<CommandInfo> GetCommands()
     {
-        foreach (MethodInfo methodInfo in typeof(AdbConsoleViewModel).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance))
+        if (s_commands.Count is 0)
         {
-            CommandAttribute? attribute = methodInfo.GetCustomAttribute<CommandAttribute>();
-            if (attribute is null)
-            {
-                continue;
-            }
-
-            try
-            {
-                CommandInfo commandInfo = new(attribute)
-                {
-                    IsAsync = methodInfo.ReturnType == typeof(Task)
-                };
-
-                if (commandInfo.IsAsync)
-                {
-                    commandInfo.AsyncCommand = (AsyncCommand)Delegate.CreateDelegate(typeof(AsyncCommand), this, methodInfo);
-                }
-                else
-                {
-                    commandInfo.Command = (ActionCommand)Delegate.CreateDelegate(typeof(ActionCommand), this, methodInfo);
-                }
-
-                if (attribute.CommandName.Length > longestCommandName)
-                {
-                    longestCommandName = attribute.CommandName.Length;
-                }
-
-                commands.Add(commandInfo);
-            }
-            catch (Exception ex)
-            {
-                LogError($"Failed to initialize '{attribute.CommandName}' ({methodInfo.Name}()): {ex.Message}");
-            }
+            RegisterCommands();
         }
+
+        return s_commands.ToList();
     }
 
-#pragma warning disable IDE0051 // Remove unused private members
+    private static readonly List<CommandInfo> s_commands = [];
+
+    private static int s_longestCommandName = 0;
 
     [Command("help", "Prints this help information.", NO_USAGE)]
     private void GetHelpInfoCommand(ParsedCommand __)
     {
         StringBuilder output = new();
 
-        foreach (CommandInfo? command in commands.Where(c => c.IsVisible))
+        foreach (CommandInfo? command in s_commands.Where(c => c.IsVisible))
         {
             _ = output.Append(':')
-                .Append(command.CommandName.PadRight(longestCommandName))
+                .Append(command.CommandName.PadRight(s_longestCommandName))
                 .Append(' ');
 
             _ = command.CommandUsage.Length is not 0
                 ? output.AppendLine(command.CommandUsage)
                     .Append('\t')
-                : output.AppendLine("(no parameters)")
-                    .Append('\t');
+                : output.AppendLine("(no parameters)\t");
 
             _ = output.AppendLine(command.HelpInfo).AppendLine();
         }
@@ -94,13 +61,13 @@ public partial class AdbConsoleViewModel
     [Command("active", "Gets information about the currently running ADB process.", NO_USAGE)]
     private void ActiveStatusCommand(ParsedCommand _)
     {
-        if (!adbManager.IsRunning)
+        if (!_adbManager.IsRunning)
         {
             Log("There is no active ADB process.");
             return;
         }
 
-        Process process = adbManager.AdbProcess!;
+        Process process = _adbManager.AdbProcess!;
 
         Log("Active ADB process:");
         Log($"Start time:\t\t{process.StartTime}");
@@ -113,13 +80,13 @@ public partial class AdbConsoleViewModel
     {
         if (ctx.ArgCount is 0 || ctx[0] == "--list")
         {
-            if (adbConfig.UserCmdlets.Count is 0)
+            if (_adbConfig.UserCmdlets.Count is 0)
             {
                 Log("No cmdlets set.");
                 return;
             }
 
-            foreach (KeyValuePair<string, string> command in adbConfig.UserCmdlets)
+            foreach (KeyValuePair<string, string> command in _adbConfig.UserCmdlets)
             {
                 Log($"{command.Key}: {command.Value}");
             }
@@ -140,9 +107,9 @@ public partial class AdbConsoleViewModel
         }
 
         string cmdlet = ctx[0]!;
-        adbConfig.UserCmdlets[cmdlet] = string.Join(' ', ctx[1..]);
+        _adbConfig.UserCmdlets[cmdlet] = string.Join(' ', ctx[1..]);
         Log($"Cmdlet '::{cmdlet}' created.");
-        configFactory.SaveConfig(adbConfig);
+        _configFactory.SaveConfig(_adbConfig);
     }
 
     [Command("unset", "Removes a custom cmdlet.", "<cmdlet name>")]
@@ -161,161 +128,14 @@ public partial class AdbConsoleViewModel
         }
 
         string cmdlet = ctx[0] ?? "[NO CMDLET]";
-        if (adbConfig.UserCmdlets.Remove(cmdlet))
+        if (_adbConfig.UserCmdlets.Remove(cmdlet))
         {
             Log($"Removed cmdlet '{cmdlet}'");
-            configFactory.SaveConfig(adbConfig);
+            _configFactory.SaveConfig(_adbConfig);
         }
         else
         {
             LogError($"Commandlet '{cmdlet}' not defined, no cmdlet removed.");
-        }
-    }
-
-    [Command("install-adb", "Auto installs platform tools.", "[--force|-f]")]
-    private void InstallAdbCommand(ParsedCommand ctx)
-    {
-        bool result = ThreadPool.QueueUserWorkItem(async (__) =>
-        {
-            if (AdbManager.AdbWorks()
-                && !ctx.Args.Contains("--force")
-                && !ctx.Args.Contains("-f"))
-            {
-                LogError("ADB is already installed. Run with '--force' to force a reinstall.");
-                return;
-            }
-
-            string appDataPath = App.AppDataDirectory.FullName;
-            WriteGenericLogLine($"Installing platform tools to: {appDataPath}\\platform-tools");
-
-            string zipFile = $"{appDataPath}\\adb.zip";
-            _ = await WebGet.DownloadAsync(Constants.ADB_INSTALL_URL, zipFile, this, CancellationToken.None);
-
-            WriteGenericLogLine("Unpacking platform tools.");
-
-            // Keeps track of the most recent file extraction attempt and shows it to the user
-            // in the try/catch.
-            string lastFile = string.Empty;
-            try
-            {
-                using ZipArchive archive = new(File.OpenRead(zipFile), ZipArchiveMode.Read);
-                foreach (ZipArchiveEntry entry in archive.Entries)
-                {
-                    string entryPath = Path.Combine(appDataPath, entry.FullName);
-
-                    if (entry.FullName.EndsWith('/'))
-                    {
-                        _ = Directory.CreateDirectory(entryPath);
-                        continue;
-                    }
-
-                    lastFile = Path.GetFileName(entryPath);
-                    entry.ExtractToFile(entryPath, true);
-                }
-            }
-            catch (Exception ex)
-            {
-                LogError($"Failed to install platform tools [{lastFile}]: {ex.Message}");
-                return;
-            }
-
-            File.Delete(zipFile);
-
-            WriteGenericLogLine("Updating ADB configuration.");
-            adbConfig.PlatformToolsPath = $"{appDataPath}\\platform-tools";
-            configFactory.SaveConfig(adbConfig);
-
-            WriteGenericLogLine("Testing adb...");
-            AdbCommandOutput output = await AdbManager.QuickCommandAsync("--version");
-            WriteGenericLogLine(output.StdOut);
-
-            if (output.Errored)
-            {
-                LogError("Failed to install platform tools!");
-                return;
-            }
-
-            LogSuccess("Platform tools installed successfully!");
-        });
-
-        if (!result)
-        {
-            LogError("Failed to queue download on the thread pool. Close some apps or try again later.");
-        }
-    }
-
-    [Command("install-java", "Installs JDK 24 (guided install)", NO_USAGE)]
-    private async Task InstallJavaCommandAsync(ParsedCommand __)
-    {
-        Log("Installing JDK 24...");
-
-        string tempDirectory = Path.Combine(Path.GetTempPath(), "APKognito-JavaTmp");
-        _ = Directory.CreateDirectory(tempDirectory);
-        DriveUsageViewModel.ClaimDirectory(tempDirectory);
-
-        string javaDownload = Path.Combine(tempDirectory, "jdk-24.exe");
-
-        if (File.Exists(javaDownload))
-        {
-            Log("Using previous install attempt executable.");
-            await FinishInstall();
-            return;
-        }
-
-        AddIndentString("+ ");
-        bool result = await WebGet.DownloadAsync(AdbManager.JDK_24_INSTALL_EXE_LINK, javaDownload, this, CancellationToken.None);
-        ResetIndent();
-
-        if (!result)
-        {
-            LogError("Failed to install JDK 24.");
-            return;
-        }
-
-        await FinishInstall();
-
-        async Task FinishInstall()
-        {
-            Process installer = new()
-            {
-                StartInfo = new()
-                {
-                    FileName = javaDownload,
-                    UseShellExecute = true,
-                    Verb = "runas",
-                }
-            };
-
-            try
-            {
-                Log("Waiting for installer to exit...");
-                _ = installer.Start();
-                await installer.WaitForExitAsync();
-
-
-                if (installer.ExitCode is not 0)
-                {
-                    LogWarning("Java install aborted!");
-                    return;
-                }
-
-                LogSuccess("JDK 24 installed successfully! Checking Java executable path...");
-                _ = new JavaVersionLocator().GetJavaPath(out _, this);
-
-                File.Delete(javaDownload);
-            }
-            catch (Win32Exception)
-            {
-                LogWarning("Installer canceled.");
-                return;
-            }
-            finally
-            {
-                if (File.Exists(javaDownload))
-                {
-                    Log($"The JDK installer has not been deleted in case you want to install later. You can find it in the Drive Footprint page, or:\n{javaDownload}");
-                }
-            }
         }
     }
 
@@ -328,14 +148,14 @@ public partial class AdbConsoleViewModel
     [Command("vars", "Prints all set variables.", NO_USAGE)]
     private void PrintAllVariablesCommand(ParsedCommand __)
     {
-        if (adbHistory.Variables.Count is 0)
+        if (_adbHistory.Variables.Count is 0)
         {
             Log("There are no set variables.");
             return;
         }
 
         StringBuilder builder = new();
-        foreach (KeyValuePair<string, string> pair in adbHistory.Variables)
+        foreach (KeyValuePair<string, string> pair in _adbHistory.Variables)
         {
             _ = builder.Append(pair.Key).Append("=\'").Append(pair.Value).AppendLine("'");
         }
@@ -355,7 +175,7 @@ public partial class AdbConsoleViewModel
     {
         // Args 0: Variable name
         // Args 1: Variable value
-        adbHistory.SetVariable(ctx.Args[0], ctx.Args[1]);
+        _adbHistory.SetVariable(ctx.Args[0], ctx.Args[1]);
     }
 
     [Command("sys")]
@@ -381,10 +201,161 @@ public partial class AdbConsoleViewModel
         }
     }
 
-#pragma warning restore IDE0051 // Remove unused private members
+    /*
+ * Installer commands
+ */
+
+    [Command("install-adb", "Auto installs platform tools.", "[--force|-f]")]
+    private static async Task InstallAdbCommandAsync(ParsedCommand ctx, IViewLogger logger, CancellationToken token)
+    {
+        if (AdbManager.AdbWorks()
+            && !ctx.Args.Contains("--force")
+            && !ctx.Args.Contains("-f"))
+        {
+            logger.LogError("ADB is already installed. Run with '--force' to force a reinstall.");
+            return;
+        }
+
+        string appDataPath = App.AppDataDirectory.FullName;
+        logger.WriteGenericLogLine($"Installing platform tools to: {appDataPath}\\platform-tools");
+
+        string zipFile = $"{appDataPath}\\adb.zip";
+        _ = await WebGet.DownloadAsync(Constants.ADB_INSTALL_URL, zipFile, logger, token);
+
+        logger.WriteGenericLogLine("Unpacking platform tools.");
+
+        // Keeps track of the most recent file extraction attempt and shows it to the user
+        // in the try/catch.
+        string lastFile = string.Empty;
+        try
+        {
+            using ZipArchive archive = new(File.OpenRead(zipFile), ZipArchiveMode.Read);
+            foreach (ZipArchiveEntry entry in archive.Entries)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                string entryPath = Path.Combine(appDataPath, entry.FullName);
+
+                if (entry.FullName.EndsWith('/'))
+                {
+                    _ = Directory.CreateDirectory(entryPath);
+                    continue;
+                }
+
+                lastFile = Path.GetFileName(entryPath);
+                entry.ExtractToFile(entryPath, true);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError($"Failed to install platform tools [{lastFile}]: {ex.Message}");
+            return;
+        }
+
+        File.Delete(zipFile);
+
+        logger.WriteGenericLogLine("Updating ADB configuration.");
+
+        ConfigurationFactory configFactory = App.GetService<ConfigurationFactory>()!;
+        AdbConfig adbConfig = configFactory.GetConfig<AdbConfig>();
+
+        adbConfig.PlatformToolsPath = $"{appDataPath}\\platform-tools";
+        configFactory.SaveConfig(adbConfig);
+
+        logger.WriteGenericLogLine("Testing adb...");
+        AdbCommandOutput output = await AdbManager.QuickCommandAsync("--version", token: token);
+        logger.WriteGenericLogLine(output.StdOut);
+
+        if (output.Errored)
+        {
+            logger.LogError("Failed to install platform tools!");
+            return;
+        }
+
+        logger.LogSuccess("Platform tools installed successfully!");
+
+        await App.Current.Dispatcher.InvokeAsync(App.GetService<MainWindowViewModel>()!.AddAdbDeviceTray);
+    }
+
+    [Command("install-java", "Installs JDK 24 (guided install)", NO_USAGE)]
+    private static async Task InstallJavaCommandAsync(ParsedCommand __, IViewLogger logger, CancellationToken token)
+    {
+        logger.Log("Installing JDK 24...");
+
+        string tempDirectory = Path.Combine(Path.GetTempPath(), "APKognito-JavaTmp");
+        _ = Directory.CreateDirectory(tempDirectory);
+        _ = DirectoryManager.ClaimDirectory(tempDirectory);
+
+        string javaDownload = Path.Combine(tempDirectory, "jdk-24.exe");
+
+        if (File.Exists(javaDownload))
+        {
+            logger.Log("Using previous install attempt executable.");
+            await FinishInstall();
+            return;
+        }
+
+        logger.AddIndentString("+ ");
+        bool result = await WebGet.DownloadAsync(AdbManager.JDK_24_INSTALL_EXE_LINK, javaDownload, logger, token);
+        logger.ResetIndent();
+
+        if (!result)
+        {
+            logger.LogError("Failed to install JDK 24.");
+            return;
+        }
+
+        await FinishInstall();
+
+        async Task FinishInstall()
+        {
+            Process installer = new()
+            {
+                StartInfo = new()
+                {
+                    FileName = javaDownload,
+                    UseShellExecute = true,
+                    Verb = "runas",
+                }
+            };
+
+            try
+            {
+                logger.Log("Waiting for installer to exit...");
+                _ = installer.Start();
+                await installer.WaitForExitAsync(token);
+
+                if (installer.ExitCode is not 0)
+                {
+                    logger.LogWarning("Java install aborted!");
+                    return;
+                }
+
+                logger.LogSuccess("JDK 24 installed successfully! Checking Java executable path...");
+                _ = new JavaVersionLocator().GetJavaPath(out _, logger);
+
+                File.Delete(javaDownload);
+            }
+            catch (Win32Exception)
+            {
+                logger.LogWarning("Installer canceled.");
+                return;
+            }
+            finally
+            {
+                if (File.Exists(javaDownload))
+                {
+                    logger.Log($"The JDK installer has not been deleted in case you want to install later. You can find it in the Drive Footprint page, or:\n{javaDownload}");
+                }
+            }
+        }
+    }
 
     [AttributeUsage(AttributeTargets.Method)]
-    private sealed class CommandAttribute : Attribute
+    internal sealed class CommandAttribute : Attribute
     {
         public string CommandName { get; }
 
@@ -425,28 +396,104 @@ public partial class AdbConsoleViewModel
         }
     }
 
-    private sealed record CommandInfo
+    internal sealed record CommandInfo
     {
         public string CommandName { get; }
-
         public string HelpInfo { get; }
-
         public string CommandUsage { get; }
-
         public bool IsVisible { get; }
 
-        public bool IsAsync { get; set; } = false;
+        internal MethodInfo CommandMethod { get; }
 
-        public AsyncCommand? AsyncCommand { get; set; } = null;
+        public bool IsAsync => CommandMethod.ReturnType == typeof(Task) || CommandMethod.ReturnType.IsSubclassOf(typeof(Task));
 
-        public ActionCommand? Command { get; set; } = null;
-
-        public CommandInfo(CommandAttribute commandAttribute)
+        internal CommandInfo(CommandAttribute commandAttribute, MethodInfo commandMethod)
         {
             CommandName = commandAttribute.CommandName;
             HelpInfo = commandAttribute.HelpInfo;
             CommandUsage = commandAttribute.CommandUsage;
             IsVisible = commandAttribute.IsVisible;
+            CommandMethod = commandMethod;
+        }
+    }
+
+    private static void RegisterCommands()
+    {
+        if (s_commands.Count > 0)
+        {
+            return;
+        }
+
+        MethodInfo[] methods = typeof(AdbConsoleViewModel).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+        foreach (MethodInfo method in methods)
+        {
+            CommandAttribute? commandAttribute = method.GetCustomAttribute<CommandAttribute>();
+            if (commandAttribute != null)
+            {
+                var commandInfo = new CommandInfo(commandAttribute, method);
+                s_commands.Add(commandInfo);
+
+                if (commandAttribute.CommandName.Length > s_longestCommandName)
+                {
+                    s_longestCommandName = commandAttribute.CommandName.Length;
+                }
+            }
+        }
+    }
+
+    private static async Task InvokeCommandAsync(CommandInfo commandInfo, ParsedCommand parsedCommand, IViewLogger logger, AdbConsoleViewModel? targetObject, CancellationToken token)
+    {
+        ParameterInfo[] parameters = commandInfo.CommandMethod.GetParameters();
+        var arguments = new List<object>();
+
+        foreach (Type? param in parameters.Select(p => p.ParameterType))
+        {
+            if (param == typeof(ParsedCommand))
+            {
+                arguments.Add(parsedCommand);
+            }
+            else if (param == typeof(IViewLogger))
+            {
+                arguments.Add(logger);
+            }
+            else if (param == typeof(CancellationToken))
+            {
+                arguments.Add(token);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Unsupported parameter type: {param.Name} for command method {commandInfo.CommandMethod.Name}");
+            }
+        }
+
+        try
+        {
+            AdbConsoleViewModel? target = null;
+
+            if (!commandInfo.CommandMethod.IsStatic)
+            {
+                if (targetObject is null)
+                {
+                    throw new InvalidOperationException("Unable to invoke command with null target object.");
+                }
+
+                target = targetObject;
+            }
+
+            object? result = commandInfo.CommandMethod.Invoke(target, [.. arguments]);
+
+            if (commandInfo.IsAsync && result is Task task)
+            {
+                await task;
+            }
+        }
+        catch (TargetInvocationException ex)
+        {
+            logger.Log($"Command execution error: {ex.InnerException?.Message ?? ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            logger.Log($"An unexpected error occurred during command invocation: {ex.Message}");
         }
     }
 }

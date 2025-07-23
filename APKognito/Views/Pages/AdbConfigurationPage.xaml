@@ -4,11 +4,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="clr-namespace:APKognito.ViewModels.Pages"
+    xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="AdbConfigurationPage"
-    d:DataContext="{d:DesignInstance local:AdbConfigurationViewModel,
+    d:DataContext="{d:DesignInstance local:AdbConfigurationPage,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="800"
     d:DesignWidth="800"
@@ -19,19 +19,83 @@
 
     <StackPanel Margin="0,30">
 
-        <ctrls:AndroidDeviceInfo Margin="0,0,0,10" NoExpander="True" />
+        <ctrls:AndroidDeviceInfo Margin="0,0,0,10" RenderType="Default" />
 
-        <!--  Not a whole lot here...  -->
+        <ui:Card Margin="0,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-        <ui:CardExpander Margin="0,0,0,10" ContentPadding="0">
-            <ui:CardExpander.Header>
-                <Label Content="Platform Tools Path" />
-            </ui:CardExpander.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
 
-            <ctrls:DirectorySelector
-                Grid.Column="1"
-                Margin="16"
-                DirectoryPath="{Binding PlatformToolsPath}" />
-        </ui:CardExpander>
+                    <ui:TextBlock FontWeight="Bold" Text="Platform tools path" />
+
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Text="Directory path for platform tools."
+                        TextWrapping="WrapWithOverflow" />
+                </Grid>
+
+                <ctrls:DirectorySelector Grid.Column="1" DirectoryPath="{Binding ViewModel.PlatformToolsPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+        </ui:Card>
+
+        <ui:TextBlock
+            Margin="0,16,0,0"
+            FontSize="20"
+            FontWeight="Medium"
+            Text="Quick Commands" />
+
+        <ui:CardAction
+            Grid.Column="0"
+            Margin="0,5"
+            Command="{Binding ViewModel.RunCardCommandCommand}"
+            CommandParameter="install-adb -f|Platform Tools"
+            Icon="{ui:SymbolIcon Symbol=WindowDevTools24}">
+            <StackPanel>
+                <ui:TextBlock
+                    Margin="0"
+                    FontTypography="BodyStrong"
+                    FontWeight="Bold"
+                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                    Text="Install Platform Tools"
+                    TextWrapping="WrapWithOverflow" />
+                <ui:TextBlock
+                    Appearance="Secondary"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    Text="Download and configure the most recent platform tools version."
+                    TextWrapping="WrapWithOverflow" />
+            </StackPanel>
+        </ui:CardAction>
+
+        <ui:CardAction
+            Grid.Column="0"
+            Margin="0,5"
+            Command="{Binding ViewModel.RunCardCommandCommand}"
+            CommandParameter="install-java|Java Development Kit 24"
+            Icon="{ui:FontIcon FontFamily={StaticResource FluentSystemIcons},
+                               Glyph=&#xF0178;}">
+            <StackPanel>
+                <ui:TextBlock
+                    Margin="0"
+                    FontTypography="BodyStrong"
+                    FontWeight="Bold"
+                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                    Text="Install JDK 24"
+                    TextWrapping="WrapWithOverflow" />
+                <ui:TextBlock
+                    Appearance="Secondary"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    Text="Download and launch a guided JDK 24 installer."
+                    TextWrapping="WrapWithOverflow" />
+            </StackPanel>
+        </ui:CardAction>
+
     </StackPanel>
 </Page>

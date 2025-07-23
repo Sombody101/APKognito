@@ -14,12 +14,15 @@ public partial class AdbConfigurationPage : INavigableView<AdbConfigurationViewM
     public AdbConfigurationPage()
     {
         // For designer
+        DataContext = this;
         ViewModel = new();
     }
 
     public AdbConfigurationPage(AdbConfigurationViewModel viewModel)
     {
+        ViewModel = viewModel;
+        DataContext = this;
+
         InitializeComponent();
-        DataContext = ViewModel = viewModel;
     }
 }

@@ -1,9 +1,9 @@
-﻿using APKognito.AdbTools;
+﻿using System.Text.RegularExpressions;
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
-using System.Text.RegularExpressions;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
@@ -12,12 +12,12 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     private const string NO_USAGE = "";
     private const string VARIABLE_SETTER = "__VARIABLE_SETTER";
 
-    private readonly AdbManager adbManager;
-    private readonly ConfigurationFactory configFactory;
-    private readonly AdbConfig adbConfig;
-    private readonly AdbHistory adbHistory;
+    private readonly AdbManager _adbManager;
+    private readonly ConfigurationFactory _configFactory;
+    private readonly AdbConfig _adbConfig;
+    private readonly AdbHistory _adbHistory;
 
-    private int historyIndex;
+    private int _historyIndex;
 
     #region Properties
 
@@ -33,17 +33,17 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     {
         SetSnackbarProvider(_snackbarService);
         LogIconPrefixes = false;
-        adbManager = new();
+        _adbManager = new();
 
-        configFactory = _configFactory;
-        adbConfig = configFactory.GetConfig<AdbConfig>();
-        adbHistory = configFactory.GetConfig<AdbHistory>();
+        this._configFactory = _configFactory;
+        _adbConfig = this._configFactory.GetConfig<AdbConfig>();
+        _adbHistory = this._configFactory.GetConfig<AdbHistory>();
 
-        historyIndex = adbHistory.CommandHistory.Count;
+        _historyIndex = _adbHistory.CommandHistory.Count;
 
-        if (commands.Count is 0)
+        if (s_commands.Count is 0)
         {
-            CacheInternalCommands();
+            RegisterCommands();
         }
     }
 
@@ -54,11 +54,11 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     {
         try
         {
-            WriteGenericLogLine($"{adbHistory.GetVariable("PS1")}{CommandBuffer}");
+            WriteGenericLogLine($"{_adbHistory.GetVariable("PS1")}{CommandBuffer}");
 
-            adbHistory.CommandHistory.Add(CommandBuffer);
-            historyIndex = adbHistory.CommandHistory.Count;
-            configFactory.SaveConfig(adbHistory);
+            _adbHistory.CommandHistory.Add(CommandBuffer);
+            _historyIndex = _adbHistory.CommandHistory.Count;
+            _configFactory.SaveConfig(_adbHistory);
 
             if (!string.IsNullOrWhiteSpace(CommandBuffer))
             {
@@ -76,24 +76,24 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
     [RelayCommand]
     private void OnHistoryUp()
     {
-        if (historyIndex - 1 > adbHistory.CommandHistory.Count || historyIndex is 0)
+        if (_historyIndex - 1 > _adbHistory.CommandHistory.Count || _historyIndex is 0)
         {
             return;
         }
 
-        CommandBuffer = adbHistory.CommandHistory[--historyIndex];
+        CommandBuffer = _adbHistory.CommandHistory[--_historyIndex];
         CursorPosition = CommandBuffer.Length;
     }
 
     [RelayCommand]
     private void OnHistoryDown()
     {
-        if (historyIndex >= adbHistory.CommandHistory.Count)
+        if (_historyIndex >= _adbHistory.CommandHistory.Count)
         {
             return;
         }
 
-        CommandBuffer = adbHistory.CommandHistory[historyIndex++];
+        CommandBuffer = _adbHistory.CommandHistory[_historyIndex++];
         CursorPosition = CommandBuffer.Length;
     }
 
@@ -108,7 +108,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         // Variable resolution
         foreach (Match match in ParsedCommand.VariableUsageRegex().Matches(command))
         {
-            string variableValue = adbHistory.GetVariable(match.Value[1..]);
+            string variableValue = _adbHistory.GetVariable(match.Value[1..]);
 
             command = command.Remove(match.Index, match.Length)
                 .Insert(match.Index, variableValue);
@@ -133,25 +133,43 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             return;
         }
 
-        if (!adbManager.IsRunning)
+        if (!_adbManager.IsRunning)
         {
-            adbManager.RunCommand(
+            _adbManager.RunCommand(
                 command,
                 // Regular output
                 (sender, e) => WriteGenericLogLine(e.Data ?? string.Empty),
                 // Error
                 (sender, e) => WriteGenericLogLine(e.Data ?? string.Empty, Brushes.Red),
                 // Exit
-                (sender, e) => WriteGenericLogLine($"Adb exited with code {adbManager.AdbProcess!.ExitCode}"));
+                (sender, e) => WriteGenericLogLine($"Adb exited with code {_adbManager.AdbProcess!.ExitCode}"));
         }
         else
         {
-            await adbManager.AdbProcess!.StandardInput.WriteLineAsync(command);
-            await adbManager.AdbProcess.StandardInput.FlushAsync();
+            await _adbManager.AdbProcess!.StandardInput.WriteLineAsync(command);
+            await _adbManager.AdbProcess.StandardInput.FlushAsync();
         }
     }
 
-    private async ValueTask<bool> RunInternalCommandAsync(string rawCommand)
+    public static async ValueTask<bool> RunBuiltinCommandAsync(string command, IViewLogger logger, CancellationToken token = default)
+    {
+        command = command.TrimStart(':');
+
+        ParsedCommand parsedCommand = new(command);
+
+        RegisterCommands();
+        CommandInfo? commandInfo = s_commands.Find(c => c.CommandName == parsedCommand.Command);
+        if (commandInfo is null)
+        {
+            return false;
+        }
+
+        await InvokeCommandAsync(commandInfo, parsedCommand, logger, null, token);
+
+        return true;
+    }
+
+    private async ValueTask<bool> RunInternalCommandAsync(string rawCommand, IViewLogger? logger = null)
     {
         rawCommand = rawCommand.Trim();
 
@@ -166,11 +184,11 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         if (command.IsCmdlet)
         {
             // This is a cmdlet
-            if (!adbConfig.UserCmdlets.TryGetValue(command.Command, out string? cmdletBody))
+            if (!_adbConfig.UserCmdlets.TryGetValue(command.Command, out string? cmdletBody))
             {
                 LogError($"Unknown cmdlet '{command.Command}'");
 
-                string closest = StringMatch.GetClosestMatch(command.Command, adbConfig.UserCmdlets.Select(cmd => cmd.Key));
+                string closest = StringMatch.GetClosestMatch(command.Command, _adbConfig.UserCmdlets.Select(cmd => cmd.Key));
                 Log($"Did you mean '::{closest}'?");
 
                 return true;
@@ -180,13 +198,13 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             return true;
         }
 
-        CommandInfo? wantedCommand = commands.Find(cinfo => cinfo.CommandName == command.Command);
+        CommandInfo? wantedCommand = s_commands.Find(c => c.CommandName == command.Command);
 
         if (wantedCommand is null)
         {
             LogError($"Unknown command '{command.Command}'");
 
-            string closest = StringMatch.GetClosestMatch(command.Command, commands.Select(cmd => cmd.CommandName));
+            string closest = StringMatch.GetClosestMatch(command.Command, s_commands.Select(cmd => cmd.CommandName));
             Log($"Did you mean ':{closest}'?");
 
             return true;
@@ -194,14 +212,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
         try
         {
-            if (wantedCommand.IsAsync)
-            {
-                await wantedCommand.AsyncCommand!.Invoke(command);
-            }
-            else
-            {
-                wantedCommand.Command!.Invoke(command);
-            }
+            await InvokeCommandAsync(wantedCommand, command, logger ?? this, this, CancellationToken.None);
         }
         catch (Exception ex)
         {

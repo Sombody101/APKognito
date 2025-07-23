@@ -1,15 +1,17 @@
-﻿using APKognito.AdbTools;
+﻿using System.Runtime.InteropServices;
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Controls.Dialogs;
 using APKognito.Utilities.MVVM;
-using System.Runtime.InteropServices;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
 public partial class AdbConfigurationViewModel : LoggableObservableObject
 {
-    private readonly AdbConfig adbConfig;
+    private readonly AdbConfig _adbConfig;
+    private readonly IContentDialogService _contentDialogService;
 
     #region Properties
 
@@ -26,10 +28,10 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
 
     public string PlatformToolsPath
     {
-        get => adbConfig.PlatformToolsPath;
+        get => _adbConfig.PlatformToolsPath;
         set
         {
-            adbConfig.PlatformToolsPath = value;
+            _adbConfig.PlatformToolsPath = value;
             OnPropertyChanged(nameof(PlatformToolsPath));
         }
     }
@@ -39,16 +41,28 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
     public AdbConfigurationViewModel()
     {
         // For designer
-        adbConfig = null!;
+        _adbConfig = null!;
+        _contentDialogService = null!;
     }
 
-    public AdbConfigurationViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
+    public AdbConfigurationViewModel(
+        ISnackbarService _snackbarService,
+        ConfigurationFactory _configFactory,
+        IContentDialogService dialogService
+    )
     {
         SetSnackbarProvider(_snackbarService);
-        adbConfig = _configFactory.GetConfig<AdbConfig>();
+        _adbConfig = _configFactory.GetConfig<AdbConfig>();
+        _contentDialogService = dialogService;
     }
 
     #region Commands
+
+    [RelayCommand]
+    private async Task OnRunCardCommandAsync(string command)
+    {
+        await RunDialogCommandAsync(command);
+    }
 
     #endregion Commands
 
@@ -72,6 +86,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
         {
             return AdbDevicesStatus.DefaultDeviceSelected;
         }
+
         if (foundDevices.Length is 1)
         {
             adbConfig.CurrentDeviceId = foundDevices[0];
@@ -82,6 +97,43 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
             // The user will have to select which device to target.
             return AdbDevicesStatus.TooManyDevices;
         }
+    }
+
+    private async Task RunDialogCommandAsync(string commandPair)
+    {
+        string[] split = commandPair.Split('|', 2);
+        string command = split[0];
+        string description = split[1];
+
+        if (!await ConfirmToolInstallAsync(description))
+        {
+            return;
+        }
+
+        var consoleDialog = new ConsoleDialog(command, _contentDialogService.GetDialogHost());
+        Wpf.Ui.Controls.ContentDialogResult dialogResult = await consoleDialog.ShowAsync();
+
+        if (dialogResult is Wpf.Ui.Controls.ContentDialogResult.Primary)
+        {
+            SnackError("Tool installation canceled", $"{description} was not installed because the installation was canceled.");
+        }
+    }
+
+    private static async Task<bool> ConfirmToolInstallAsync(string description)
+    {
+        MessageBoxResult confirmation = await new MessageBox()
+        {
+            Title = "Confirm Tool Install",
+            Content = new TextBlock()
+            {
+                Text = $"Are you sure you'd like to install {description}?",
+                Margin = new(0, 0, 0, 5)
+            },
+            PrimaryButtonText = "Install",
+            CloseButtonText = "Cancel"
+        }.ShowDialogAsync();
+
+        return confirmation is MessageBoxResult.Primary;
     }
 }
 
