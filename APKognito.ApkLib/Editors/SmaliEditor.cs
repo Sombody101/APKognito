@@ -1,5 +1,5 @@
 ﻿#if DEBUG
-#define ASYNC_RENAME_DISABLED
+// #define ASYNC_RENAME_DISABLED
 #endif
 
 using APKognito.ApkLib.Configuration;
@@ -45,7 +45,11 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
         IEnumerable<string> renameFiles = GetSmaliFiles();
 
 #if DEBUG
-        _logger.LogDebug("Beginning threaded rename on {Count:n0} smali files.", renameFiles.Count());
+#if ASYNC_RENAME_DISABLED
+        _logger.LogDebug("Beginning single-threaded rename on {Count:n0} smali files.", renameFiles.Count());
+#else
+        _logger.LogDebug("Beginning multi-threaded rename on {Count:n0} smali files.", renameFiles.Count());
+#endif
 #else
         _logger.LogInformation("Renaming Smali files.");
 #endif
@@ -61,7 +65,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
             await ReplaceTextInFileAsync(file, token);
         }
 #else
-        object lockobj = new();
+        object lockobj = new(); // This should be changed to the 'Lock' object once APKognito updates to .net 9eee
         await Parallel.ForEachAsync(renameFiles, token,
             async (filePath, subcToken) =>
             {
@@ -69,7 +73,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
 
                 if (Monitor.TryEnter(lockobj))
                 {
-                    _reporter.ReportProgressMessage(workingOnFile.ToString());
+                    _reporter.ReportProgressMessage($"{workingOnFile}: {Path.GetFileName(filePath)}");
                 }
 
                 await ReplaceTextInFileAsync(filePath, subcToken);
