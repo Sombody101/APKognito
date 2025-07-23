@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Threading;
-using APKognito.AdbTools;
 using APKognito.ApkLib;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
@@ -11,14 +11,14 @@ using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;
-using APKognito.Exceptions;
-using APKognito.Helpers;
+using APKognito.Controls.Dialogs;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages;
-using Microsoft.Win32;
+using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui;
+using Wpf.Ui.Controls;
 
 namespace APKognito.ViewModels.Pages;
 
@@ -26,35 +26,38 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class HomeViewModel : LoggableObservableObject
 {
-    private const string DEFAULT_PROP_MESSAGE = "No APK loaded";
-    private const string DEFAULT_JOB_MESSAGE = "No jobs started";
-    private const string AWAITING_JOB = "Awaiting job";
-    private const string CURRENT_ACTION = "Current Action";
+    public const string DEFAULT_PROP_MESSAGE = "No APK loaded";
+    public const string DEFAULT_JOB_MESSAGE = "No jobs started";
+    public const string AWAITING_JOB = "Awaiting job";
+    public const string CURRENT_ACTION = "Current Action";
     public const char PATH_SEPARATOR = '\n';
 
     // Configs
     private readonly ConfigurationFactory _configFactory;
-    private readonly KognitoConfig _kognitoConfig;
     private readonly CacheStorage _kognitoCache;
     private readonly AdbConfig _adbConfig;
 
-    private static PackageToolingPaths ToolingPaths { get; set; }
+    private readonly Progress<ProgressInfo> _renameProgressReporter;
 
     // Tool paths
     internal DirectoryInfo _tempData;
 
-    // By the time this is used anywhere, it will not be null
-    public static HomeViewModel Instance { get; private set; } = null!;
+    private readonly IContentDialogService _dialogService;
 
     private CancellationTokenSource? _renameApksCancelationSource;
+    private bool _handlingRenameExitDebounce = false;
+
+    [MemberNotNull]
+    public static HomeViewModel? Instance { get; private set; } = null!;
+    public static bool IsRunningRename => Instance!.RunningJobs;
+
+    public SharedViewModel SharedViewModel { get; }
+    public UserRenameConfiguration UserRenameConfiguration { get; }
 
     #region Properties
 
     [ObservableProperty]
     public partial bool RunningJobs { get; set; } = false;
-
-    [ObservableProperty]
-    public partial bool CanEdit { get; set; } = true;
 
     [ObservableProperty]
     public partial bool CanStart { get; set; } = false;
@@ -84,27 +87,9 @@ public partial class HomeViewModel : LoggableObservableObject
     public partial bool StartButtonVisible { get; set; } = true;
 
     [ObservableProperty]
-    public partial long FootprintSizeBytes { get; set; } = 0;
+    public partial ulong FootprintSizeBytes { get; set; } = 0;
 
-    [ObservableProperty]
-    public partial string JavaExecutablePath { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Creates a copy of the source files rather than moving them.
-    /// Can help with data protection when a renaming session fails as APKognito cannot reverse the changes.
-    /// </summary>
-    [ObservableProperty]
-    public partial bool CopyWhenRenaming { get; set; }
-
-    public bool PushAfterRename
-    {
-        get => _kognitoConfig.PushAfterRename;
-        set
-        {
-            _kognitoConfig.PushAfterRename = value;
-            OnPropertyChanged(nameof(PushAfterRename));
-        }
-    }
+    public string OutputDirectory => UserRenameConfiguration.ApkOutputDirectory;
 
     /// <summary>
     /// A string of all APK paths separated by <see cref="PATH_SEPARATOR"/>
@@ -119,55 +104,47 @@ public partial class HomeViewModel : LoggableObservableObject
         }
     }
 
-    /// <summary>
-    /// The directory path for all renamed APKs
-    /// </summary>
-    public string OutputDirectory
+    public bool CanEdit
     {
-        get => _kognitoConfig.ApkOutputDirectory;
-        set
-        {
-            value = VariablePathResolver.Resolve(value);
-            _kognitoConfig.ApkOutputDirectory = value;
-            OnPropertyChanged(nameof(OutputDirectory));
-        }
-    }
-
-    /// <summary>
-    /// The company name that will be used instead of the original APK company name
-    /// </summary>
-    public string ApkReplacementName
-    {
-        get => _kognitoConfig.ApkNameReplacement;
-        set
-        {
-            if (value == _kognitoConfig.ApkNameReplacement)
-            {
-                return;
-            }
-
-            _kognitoConfig.ApkNameReplacement = value;
-            OnPropertyChanged(nameof(ApkReplacementName));
-        }
+        get => SharedViewModel.ConfigurationControlsEnabled;
+        set => SharedViewModel.ConfigurationControlsEnabled = value;
     }
 
     #endregion Properties
 
-    public HomeViewModel()
-    {
-        // For designer
-    }
-
-    public HomeViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
+    [ActivatorUtilitiesConstructor]
+    public HomeViewModel(
+        ISnackbarService snackbarService,
+        ConfigurationFactory configFactory,
+        IContentDialogService dialogService,
+        SharedViewModel sharedViewModel
+    )
     {
         DisableFileLogging = false;
         Instance = this;
+        _dialogService = dialogService;
+        SharedViewModel = sharedViewModel;
+
+        _configFactory = configFactory;
+        UserRenameConfiguration = configFactory.GetConfig<UserRenameConfiguration>();
+        _kognitoCache = configFactory.GetConfig<CacheStorage>();
+        _adbConfig = configFactory.GetConfig<AdbConfig>();
 
         try
         {
+            string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
+            _ = Directory.CreateDirectory(appDataTools);
+
+            UserRenameConfiguration.ToolingPaths = new()
+            {
+                ApkToolJarPath = Path.Combine(appDataTools, "apktool.jar"),
+                ApkToolBatPath = Path.Combine(appDataTools, "apktool.bat"),
+                ApkSignerJarPath = Path.Combine(appDataTools, "uber-apk-signer.jar"),
+            };
+
             if (new JavaVersionLocator().GetJavaPath(out string? path))
             {
-                JavaExecutablePath = path!;
+                UserRenameConfiguration.ToolingPaths.JavaExecutablePath = path;
             }
         }
         catch (Exception ex)
@@ -175,26 +152,27 @@ public partial class HomeViewModel : LoggableObservableObject
             FileLogger.LogException("Failed to pre-fetch Java installation", ex);
         }
 
-        SetSnackbarProvider(_snackbarService);
+        SetSnackbarProvider(snackbarService);
         SetCurrentLogger();
 
-        this._configFactory = _configFactory;
-        _kognitoConfig = this._configFactory.GetConfig<KognitoConfig>();
-        _kognitoCache = this._configFactory.GetConfig<CacheStorage>();
-        _adbConfig = this._configFactory.GetConfig<AdbConfig>();
-        CopyWhenRenaming = _kognitoConfig.CopyFilesWhenRenaming;
-
-        string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
-
-        _ = Directory.CreateDirectory(appDataTools);
-
-        ToolingPaths = new()
+        _renameProgressReporter = new((args) =>
         {
-            ApkToolJarPath = Path.Combine(appDataTools, "apktool.jar"),
-            ApkToolBatPath = Path.Combine(appDataTools, "apktool.bat"),
-            ApkSignerJarPath = Path.Combine(appDataTools, "uber-apk-signer.jar"),
-            JavaExecutablePath = JavaExecutablePath
-        };
+            switch (args.UpdateType)
+            {
+                case ProgressUpdateType.Content:
+                    CurrentAction = args.Data;
+                    break;
+
+                case ProgressUpdateType.Title:
+                    CurrentActionTitle = args.Data;
+                    break;
+
+                case ProgressUpdateType.Reset:
+                    CurrentAction = "Awaiting...";
+                    CurrentActionTitle = CURRENT_ACTION;
+                    break;
+            }
+        });
     }
 
     public async Task InitializeAsync()
@@ -206,8 +184,6 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     #region Commands
-
-    private bool __handlingRenameExitDebounce = false;
 
     [RelayCommand]
     private async Task OnStartApkRenameAsync()
@@ -224,19 +200,19 @@ public partial class HomeViewModel : LoggableObservableObject
     [RelayCommand]
     private async Task OnCancelApkRenameAsync()
     {
-        if (_renameApksCancelationSource is null || __handlingRenameExitDebounce)
+        if (_renameApksCancelationSource is null || _handlingRenameExitDebounce)
         {
             return;
         }
 
-        __handlingRenameExitDebounce = true;
+        _handlingRenameExitDebounce = true;
 
         LogWarning("Attempting to cancel...");
 
         // Cancel the job(s)
         await _renameApksCancelationSource.CancelAsync();
 
-        __handlingRenameExitDebounce = false;
+        _handlingRenameExitDebounce = false;
     }
 
     [RelayCommand]
@@ -254,32 +230,6 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private void OnSelectOutputFolder()
-    {
-        string? oldOutput = OutputDirectory;
-
-        // So it defaults to the Documents folder
-        if (!Directory.Exists(oldOutput))
-        {
-            oldOutput = null;
-        }
-
-        OpenFolderDialog openFolderDialog = new()
-        {
-            Multiselect = false,
-            DefaultDirectory = oldOutput ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-        };
-
-        if (openFolderDialog.ShowDialog() is false
-            && openFolderDialog.FolderNames.Length is 0)
-        {
-            return;
-        }
-
-        OutputDirectory = openFolderDialog.FolderName;
-    }
-
-    [RelayCommand]
     private void OnShowOutputFolder()
     {
         string directory = OutputDirectory;
@@ -293,48 +243,74 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
+    private async Task OnUploadPreviousPackageAsync()
+    {
+        var optionsDialog = new RenamedPackageSelector(_configFactory, _dialogService.GetDialogHost());
+        ContentDialogResult dialogResult = await optionsDialog.ShowAsync();
+
+        if (dialogResult is not ContentDialogResult.Primary)
+        {
+            Log("No package selected.");
+            return;
+        }
+
+        try
+        {
+            var renamer = new PackageRenamer(_configFactory, this, _renameProgressReporter);
+            await renamer.SideloadPackageAsync(
+                optionsDialog.SelectedItem.PackagePath,
+                optionsDialog.SelectedItem.Metadata
+            );
+        }
+        catch (Exception e)
+        {
+            LogError(e);
+        }
+    }
+
+    [RelayCommand]
     private void OnSaveSettings()
     {
-        _configFactory.SaveConfig(_kognitoConfig);
+        _configFactory.SaveConfig(UserRenameConfiguration);
         _configFactory.SaveConfig(_kognitoCache);
         Log("Settings saved!");
     }
 
     [RelayCommand]
-    private static void OnNavigateToAdvancedSettingsPage()
+    private static void OnNavigateToRenameSettingsPage()
     {
-        App.NavigateTo<AdvancedRenameConfigurationPage>();
+        App.NavigateTo(typeof(RenameConfigurationPage));
     }
 
     [RelayCommand]
-    private async Task OnManualUnpackApkAsync()
+    private async Task OnManualUnpackPackageAsync()
     {
         try
         {
-            if (!new JavaVersionLocator().GetJavaPath(out string? javaPath, this))
+            string? filePath = DirectorySelector.UserSelectFile();
+
+            if (filePath is null)
             {
                 return;
             }
 
-            foreach (string filePath in GetFilePaths())
+            var compressor = new PackageCompressor(UserRenameConfiguration.ToolingPaths, new()
             {
-                var compressor = new PackageCompressor(ToolingPaths, new()
-                {
-                    NewCompanyName = string.Empty,
-                    ApkAssemblyDirectory = string.Empty,
-                    ApkSmaliTempDirectory = _tempData?.FullName ?? Path.GetTempPath(),
-                    FullSourceApkPath = filePath,
-                    FullSourceApkFileName = Path.GetFileName(filePath)
-                });
+                NewCompanyName = string.Empty,
+                ApkAssemblyDirectory = string.Empty,
+                ApkSmaliTempDirectory = _tempData?.FullName ?? Path.GetTempPath(),
+                FullSourceApkPath = filePath,
+                FullSourceApkFileName = Path.GetFileName(filePath),
+            });
 
-                string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
-                string apkFileName = Path.GetFileName(filePath);
+            string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
+            string apkFileName = Path.GetFileName(filePath);
 
-                Log($"Unpacking {apkFileName}");
-                await compressor.UnpackPackageAsync(outputDirectory: outputDirectory);
+            Log($"Unpacking {apkFileName}");
 
-                Log($"Unpacked {Path.GetFileName(filePath)} into {outputDirectory}");
-            }
+            await compressor.UnpackPackageAsync(outputDirectory: outputDirectory);
+
+            Log($"Unpacked {Path.GetFileName(filePath)} into {outputDirectory}");
         }
         catch (Exception ex)
         {
@@ -344,40 +320,54 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private void OnManualPackApk()
+    private async Task OnManualPackPackageAsync()
     {
         try
         {
-            string? directory = DirectorySelector.UserSelectDirectory();
+            string? sourceDirectory = DirectorySelector.UserSelectDirectory();
 
-            if (directory is null || !new JavaVersionLocator().GetJavaPath(out string? javaPath, this))
+            if (sourceDirectory is null)
             {
                 return;
             }
 
-            throw new NotImplementedException();
+            string packageName = PackageCompressor.GetPackageName(Path.Combine(sourceDirectory, "AndroidManifest.xml"));
+            string packageFileName = $"{packageName}.apk";
+            string outputFile = Path.Combine(Path.GetDirectoryName(sourceDirectory)!, packageFileName);
 
-            // var context = new ApkEditorContext(new()
-            // {
-            //     PackageReplaceRegexString = string.Empty,
-            //     JavaPath = javaPath!,
-            //     SourceApkPath = string.Empty,
-            //     TempDirectory = TempData?.FullName ?? Path.GetTempPath(),
-            // 
-            //     ApktoolJarPath = apktoolJarPath,
-            //     ApktoolBatPath = apktoolBatPath,
-            //     ApksignerJarPath = apksignerJarPath,
-            //     ZipalignPath = zipalignPath,
-            // }, this);
-            // 
-            // string packageName = ApkEditorContext.GetPackageName(Path.Combine(directory, "AndroidManifest.xml"));
-            // string packageFileName = $"{packageName}.apk";
-            // string outputFile = Path.Combine(Path.GetDirectoryName(directory)!, packageFileName);
-            // 
-            // Log($"Packing {directory}");
-            // await context.PackApkAsync(directory, outputFile);
-            // 
-            // Log($"Packed {Path.GetFileName(directory)} into {packageFileName}");
+            Log($"Packing {sourceDirectory}");
+
+            var compressor = new PackageCompressor(UserRenameConfiguration.ToolingPaths, PackageNameData.Empty, this);
+            _ = await compressor.PackPackageAsync(sourceDirectory, outputFile);
+
+            Log($"Packed {Path.GetFileName(sourceDirectory)} into {packageFileName}");
+        }
+        catch (Exception ex)
+        {
+            LogError($"Error: {ex.Message}");
+            LogDebug(ex.StackTrace ?? "[NoTrace]");
+        }
+    }
+
+    [RelayCommand]
+    private async Task OnManualSignPackageAsync()
+    {
+        try
+        {
+            string? filePath = DirectorySelector.UserSelectFile();
+
+            if (filePath is null)
+            {
+                return;
+            }
+
+            Log($"Signing {filePath}");
+
+            var compressor = new PackageCompressor(UserRenameConfiguration.ToolingPaths, PackageNameData.Empty, this);
+            string signedPackagePath = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetDirectoryName(filePath)!);
+            await compressor.SignPackageAsync(filePath, signedPackagePath, false);
+
+            Log($"Created {Path.GetFileNameWithoutExtension(filePath)}-aligned-debugSigned.apk");
         }
         catch (Exception ex)
         {
@@ -405,29 +395,9 @@ public partial class HomeViewModel : LoggableObservableObject
 
     #endregion Commands
 
-    partial void OnCopyWhenRenamingChanged(bool value)
+    public async ValueTask RefreshValuesAsync()
     {
-        if (!value)
-        {
-            var result = new MessageBox()
-            {
-                Title = "Are you sure?",
-                Content = "This will remove the entire source APK directory after it is unpacked, meaning if the rename fails, your app will be gone. " +
-                    "Only select this option if the saved drive space is worth the risk of losing your app!",
-                PrimaryButtonText = "Disable Anyway",
-                PrimaryButtonAppearance = Wpf.Ui.Controls.ControlAppearance.Caution,
-                CloseButtonText = "Cancel",
-            }.ShowDialogAsync().Result;
-
-            if (result is not MessageBoxResult.Primary)
-            {
-                CopyWhenRenaming = _kognitoConfig.CopyFilesWhenRenaming
-                    = true;
-                return;
-            }
-        }
-
-        _kognitoConfig.CopyFilesWhenRenaming = value;
+        await UpdateFootprintInfoAsync();
     }
 
     public async ValueTask OnRenameCopyCheckedAsync()
@@ -455,7 +425,7 @@ public partial class HomeViewModel : LoggableObservableObject
         return _kognitoCache?.ApkSourcePath?.Split(PATH_SEPARATOR) ?? [];
     }
 
-    private async Task StartPackageRenamingAsync(CancellationToken cancellationToken)
+    private async Task StartPackageRenamingAsync(CancellationToken token)
     {
         RunningJobs = true;
         CanEdit = false;
@@ -488,7 +458,7 @@ public partial class HomeViewModel : LoggableObservableObject
         int jobIndex = 0;
         foreach (string sourceApkPath in files)
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (token.IsCancellationRequested)
             {
                 Log("Job cancellation requested.");
                 goto Exit;
@@ -499,30 +469,20 @@ public partial class HomeViewModel : LoggableObservableObject
             string fileName = Path.GetFileName(sourceApkPath);
             JobbedApk = fileName;
 
-            AdvancedApkRenameSettings advcfg = _configFactory.GetConfig<AdvancedApkRenameSettings>();
-            ApkRenameSettings sharedRenameSettings = new()
+            string tempRenameDirectory = Path.Combine(_tempData.FullName, GetFormattedTimeDirectory(fileName));
+            ApkMod.RenameConfiguration renameConfig = new()
             {
-                SourceApkPath = sourceApkPath,
+                KognitoConfig = UserRenameConfiguration,
+                AdvancedConfig = _configFactory.GetConfig<AdvancedApkRenameSettings>(),
+                ToolingPaths = UserRenameConfiguration.ToolingPaths,
+                SourcePackagePath = sourceApkPath,
                 OutputBaseDirectory = OutputDirectory,
-                JavaPath = javaPath,
-                TempDirectory = Path.Combine(_tempData.FullName, GetFormattedTimeDirectory(fileName)),
-                ApkReplacementName = ApkReplacementName,
-                CopyFilesWhenRenaming = _kognitoConfig.CopyFilesWhenRenaming,
-                ClearTempFilesOnRename = _kognitoConfig.ClearTempFilesOnRename,
-
-                PackageReplaceRegexString = advcfg.PackageReplaceRegexString,
-                RenameLibs = advcfg.RenameLibs,
-                RenameLibsInternal = advcfg.RenameLibsInternal,
-                RenameObbsInternal = advcfg.RenameObbsInternal,
-                RenameObbsInternalExtras = advcfg.RenameObbsInternalExtras,
-                ExtraInternalPackagePaths = advcfg.ExtraInternalPackagePaths,
-                AutoPackageEnabled = advcfg.AutoPackageEnabled,
-                AutoPackageConfig = advcfg.AutoPackageConfig,
+                TempDirectory = tempRenameDirectory,
+                ReplacementCompanyName = UserRenameConfiguration.ApkNameReplacement
             };
 
-            // Starts the renaming logic
-            // Whole lot of method extractions... 100% layer 8 networking issue.
-            PackageRenameResult renameResult = await RunPackageRenameAsync(sharedRenameSettings, advcfg, cancellationToken);
+            PackageRenamer renamer = new(_configFactory, this, _renameProgressReporter);
+            PackageRenameResult renameResult = await renamer.RenamePackageAsync(renameConfig, UserRenameConfiguration.PushAfterRename, token);
 
             if (renameResult.Successful)
             {
@@ -533,8 +493,9 @@ public partial class HomeViewModel : LoggableObservableObject
                 failedJobs.Add($"\t{Path.GetFileName(sourceApkPath)}: {renameResult.ResultStatus}");
             }
 
-            string finalName;
-            finalName = !renameResult.Successful ? "[Rename Failed]" : "[Unknown]";
+            string finalName = !renameResult.Successful
+                ? "[Rename Failed]"
+                : "[Unknown]";
 
             pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? JobbedApk, finalName, renameResult.Successful);
             ++jobIndex;
@@ -552,7 +513,7 @@ public partial class HomeViewModel : LoggableObservableObject
             );
         }
 
-        if (_kognitoConfig.ClearTempFilesOnRename)
+        if (UserRenameConfiguration.ClearTempFilesOnRename)
         {
             await CleanTempFilesAsync();
         }
@@ -574,64 +535,6 @@ public partial class HomeViewModel : LoggableObservableObject
     ChecksFailed:
         RunningJobs = false;
         CanEdit = true;
-    }
-
-    private async Task<PackageRenameResult> RunPackageRenameAsync(ApkRenameSettings renameSettings, AdvancedApkRenameSettings advConfig, CancellationToken token)
-    {
-        PackageRenameResult result = null!;
-
-        try
-        {
-            Progress<ProgressInfo> progress = new((args) =>
-            {
-                switch (args.UpdateType)
-                {
-                    case ApkLib.ProgressUpdateType.Content:
-                        CurrentAction = args.Data;
-                        break;
-
-                    case ApkLib.ProgressUpdateType.Title:
-                        CurrentActionTitle = args.Data;
-                        break;
-                }
-            });
-
-            PackageRenamer renamer = new(renameSettings, advConfig, this, progress);
-            result = await renamer.RenamePackageAsync(ToolingPaths, token);
-
-            if (Directory.Exists(renameSettings.OutputDirectory))
-            {
-                DriveUsageViewModel.ClaimDirectory(renameSettings.OutputDirectory);
-            }
-
-            if (result.Successful && PushAfterRename)
-            {
-                await PushRenamedApkAsync(result.OutputLocations, token);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Handle cancellation
-            LogWarning("Job canceled.");
-            return new()
-            {
-                ResultStatus = "Job canceled.",
-                Successful = false,
-                OutputLocations = new(null!, null, string.Empty)
-            };
-        }
-        catch (Exception ex)
-        {
-            FileLogger.LogException(ex);
-            return new()
-            {
-                ResultStatus = ex.Message,
-                Successful = false,
-                OutputLocations = new(null!, null, string.Empty)
-            };
-        }
-
-        return result;
     }
 
     private async Task<string?> PrepareForRenamingAsync(string[] files)
@@ -667,96 +570,28 @@ public partial class HomeViewModel : LoggableObservableObject
 
         // Create a temp directory for the APK(s)
         _tempData = Directory.CreateTempSubdirectory("APKognito-");
-        DriveUsageViewModel.ClaimDirectory(_tempData.FullName);
+        _ = DirectoryManager.ClaimDirectory(_tempData.FullName);
         Log($"Using temp directory: {_tempData.FullName}");
 
         return javaPath;
     }
 
-    private async Task PushRenamedApkAsync(RenameOutputLocations locations, CancellationToken cancellationToken)
-    {
-        if (locations.OutputApkPath is null)
-        {
-            LogError("Renamed APK path is null. Cannot push to device.");
-            return;
-        }
-
-        AdbDeviceInfo? currentDevice = _adbConfig.GetCurrentDevice();
-
-        if (currentDevice is null)
-        {
-            const string error = "Failed to get ADB device profile.";
-            LogError(error);
-            throw new AdbPushFailedException(JobbedApk, error);
-        }
-
-        FileInfo apkInfo = new(locations.OutputApkPath);
-
-        if (string.IsNullOrWhiteSpace(locations.NewPackageName))
-        {
-            LogError("Failed to get new package name from location output data. Aborting package upload.");
-            return;
-        }
-
-        Log($"Installing {locations.NewPackageName} to {currentDevice.DeviceId} ({GBConverter.FormatSizeFromBytes(apkInfo.Length)})");
-
-        await AdbManager.WakeDeviceAsync();
-        _ = await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
-
-        if (string.IsNullOrWhiteSpace(locations.AssetsDirectory)
-            || !Directory.Exists(locations.AssetsDirectory)
-            || cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        string[] assets = Directory.GetFiles(locations.AssetsDirectory);
-
-        string obbDirectory = $"{AdbManager.ANDROID_OBB}/{locations.NewPackageName}";
-        Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbDirectory}");
-
-        _ = await AdbManager.QuickDeviceCommandAsync(@$"shell [ -d ""{obbDirectory}"" ] && rm -r ""{obbDirectory}""; mkdir ""{obbDirectory}""", token: cancellationToken);
-
-        AddIndent();
-
-        try
-        {
-            int assetIndex = 0;
-            foreach (string file in assets)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                var assetInfo = new FileInfo(file);
-                Log($"Pushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({GBConverter.FormatSizeFromBytes(assetInfo.Length)})");
-
-                _ = await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
-            }
-        }
-        finally
-        {
-            ResetIndent();
-        }
-    }
-
     private async Task<string?> RenameConditionsMetAsync()
     {
-        if (string.IsNullOrWhiteSpace(ApkReplacementName))
+        if (string.IsNullOrWhiteSpace(UserRenameConfiguration.ApkNameReplacement))
         {
             LogError("The replacement APK name cannot be empty. Use 'apkognito' if you don't know what to replace it with.");
             return null;
         }
 
-        if (!ValidCompanyName(ApkReplacementName))
+        if (!ValidCompanyName(UserRenameConfiguration.ApkNameReplacement))
         {
-            string fixedName = ApkNameFixerRegex().Replace(ApkReplacementName, string.Empty);
-            LogError($"The name '{ApkReplacementName}' cannot be used with as the company name of an APK. You can use '{fixedName}' which has all offending characters removed.");
+            string fixedName = ApkNameFixerRegex().Replace(UserRenameConfiguration.ApkNameReplacement, string.Empty);
+            LogError($"The name '{UserRenameConfiguration.ApkNameReplacement}' cannot be used with as the company name of an APK. You can use '{fixedName}' which has all offending characters removed.");
             return null;
         }
 
-        if (PushAfterRename && !await VerifyAdbDeviceAsync())
+        if (UserRenameConfiguration.PushAfterRename && !await VerifyAdbDeviceAsync())
         {
             return null;
         }
@@ -768,37 +603,35 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private async Task<bool> VerifyToolInstallationAsync()
     {
-        CancellationToken cToken = CancellationToken.None;
-
         try
         {
             bool allSuccess = true;
 
-            string apktoolJarPath = ToolingPaths.ApkToolJarPath;
+            string apktoolJarPath = UserRenameConfiguration.ToolingPaths.ApkToolJarPath;
             if (!File.Exists(apktoolJarPath))
             {
                 Log("Installing Apktool (JAR)...");
-                if (!await WebGet.FetchAndDownloadGitHubReleaseAsync(Constants.APKTOOL_JAR_URL_LTST, apktoolJarPath, this, cToken))
+                if (!await WebGet.FetchAndDownloadGitHubReleaseAsync(Constants.APKTOOL_JAR_URL_LTST, apktoolJarPath, this))
                 {
                     allSuccess = false;
                 }
             }
 
-            string apktoolBatPath = ToolingPaths.ApkToolBatPath;
+            string apktoolBatPath = UserRenameConfiguration.ToolingPaths.ApkToolBatPath;
             if (!File.Exists(apktoolBatPath))
             {
                 Log("Installing Apktool (BAT)...");
-                if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, apktoolBatPath, this, cToken))
+                if (!await WebGet.DownloadAsync(Constants.APKTOOL_BAT_URL, apktoolBatPath, this))
                 {
                     allSuccess = false;
                 }
             }
 
-            string apksignerJarPath = ToolingPaths.ApkSignerJarPath;
+            string apksignerJarPath = UserRenameConfiguration.ToolingPaths.ApkSignerJarPath;
             if (!File.Exists(apksignerJarPath))
             {
                 Log("Installing ApkSigner...");
-                if (!await WebGet.FetchAndDownloadGitHubReleaseAsync(Constants.APL_SIGNER_URL_LTST, apksignerJarPath, this, cToken, 1))
+                if (!await WebGet.FetchAndDownloadGitHubReleaseAsync(Constants.APL_SIGNER_URL_LTST, apksignerJarPath, this, default, 1))
                 {
                     allSuccess = false;
                 }
@@ -809,23 +642,16 @@ public partial class HomeViewModel : LoggableObservableObject
         catch (Exception e)
         {
             LogError($"Unexpected error while dispatching installations: {e.Message}");
-
-            // Return false for unknown errors
             return false;
         }
     }
 
     private async Task LoadApkAsync()
     {
-        string openDirectory = Directory.Exists(_kognitoCache.LastDialogDirectory)
-            ? _kognitoCache.LastDialogDirectory
-            : "C:\\";
-
         OpenFileDialog openFileDialog = new()
         {
             Filter = "APK files (*.apk)|*.apk",
             Multiselect = true,
-            DefaultDirectory = openDirectory
         };
 
         bool? result = openFileDialog.ShowDialog();
@@ -867,6 +693,7 @@ public partial class HomeViewModel : LoggableObservableObject
         else
         {
             FilePath = string.Join(PATH_SEPARATOR, files);
+            ApkName = $"{files.Length} packages. (Hover to view)";
 
             StringBuilder sb = new($"Selected {files.Length} APKs\n");
 
@@ -885,6 +712,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
         await UpdateFootprintInfoAsync();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool VerifyFileType(string file)
         {
             if (string.Equals(Path.GetExtension(file), ".apk", StringComparison.OrdinalIgnoreCase))
@@ -908,12 +736,11 @@ public partial class HomeViewModel : LoggableObservableObject
                 continue;
             }
 
-            FootprintSizeBytes += PackageCompressor.CalculateUnpackedApkSize(file, CopyWhenRenaming);
+            FootprintSizeBytes += (ulong)PackageCompressor.CalculateUnpackedApkSize(file, UserRenameConfiguration.CopyFilesWhenRenaming);
 
             string apkFileName = Path.GetFileNameWithoutExtension(file);
             string obbDirectory = Path.Combine(Path.GetDirectoryName(file)!, apkFileName);
 
-            // Solution for issue: https://github.com/Sombody101/APKognito/issues/4
             if (Directory.Exists(obbDirectory))
             {
                 try
@@ -921,7 +748,7 @@ public partial class HomeViewModel : LoggableObservableObject
                     using var cts = new CancellationTokenSource();
                     cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-                    FootprintSizeBytes += await DriveUsageViewModel.DirSizeAsync(new(obbDirectory), cts.Token);
+                    FootprintSizeBytes += await DirectoryManager.DirSizeAsync(obbDirectory, cts.Token);
                 }
                 catch (TaskCanceledException ex)
                 {
@@ -965,14 +792,14 @@ public partial class HomeViewModel : LoggableObservableObject
     {
         try
         {
-            using CancellationTokenSource cts = new();
-            cts.CancelAfter(15_000);
+            using CancellationTokenSource tokenSource = new();
+            tokenSource.CancelAfter(15_000);
 
             // Remove temp directory
             Log("Cleaning temp directory....");
             await Task.Factory.StartNew(
                 path => Directory.Delete((string)path!, true),
-                _tempData.FullName, cts.Token);
+                _tempData.FullName, tokenSource.Token);
 
             Log("Temp files cleaned.");
         }
@@ -1007,6 +834,6 @@ public partial class HomeViewModel : LoggableObservableObject
     [GeneratedRegex("[^a-zA-Z0-9]")]
     private static partial Regex ApkNameFixerRegex();
 
-    [GeneratedRegex("^[a-zA-Z0-9_]+$")]
+    [GeneratedRegex("[a-z][a-z0-9_]*")]
     private static partial Regex ApkCompanyCheck();
 }
