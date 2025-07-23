@@ -1,64 +1,155 @@
 ﻿using System.Diagnostics;
 using System.IO;
 using System.Text;
+using APKognito.AdbTools;
 using APKognito.ApkLib;
 using APKognito.ApkLib.Automation;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.Exceptions;
+using APKognito.Helpers;
 using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkMod;
 
 public sealed class PackageRenamer
 {
-    private readonly ApkRenameSettings _renameSettings;
-    private readonly AdvancedApkRenameSettings _advRenameSettings;
-    private readonly ILogger _logger;
+    private readonly IViewLogger _logger;
     private readonly IProgress<ProgressInfo> _reporter;
+    private readonly ConfigurationFactory _configurationFactory;
 
-    public PackageRenamer(ApkRenameSettings renameSettings, AdvancedApkRenameSettings advRenameSettings, ILogger logger, IProgress<ProgressInfo> reporter)
+    public PackageRenamer(
+        ConfigurationFactory configFactory,
+        IViewLogger logger,
+        IProgress<ProgressInfo> reporter)
     {
-        ArgumentNullException.ThrowIfNull(renameSettings);
-        ArgumentNullException.ThrowIfNull(advRenameSettings);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(reporter);
 
-        _renameSettings = renameSettings;
-        _advRenameSettings = advRenameSettings;
+        _configurationFactory = configFactory;
         _logger = logger;
         _reporter = reporter;
     }
 
-    public async Task<PackageRenameResult> RenamePackageAsync(PackageToolingPaths toolingPaths, CancellationToken token)
+    public async Task<PackageRenameResult> RenamePackageAsync(
+        RenameConfiguration modRenameConfiguration,
+        bool pushAfterRename,
+        CancellationToken token = default)
     {
-        ArgumentNullException.ThrowIfNull(toolingPaths);
+        PackageRenameConfiguration renameConfig = MapRenameSettings(modRenameConfiguration);
 
-        PackageRenameConfiguration renameConfig = MapRenameSettings(_renameSettings, _advRenameSettings);
-
-        string sourceApkName = Path.GetFileName(_renameSettings.SourceApkPath);
-        if (sourceApkName.EndsWith(".apk"))
+        string sourceApkName = Path.GetFileName(modRenameConfiguration.SourcePackagePath);
+        if (sourceApkName.EndsWith(value: ".apk"))
         {
             sourceApkName = sourceApkName[..^4];
         }
 
         PackageNameData nameData = new()
         {
-            ApkAssemblyDirectory = _renameSettings.TempDirectory,
-            ApkSmaliTempDirectory = Path.Combine(Path.GetDirectoryName(_renameSettings.TempDirectory)!, "$smali"),
-            FullSourceApkPath = _renameSettings.SourceApkPath,
+            ApkAssemblyDirectory = modRenameConfiguration.TempDirectory,
+            ApkSmaliTempDirectory = Path.Combine(Path.GetDirectoryName(modRenameConfiguration.TempDirectory)!, "$smali"),
+            FullSourceApkPath = modRenameConfiguration.SourcePackagePath,
             FullSourceApkFileName = sourceApkName,
-            NewCompanyName = _renameSettings.ApkReplacementName,
-            RenamedPackageOutputBaseDirectory = _renameSettings.OutputBaseDirectory
+            NewCompanyName = modRenameConfiguration.ReplacementCompanyName,
+            RenamedPackageOutputBaseDirectory = modRenameConfiguration.OutputBaseDirectory
         };
 
+        return await RunSafePackageRenameAsync(modRenameConfiguration, renameConfig, nameData, pushAfterRename, token);
+    }
+
+    public async Task SideloadPackageAsync(RenameOutputLocations locations, CancellationToken token = default)
+    {
+        await PushRenamedApkAsync(locations, token);
+    }
+
+    public async Task SideloadPackageAsync(string fullPackagePath, RenamedPackageMetadata metadata, CancellationToken token = default)
+    {
+        var locations = new RenameOutputLocations(
+            fullPackagePath,
+            metadata.RelativeAssetsPath is not null
+                ? Path.Combine(Path.GetDirectoryName(fullPackagePath)!, metadata.RelativeAssetsPath)
+                : null,
+            metadata.PackageName
+        );
+
+        await PushRenamedApkAsync(locations, token);
+    }
+
+    private async Task<PackageRenameResult> RunSafePackageRenameAsync(
+        RenameConfiguration modRenameConfig,
+        PackageRenameConfiguration libRenameConfig,
+        PackageNameData nameData,
+        bool pushAfterRename,
+        CancellationToken token)
+    {
         try
         {
-            _reporter.Report(new(string.Empty, ProgressUpdateType.Title));
-            _reporter.Report(new(string.Empty, ProgressUpdateType.Content));
+            PackageRenameResult result = await StartRenameInternalAsync(modRenameConfig, libRenameConfig, nameData, token);
 
-            PackageEditorContext context = new PackageEditorContext(renameConfig, nameData, toolingPaths, _logger)
+            if (!result.Successful)
+            {
+                return result;
+            }
+
+            if (pushAfterRename)
+            {
+                await PushRenamedApkAsync(result.OutputLocations, token);
+            }
+
+            result.RenamedPackageMetadata = new()
+            {
+                PackageName = nameData.NewPackageName,
+                OriginalPackageName = nameData.OriginalPackageName,
+                RelativeAssetsPath = result.OutputLocations.AssetsDirectory is not null
+                    ? Path.GetRelativePath(Path.GetDirectoryName(result.OutputLocations.OutputApkPath)!, result.OutputLocations.AssetsDirectory)
+                    : null,
+                RenameDate = DateTimeOffset.UtcNow,
+                ApkognitoVersion = App.Version.GetVersion()
+            };
+
+            string claimFile = DirectoryManager.ClaimDirectory(Path.GetDirectoryName(result.OutputLocations.OutputApkPath)!);
+            MetadataManager.WriteMetadata(claimFile, result.RenamedPackageMetadata);
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle cancellation
+            _logger.LogWarning("Job canceled.");
+            return new()
+            {
+                ResultStatus = "Job canceled.",
+                Successful = false,
+                OutputLocations = new(null!, null, string.Empty)
+            };
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            return new()
+            {
+                ResultStatus = ex.Message,
+                Successful = false,
+                OutputLocations = new(null!, null, string.Empty)
+            };
+        }
+    }
+
+    private async Task<PackageRenameResult> StartRenameInternalAsync(
+        RenameConfiguration modRenameConfig,
+        PackageRenameConfiguration renameConfig,
+        PackageNameData nameData,
+        CancellationToken token)
+    {
+        try
+        {
+            _reporter.Report(new(string.Empty, ProgressUpdateType.Reset));
+
+            PackageEditorContext context = new PackageEditorContext(renameConfig, nameData, modRenameConfig.ToolingPaths, _logger)
                 .SetReporter(_reporter);
 
             /* Unpack */
@@ -68,10 +159,12 @@ public sealed class PackageRenamer
             {
                 await compressor.UnpackPackageAsync(token: token);
                 compressor.GatherPackageMetadata();
+
+                _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameData.OriginalPackageName, nameData.NewPackageName);
             }, nameof(compressor.UnpackPackageAsync));
 
-            AutoConfigModel? automationConfig = _renameSettings.AutoPackageEnabled
-                ? await GetParsedAutoConfigAsync(_renameSettings.AutoPackageConfig)
+            AutoConfigModel? automationConfig = modRenameConfig.AdvancedConfig.AutoPackageEnabled
+                ? await GetParsedAutoConfigAsync(modRenameConfig.AdvancedConfig.AutoPackageConfig)
                 : null;
 
             _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameData);
@@ -118,6 +211,10 @@ public sealed class PackageRenamer
             await TimeAsync(async () => await compressor.PackPackageAsync(token: token), nameof(compressor.PackPackageAsync));
             await TimeAsync(async () => await compressor.SignPackageAsync(token: token), nameof(compressor.SignPackageAsync));
 
+            /* Cleanup */
+
+            CleanUpTemporary(renameConfig, nameData);
+
             /* Finalize and return paths */
 
             string outputPackagePath = Path.Combine(nameData.FinalOutputDirectory, $"{nameData.NewPackageName}.apk");
@@ -141,37 +238,38 @@ public sealed class PackageRenamer
         }
     }
 
-    private static PackageRenameConfiguration MapRenameSettings(ApkRenameSettings settings, AdvancedApkRenameSettings advancedSettings)
+    private static PackageRenameConfiguration MapRenameSettings(RenameConfiguration settings)
     {
         string assetDirectory = Path.Combine(
-            Path.GetDirectoryName(settings.SourceApkPath)!,
-            Path.GetFileNameWithoutExtension(settings.SourceApkPath)
+            Path.GetDirectoryName(settings.SourcePackagePath)!,
+            Path.GetFileNameWithoutExtension(settings.SourcePackagePath)
         );
 
         return new()
         {
-            ClearTempFilesOnRename = settings.ClearTempFilesOnRename,
-            RenameRegex = advancedSettings.PackageReplaceRegexString,
+            ClearTempFilesOnRename = settings.KognitoConfig.ClearTempFilesOnRename,
+            RenameRegex = settings.AdvancedConfig.PackageReplaceRegexString,
+            ReplacementInfoDelimiter = " |> ",
             DirectoryRenameConfiguration = new()
             {
                 // BaseDirectory = string.Empty
             },
             LibraryRenameConfiguration = new()
             {
-                EnableLibraryFileRenaming = advancedSettings.RenameLibs,
-                EnableLibraryRenaming = advancedSettings.RenameLibsInternal,
-                ExtraInternalPackagePaths = advancedSettings.ExtraInternalPackagePaths
+                EnableLibraryFileRenaming = settings.AdvancedConfig.RenameLibs,
+                EnableLibraryRenaming = settings.AdvancedConfig.RenameLibsInternal,
+                ExtraInternalPackagePaths = settings.AdvancedConfig.ExtraInternalPackagePaths
             },
             SmaliRenameConfiguration = new()
             {
-                ExtraInternalPackagePaths = advancedSettings.ExtraInternalPackagePaths
+                ExtraInternalPackagePaths = settings.AdvancedConfig.ExtraInternalPackagePaths
             },
             AssetRenameConfiguration = new()
             {
                 AssetDirectory = assetDirectory,
-                CopyAssets = settings.CopyFilesWhenRenaming,
-                RenameObbArchiveEntries = advancedSettings.RenameObbsInternal,
-                ExtraInternalPackagePaths = [.. advancedSettings.RenameObbsInternalExtras],
+                CopyAssets = settings.KognitoConfig.CopyFilesWhenRenaming,
+                RenameObbArchiveEntries = settings.AdvancedConfig.RenameObbsInternal,
+                ExtraInternalPackagePaths = [.. settings.AdvancedConfig.RenameObbsInternalExtras],
             }
         };
     }
@@ -231,7 +329,120 @@ public sealed class PackageRenamer
         }
     }
 
-    private static async Task TimeAsync(Func<Task> action, string? tag = "Action")
+    private async Task PushRenamedApkAsync(RenameOutputLocations locations, CancellationToken cancellationToken)
+    {
+        if (locations.OutputApkPath is null)
+        {
+            _logger.LogError("Renamed APK path is null. Cannot push to device.");
+            return;
+        }
+
+        AdbDeviceInfo? currentDevice = _configurationFactory.GetConfig<AdbConfig>().GetCurrentDevice();
+
+        if (currentDevice is null)
+        {
+            const string error = "Failed to get ADB device profile. Make sure your device is connected and selected in the Android Device menu";
+            _logger.LogError(error);
+            throw new AdbPushFailedException(Path.GetFileName(locations.NewPackageName), error);
+        }
+
+        FileInfo apkInfo = new(locations.OutputApkPath);
+
+        if (string.IsNullOrWhiteSpace(locations.NewPackageName))
+        {
+            _logger.LogError("Failed to get new package name from location output data. Aborting package upload.");
+            return;
+        }
+
+        _logger.Log($"Installing {locations.NewPackageName} to {currentDevice.DeviceId} ({GBConverter.FormatSizeFromBytes(apkInfo.Length)})");
+
+        await AdbManager.WakeDeviceAsync();
+        _ = await AdbManager.QuickDeviceCommandAsync(@$"install -g ""{apkInfo.FullName}""", token: cancellationToken);
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(locations.AssetsDirectory))
+        {
+            if (!Directory.Exists(locations.AssetsDirectory))
+            {
+                _logger.LogError("Failed to find the assets directory at: {Path}", locations.AssetsDirectory);
+                return;
+            }
+
+            await UploadPackageAssetsAsync(locations, currentDevice, cancellationToken);
+        }
+
+        _logger.Log($"Install complete.");
+    }
+
+    private async Task UploadPackageAssetsAsync(RenameOutputLocations locations, AdbDeviceInfo currentDevice, CancellationToken cancellationToken)
+    {
+        string[] assets = Directory.GetFiles(locations.AssetsDirectory);
+
+        string obbDirectory = $"{AdbManager.ANDROID_OBB}/{locations.NewPackageName}";
+        _logger.Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbDirectory}");
+
+        _ = await AdbManager.QuickDeviceCommandAsync(@$"shell [ -d ""{obbDirectory}"" ] && rm -r ""{obbDirectory}""; mkdir ""{obbDirectory}""", token: cancellationToken);
+
+        _logger.AddIndent();
+
+        try
+        {
+            int assetIndex = 0;
+            foreach (string file in assets)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var assetInfo = new FileInfo(file);
+                _logger.Log($"Pushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({GBConverter.FormatSizeFromBytes(assetInfo.Length)})");
+
+                _ = await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
+            }
+        }
+        finally
+        {
+            _logger.ResetIndent();
+        }
+    }
+
+
+    private void CleanUpTemporary(PackageRenameConfiguration renameConfig, PackageNameData nameData)
+    {
+        _logger.LogInformation("Cleaning up...");
+
+        if (renameConfig.ClearTempFilesOnRename)
+        {
+            _logger.LogDebug("Cleaning temp directory `{AssemblyDirectory}`", nameData.ApkAssemblyDirectory);
+            Directory.Delete(nameData.ApkAssemblyDirectory, true);
+        }
+
+        if (renameConfig.AssetRenameConfiguration?.CopyAssets is false)
+        {
+            _logger.LogDebug("CopyWhenRenaming disabled, deleting directory `{FullSourceApkPath}`", nameData.FullSourceApkPath);
+
+            try
+            {
+                File.Delete(nameData.FullSourceApkPath);
+
+                string obbDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath)
+                    ?? throw new RenameFailedException("Failed to clean OBB directory ");
+
+                Directory.Delete(obbDirectory);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to clear source APK.");
+            }
+        }
+    }
+
+    private async Task TimeAsync(Func<Task> action, string? tag = "Action")
     {
         Stopwatch sw = Stopwatch.StartNew();
 
@@ -244,6 +455,7 @@ public sealed class PackageRenamer
         {
             sw.Stop();
             FileLogger.Log($"--- {tag}: {sw}");
+            _logger.LogDebug($"{tag}: {sw}");
         }
     }
 }

@@ -1,15 +1,17 @@
 ﻿namespace APKognito.ApkMod;
 
-public class PackageRenameResult
+public sealed record PackageRenameResult
 {
     public string ResultStatus { get; init; } = string.Empty;
 
     public bool Successful { get; init; }
 
     public required RenameOutputLocations OutputLocations { get; init; }
+
+    public RenamedPackageMetadata? RenamedPackageMetadata { get; set; }
 }
 
-public class RenameOutputLocations
+public sealed record RenameOutputLocations
 {
     public string OutputApkPath { get; }
 
