@@ -23,12 +23,12 @@ public enum LogLevel
 {
     ANY = int.MaxValue,
 
-    INFO = 0,
+    TRACE = 0,
+    DEBUG,
+    INFO,
     WARNING,
     ERROR,
     FATAL,
-    DEBUG,
-    TRACE,
     NONE,
 }
 
@@ -48,10 +48,12 @@ public static class FileLogger
 
     static FileLogger()
     {
+        const int ONE_MB = 1024 * 1024;
+
         try
         {
             FileInfo logFile = new(s_logFilePath);
-            if (logFile.Length >= (1024 * 1024 * 4)) // 4MB
+            if (logFile.Length >= (ONE_MB * 4) && !TrimLogFile(logFile.FullName, ONE_MB * 2))
             {
                 logFile.Delete();
             }
@@ -75,15 +77,14 @@ public static class FileLogger
 
         text = text.Trim('\n');
 
-        string newline = text.Length > 40 && text.Contains('\n')
+        string lineSuffix = text.Length > 40 && text.Contains('\n')
             ? "\n\n"
             : "\n";
 
-        string admin = MainWindowViewModel.LaunchedAsAdministrator
-            ? " ADMIN"
-            : string.Empty;
+        string logEntry = $"[{DateTime.UtcNow} {logLevel.ToString().ToUpper()}" +
+                          $"{(MainWindowViewModel.LaunchedAsAdministrator ? " ADMIN" : string.Empty)}]" +
+                          $" [{GetCallerInfo()}] {text}{lineSuffix}";
 
-        string logEntry = $"[{UtcTime} {logLevel.ToString().ToUpper()}{admin}]    [{GetCallerInfo()}] {text}{newline}";
         LogGenericFinal(logEntry);
     }
 
@@ -154,6 +155,7 @@ public static class FileLogger
         LogGenericException(exception, "[LogFatal added message: Fatal exception]");
     }
 
+    [Conditional("DEBUG")]
     public static void LogDebug(string log)
     {
         LogGeneric(log, LogLevel.DEBUG);
@@ -362,7 +364,7 @@ public static class FileLogger
             if (typeof(IAsyncStateMachine).IsAssignableFrom(method.DeclaringType))
             {
                 // Fix async methods (<AwaitedMethodName>d__10.MoveNext -> RealClassName.AwaitedMethodName)
-                className = method.DeclaringType.DeclaringType?.Name ?? "[Unknown.IAsyncClass]";
+                className = GetNonCompilerGeneratedClassName(method);// method.DeclaringType.DeclaringType?.Name ?? "[Unknown.IAsyncClass]";
                 methodName = method.DeclaringType.Name.TrimStart('<');
                 methodName = methodName[0..methodName.IndexOf('>')];
             }
@@ -376,6 +378,17 @@ public static class FileLogger
         }
 
         return "Failed to get caller info";
+
+        static string GetNonCompilerGeneratedClassName(MethodBase method)
+        {
+            Type? declaringType = method.DeclaringType;
+            while (declaringType?.Name.StartsWith('<') is true)
+            {
+                declaringType = declaringType.DeclaringType;
+            }
+
+            return declaringType?.Name ?? "[nobase]";
+        }
     }
 
     private static string GetFormattedException(Exception ex)
@@ -386,6 +399,49 @@ public static class FileLogger
             .AppendLine(ex.StackTrace ?? "[NO STACK]");
 
         return exception.ToString();
+    }
+
+    private static bool TrimLogFile(string filePath, int lineCount)
+    {
+        string tempFilePath = Path.GetTempFileName();
+
+        try
+        {
+            using (StreamReader reader = new(filePath))
+            using (StreamWriter writer = new(tempFilePath))
+            {
+                for (int i = 0; i < lineCount; i++)
+                {
+                    if (reader.ReadLine() == null)
+                    {
+                        Console.WriteLine($"Warning: File has fewer than {lineCount} lines. All lines will be removed.");
+                        break;
+                    }
+                }
+
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    writer.WriteLine(line);
+                }
+            }
+
+            File.Delete(filePath);
+            File.Move(tempFilePath, filePath);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogError(ex.Message);
+
+            if (File.Exists(tempFilePath))
+            {
+                File.Delete(tempFilePath);
+            }
+        }
+
+        return false;
     }
 
     public static class LogLevelColors
