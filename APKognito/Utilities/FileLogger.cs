@@ -403,7 +403,7 @@ public static class FileLogger
 
     private static bool TrimLogFile(string filePath, int lineCount)
     {
-        string tempFilePath = Path.GetTempFileName();
+        string tempFilePath = Path.GetRandomFileName();
 
         try
         {
