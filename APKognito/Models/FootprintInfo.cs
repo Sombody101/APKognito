@@ -10,7 +10,7 @@ public record FootprintInfo
 
     public string FolderName { get; } = string.Empty;
 
-    public long FolderSizeBytes { get; } = 0;
+    public ulong FolderSizeBytes { get; } = 0;
 
     public FootprintTypes ItemType { get; } = FootprintTypes.None;
 
@@ -25,7 +25,7 @@ public record FootprintInfo
     /// <param name="folderPath"></param>
     /// <param name="folderByteSize"></param>
     /// <param name="itemType"></param>
-    public FootprintInfo(string folderPath, long folderByteSize, FootprintTypes itemType = FootprintTypes.Directory)
+    public FootprintInfo(string folderPath, ulong folderByteSize, FootprintTypes itemType = FootprintTypes.Directory)
     {
         FolderPath = folderPath;
 
@@ -42,7 +42,7 @@ public record FootprintInfo
     }
 #endif
 
-    public FootprintInfo(DirectoryInfo directory, long folderByteSize)
+    public FootprintInfo(DirectoryInfo directory, ulong folderByteSize)
     {
         FolderPath = directory.FullName;
         FolderName = directory.Name;
@@ -68,7 +68,7 @@ public record FootprintInfo
         FolderPath = file.FullName;
         FolderName = file.Name;
 
-        FolderSizeBytes = file.Length;
+        FolderSizeBytes = (ulong)file.Length;
 
         CreationDate = file.CreationTime;
         FormattedCreationDate = CreationDate.ToString();
@@ -76,7 +76,7 @@ public record FootprintInfo
         ItemType = FootprintTypes.File;
     }
 
-    private FootprintInfo(string folderPath, string folderName, long folderByteSize, FootprintTypes itemType)
+    private FootprintInfo(string folderPath, string folderName, ulong folderByteSize, FootprintTypes itemType)
     {
         FolderPath = folderPath;
         FolderName = folderName;

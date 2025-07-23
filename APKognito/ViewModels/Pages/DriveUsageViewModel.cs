@@ -1,14 +1,14 @@
-﻿using APKognito.Configurations;
+﻿using System.Collections.ObjectModel;
+using System.IO;
+using System.Text;
+using System.Windows.Documents;
+using System.Windows.Threading;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Helpers;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Text;
-using System.Windows.Documents;
-using System.Windows.Threading;
 using Wpf.Ui.Controls;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
 
@@ -16,17 +16,16 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class DriveUsageViewModel : ViewModel, IViewable
 {
-    private const string CLAIM_FILE_NAME = ".apkognito";
     private const string PACKAGE_LIST_JOIN_STRING = "\n  ⚬  ";
 
     private const string TEXT_REFRESH = "Refresh",
         TEXT_CANCEL = "Cancel";
 
-    private readonly KognitoConfig kognitoConfig;
+    private readonly UserRenameConfiguration _kognitoConfig;
 
-    private readonly List<FootprintInfo> cachedFootprints = [];
+    private readonly List<FootprintInfo> _cachedFootprints = [];
 
-    private uint filter = 0;
+    private uint _filter = 0;
 
     #region Properties
 
@@ -45,13 +44,13 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     public partial string StartButtonText { get; set; } = TEXT_REFRESH;
 
     [ObservableProperty]
-    public partial long TotalUsedSpace { get; set; } = 0;
+    public partial ulong TotalUsedSpace { get; set; } = 0;
 
     [ObservableProperty]
-    public partial long TotalFilteredSpace { get; set; } = 0;
+    public partial ulong TotalFilteredSpace { get; set; } = 0;
 
     [ObservableProperty]
-    public partial long TotalSelectedSpace { get; set; } = 0;
+    public partial ulong TotalSelectedSpace { get; set; } = 0;
 
     [ObservableProperty]
     public partial bool CanDelete { get; set; } = false;
@@ -81,7 +80,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
     public DriveUsageViewModel(ConfigurationFactory _configFactory)
     {
-        kognitoConfig = _configFactory.GetConfig<KognitoConfig>();
+        _kognitoConfig = _configFactory.GetConfig<UserRenameConfiguration>();
 
         FilterInRenamedApks = false;
         FilterInFiles = FilterInDirectories = true;
@@ -95,7 +94,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
     public DriveUsageViewModel()
     {
         // For designer
-        kognitoConfig = null!;
+        _kognitoConfig = null!;
     }
 #endif
 
@@ -118,7 +117,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
             StartButtonText = TEXT_CANCEL;
             IsRunning = true;
 
-            cachedFootprints.Clear();
+            _cachedFootprints.Clear();
             TotalUsedSpace = 0;
             _collectDataCancelationSource ??= new();
 
@@ -168,7 +167,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         CanDelete = false;
         IsRunning = true;
 
-        if (cachedFootprints.Count > 0 && await PromptForDeletionAsync(FoundFolders))
+        if (_cachedFootprints.Count > 0 && await PromptForDeletionAsync(FoundFolders))
         {
             await DeleteFileCollectionAsync(FoundFolders);
             FoundFolders.Clear();
@@ -195,15 +194,15 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
             FoundFolders.Clear();
             TotalFilteredSpace = 0;
 
-            if (cachedFootprints.Count is 0)
+            if (_cachedFootprints.Count is 0)
             {
                 CanDelete = FileListVisibility = false;
                 return;
             }
 
             // The filter is just a generic mask. Each item checks if the flag is set within the filter.
-            foreach (FootprintInfo? item in cachedFootprints.Where(fp => filter == 0
-                || ((FootprintTypes)filter).HasFlag(fp.ItemType)))
+            foreach (FootprintInfo? item in _cachedFootprints.Where(fp => _filter == 0
+                || ((FootprintTypes)_filter).HasFlag(fp.ItemType)))
             {
                 FoundFolders.Add(item);
                 TotalFilteredSpace += item.FolderSizeBytes;
@@ -221,11 +220,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
         folders.AddRange(Directory.GetDirectories(Path.GetTempPath(), "APKognito-*"));
 
         // Renamed apps
-        string apkOutputPath = kognitoConfig.ApkOutputDirectory ?? string.Empty;
+        string apkOutputPath = _kognitoConfig.ApkOutputDirectory ?? string.Empty;
         if (Directory.Exists(apkOutputPath))
         {
             apkOutputPath = Path.GetFullPath(apkOutputPath);
-            folders.AddRange(Directory.GetDirectories(apkOutputPath).Where(path => IsDirectoryClaimed(path)));
+            folders.AddRange(Directory.GetDirectories(apkOutputPath).Where(path => DirectoryManager.IsDirectoryClaimed(path)));
         }
 
         List<Task<FootprintInfo>> tasks = [];
@@ -238,11 +237,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
             tasks.Add(Task.Run(async () =>
             {
-                FileAttributes attrs = await Task.Run(() => File.GetAttributes(folderName), cancellation);
-                if (attrs.HasFlag(FileAttributes.Directory))
+                FileAttributes attributes = await Task.Run(() => File.GetAttributes(folderName), cancellation);
+                if (attributes.HasFlag(FileAttributes.Directory))
                 {
                     DirectoryInfo di = new(folderName);
-                    long size = await DirSizeAsync(di, cancellation);
+                    ulong size = await DirectoryManager.DirSizeAsync(di, cancellation);
                     return new FootprintInfo(di, size);
                 }
                 else
@@ -257,53 +256,12 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
         foreach (FootprintInfo? folderStat in folderStats)
         {
-            cachedFootprints.Add(folderStat);
+            _cachedFootprints.Add(folderStat);
         }
 
-        TotalUsedSpace = folderStats.Sum(f => f.FolderSizeBytes);
-    }
-
-    public static async Task<long> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation)
-    {
-        List<Task<long>> tasks = [];
-        foreach (FileInfo fi in d.GetFiles())
-        {
-            tasks.Add(Task.Run(() => fi.Length, cancellation));
-        }
-
-        foreach (DirectoryInfo di in d.GetDirectories())
-        {
-            tasks.Add(DirSizeAsync(di, cancellation));
-        }
-
-        _ = await Task.WhenAll(tasks);
-        long[] results = await Task.WhenAll(tasks);
-
-        return results.Sum();
-    }
-
-    public static void ClaimDirectory(string directory, string claimName = CLAIM_FILE_NAME)
-    {
-        if (!Directory.Exists(directory))
-        {
-            throw new ArgumentException($"Unable to claim directory '{directory}' as it doesn't exist.");
-        }
-
-        if (IsDirectoryClaimed(directory))
-        {
-            return;
-        }
-
-        string hiddenFile = Path.Combine(directory, claimName);
-        File.Create(hiddenFile).Close();
-        File.SetAttributes(hiddenFile, File.GetAttributes(hiddenFile) | FileAttributes.Hidden);
-    }
-
-    public static bool IsDirectoryClaimed(string directory, string claimName = CLAIM_FILE_NAME)
-    {
-        return !Directory.Exists(directory)
-            ? throw new ArgumentException($"Unable to check if directory is claimed '{directory}' as it doesn't exist.")
-            : File.Exists(Path.Combine(directory, claimName));
+        TotalUsedSpace = folderStats.Length > 0
+            ? folderStats.Select(f => f.FolderSizeBytes).Aggregate((a, c) => a + c)
+            : 0;
     }
 
     partial void OnFilterInRenamedApksChanged(bool value)
@@ -347,14 +305,13 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                 else
                 {
                     DeleteDirectory(entry.FolderPath);
-                    Directory.Delete(entry.FolderPath);
                 }
             }
         });
 
         void DeleteDirectory(string directory)
         {
-            foreach (string file in Directory.EnumerateFileSystemEntries(directory).OrderByDescending(str => str.Length))
+            foreach (string file in Directory.EnumerateFileSystemEntries(directory))
             {
                 try
                 {
@@ -366,7 +323,6 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                     else
                     {
                         DeleteDirectory(file);
-                        Directory.Delete(file);
                     }
                 }
                 catch
@@ -375,6 +331,8 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                     CurrentlyDeletingLow = "Failed to delete some files!";
                 }
             }
+
+            Directory.Delete(directory);
         }
     }
 
@@ -487,11 +445,11 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
 
         if (value)
         {
-            filter |= flagUint;
+            _filter |= flagUint;
         }
         else
         {
-            filter &= ~flagUint;
+            _filter &= ~flagUint;
         }
 
         UpdateItemsList();
