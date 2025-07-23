@@ -105,7 +105,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
 
         Directory.CreateDirectory(outputDirectory);
 
-        _logger.LogInformation("Renaming assets. (Mode:{Mode})", mode);
+        _logger.LogInformation("Renaming assets.");
 
         foreach (string assetPath in GetAssetPaths(assetDirectory))
         {
@@ -126,7 +126,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
 
         string newAssetName = $"{Path.GetFileNameWithoutExtension(assetPath).Replace(_nameData!.OriginalCompanyName, _nameData.NewCompanyName)}.obb";
 
-        _logger.LogInformation("Renaming asset file: {GetFileName}{InternalRenameInfoLogDelimiter}{NewAssetName}", Path.GetFileName(assetPath), _renameConfiguration.InternalRenameInfoLogDelimiter, newAssetName);
+        _logger.LogInformation("Renaming asset file: {GetFileName}{InternalRenameInfoLogDelimiter}{NewAssetName} (Mode: {Mode})", Path.GetFileName(assetPath), _renameConfiguration.InternalRenameInfoLogDelimiter, newAssetName, mode);
 
         string assetOutputPath = Path.Combine(outputDirectory, newAssetName);
         if (mode is AssetTransferMode.Copy)
@@ -143,9 +143,10 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
     {
         try
         {
-            var binaryReplace = new ArchiveReplace(assetPath, _reporter, _logger);
+            var binaryReplace = new ArchiveReplace(_reporter, _logger);
             await binaryReplace.ModifyArchiveStringsAsync(
-                _renameConfiguration.BuildAndCacheRegex(_nameData.OriginalCompanyName),
+                assetPath,
+                _renameConfiguration.BuildAndCacheRegex(_nameData!.OriginalCompanyName),
                 _nameData.NewCompanyName,
                 [.. _renameConfiguration.RenameObbsInternalExtras],
                 token
