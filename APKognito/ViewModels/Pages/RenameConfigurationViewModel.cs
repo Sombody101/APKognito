@@ -177,17 +177,10 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
 
             if (columnName == nameof(ApkReplacementName))
             {
-                if (RenameLibsInternal && string.IsNullOrWhiteSpace(ApkReplacementName))
-                {
-                    error = "Replacement name cannot be empty when renaming libraries.";
-                }
-                else if (RenameLibsInternal && !Regex.IsMatch(ApkReplacementName, @"^[a-zA-Z0-9_]+$"))
-                {
-                    error = "Replacement name can only contain letters, numbers, and underscores.";
-                }
+                // Nothing for now
             }
 
-            return error;
+            return error!;
         }
     }
 
