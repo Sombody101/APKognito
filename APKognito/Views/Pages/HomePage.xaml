@@ -6,11 +6,12 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:APKognito.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
+    xmlns:overrides="clr-namespace:APKognito.Controls.Overrides"
+    xmlns:pages="clr-namespace:APKognito.Views.Pages"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="Rename APK"
     Margin="-42,0"
-    d:DataContext="{d:DesignInstance pages:HomeViewModel,
+    d:DataContext="{d:DesignInstance pages:HomePage,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="1000"
     d:DesignWidth="1200"
@@ -29,196 +30,118 @@
     </Page.Resources>
 
     <Page.InputBindings>
-        <KeyBinding Command="{Binding ManualUnpackApkCommand}" Gesture="CTRL+SHIFT+U" />
-        <KeyBinding Command="{Binding ManualPackApkCommand}" Gesture="CTRL+SHIFT+P" />
+        <KeyBinding Command="{Binding ViewModel.ManualUnpackPackageCommand}" Gesture="CTRL+SHIFT+U" />
+        <KeyBinding Command="{Binding ViewModel.ManualPackPackageCommand}" Gesture="CTRL+SHIFT+P" />
+        <KeyBinding Command="{Binding ViewModel.ManualSignPackageCommand}" Gesture="CTRL+SHIFT+S" />
     </Page.InputBindings>
 
     <Grid>
-
         <Grid.RowDefinitions>
             <RowDefinition Height="auto" />
             <RowDefinition Height="auto" />
             <RowDefinition Height="auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="auto" />
+            <RowDefinition Height="*" MinHeight="10" />
         </Grid.RowDefinitions>
 
-        <ui:CardExpander
-            Grid.Row="1"
-            ContentPadding="0"
-            CornerRadius="4,0,4,4"
-            Icon="{ui:SymbolIcon DocumentSettings20}">
-            <ui:CardExpander.Header>
-                <Grid>
+        <Grid Grid.Row="2">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ui:Card
+                Width="250"
+                Margin="0,0,4,0"
+                VerticalAlignment="Stretch"
+                VerticalContentAlignment="Center">
+
+                <!--  Main Interaction Buttons  -->
+
+                <Grid Margin="0,7.5" Grid.IsSharedSizeScope="True">
+
                     <Grid.RowDefinitions>
-                        <RowDefinition />
-                        <RowDefinition />
+                        <RowDefinition Height="50" />
+                        <RowDefinition Height="50" />
+                        <RowDefinition Height="80" />
+                        <RowDefinition Height="50" />
                     </Grid.RowDefinitions>
 
-                    <ui:TextBlock VerticalAlignment="Center" Text="APK Output Settings" />
-
-                    <ui:TextBlock
-                        Grid.Row="1"
-                        FontSize="12"
-                        Opacity=".9"
-                        Text="Specify how and where the APK is renamed, or if you want to push it to an ADB enabled device." />
-                </Grid>
-            </ui:CardExpander.Header>
-
-            <StackPanel>
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <ui:TextBlock
-                        VerticalAlignment="Center"
-                        FontWeight="Bold"
-                        Text="Java Executable" />
-
-                    <ctrls:DirectorySelector
-                        Grid.Column="1"
-                        Margin="0,5"
-                        BrowseButtonIcon="{ui:SymbolIcon Symbol=Document20}"
-                        DirectoryPath="{Binding JavaExecutablePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                        SelectingDirectory="False" />
-                </Grid>
-                <Separator />
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <ui:TextBlock
-                        VerticalAlignment="Center"
-                        FontWeight="Bold"
-                        Text="Output Directory" />
-
-                    <ctrls:DirectorySelector Grid.Column="1" DirectoryPath="{Binding OutputDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                </Grid>
-                <Separator />
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <ui:TextBlock
-                        VerticalAlignment="Center"
-                        FontWeight="Bold"
-                        Text="Output APK Name" />
-                    <ui:TextBox
-                        Grid.Column="1"
-                        Grid.ColumnSpan="2"
-                        IsEnabled="{Binding CanEdit}"
-                        KeyUp="TextBox_KeyUp"
-                        PlaceholderText="Replacement name. (e.g.: new-company)"
-                        Text="{Binding ApkReplacementName, Mode=TwoWay}" />
-                </Grid>
-                <Separator />
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <ui:TextBlock
-                        Grid.Row="3"
-                        FontWeight="Bold"
-                        ToolTip="Copy APK and OBB files when renaming rather than moving them (Takes double the storage space as moving them, but removes the risk of data loss if an error occurs while renaming)">
-                        <Run Text="Copy App Files" />
-                        <ui:SymbolIcon Symbol="QuestionCircle24" />
-                    </ui:TextBlock>
-                    <ui:ToggleSwitch
-                        Grid.Row="3"
-                        Grid.Column="2"
-                        HorizontalAlignment="Right"
-                        Checked="CheckBox_CheckedAsync"
-                        IsChecked="{Binding CopyWhenRenaming}"
-                        IsEnabled="{Binding CanEdit}"
-                        OffContent="Move Files"
-                        OnContent="Copy Files"
-                        Unchecked="CheckBox_CheckedAsync" />
-                </Grid>
-                <Separator />
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <ui:TextBlock
-                        Grid.Row="4"
-                        FontWeight="Bold"
-                        ToolTip="Each APK and its assets will be pushed to a device once renamed. You can select which device to upload to in the 'ADB Configuration' page.">
-                        <Run Text="Push After Rename" />
-                        <ui:SymbolIcon Symbol="QuestionCircle24" />
-                    </ui:TextBlock>
-                    <ui:ToggleSwitch
-                        Grid.Row="4"
-                        Grid.Column="2"
-                        HorizontalAlignment="Right"
-                        Checked="CheckBox_CheckedAsync"
-                        IsChecked="{Binding PushAfterRename}"
-                        IsEnabled="{Binding CanEdit}"
-                        OffContent="Don't Push"
-                        OnContent="Push After"
-                        Unchecked="CheckBox_CheckedAsync" />
-                </Grid>
-                <Separator />
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="200" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <ui:TextBlock
-                        VerticalAlignment="Center"
-                        FontWeight="Bold"
-                        Text="Save Rename Configuration" />
                     <ui:Button
-                        Grid.Column="1"
-                        Width="150"
-                        HorizontalAlignment="Right"
-                        Command="{Binding SaveSettingsCommand}"
-                        Content="Save Settings"
-                        ToolTip="Saves your configuration to file. Saving is not required for the changes to take effect, but is a good idea to prevent data loss in the event that APKognito closes unexpectedly." />
+                        x:Name="LoadAPK"
+                        Grid.Row="0"
+                        Margin="0,0,0,5"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        Command="{Binding ViewModel.LoadApkCommand}"
+                        Content="Select APKs"
+                        Cursor="Hand"
+                        IsEnabled="{Binding ViewModel.SharedViewModel.ConfigurationControlsEnabled}" />
+
+                    <ui:Button
+                        Grid.Row="1"
+                        Margin="0,5,0,5"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        Command="{Binding ViewModel.ShowOutputFolderCommand}"
+                        Content="View Output"
+                        Cursor="Hand" />
+
+                    <!--  Start/Cancel Buttons  -->
+
+                    <Grid
+                        Grid.Row="2"
+                        Margin="0,5,0,5"
+                        VerticalAlignment="Stretch">
+                        <ui:Button
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Appearance="Success"
+                            Command="{Binding ViewModel.StartApkRenameCommand}"
+                            Content="Start Renaming"
+                            Cursor="Hand"
+                            IsEnabled="{Binding ViewModel.CanStart}"
+                            ToolTip="{Binding ViewModel.CantStartReason}"
+                            Visibility="{Binding ViewModel.StartButtonVisible, Converter={StaticResource BoolToVisibility}}" />
+
+                        <ui:Button
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Appearance="Caution"
+                            Command="{Binding ViewModel.CancelApkRenameCommand}"
+                            Content="Cancel"
+                            Cursor="Hand"
+                            Visibility="{Binding ViewModel.StartButtonVisible, Converter={StaticResource VisibilityInverter}}" />
+                    </Grid>
+
+                    <ui:Button
+                        Grid.Row="3"
+                        Margin="0,5,0,5"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        Command="{Binding ViewModel.UploadPreviousPackageCommand}"
+                        Content="Upload Previous"
+                        Cursor="Hand"
+                        IsEnabled="{Binding ViewModel.SharedViewModel.ConfigurationControlsEnabled}" />
                 </Grid>
-                <Separator />
-                <ui:CardAction
-                    Margin="16"
-                    Command="{Binding NavigateToAdvancedSettingsPageCommand}"
-                    Icon="{ui:SymbolIcon Symbol=BuildingLighthouse20}">
-                    <StackPanel>
-                        <ui:TextBlock Text="Open Advanced Settings" />
-                        <ui:TextBlock
-                            Appearance="Secondary"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="Configure advanced package renaming settings."
-                            TextWrapping="WrapWithOverflow" />
-                    </StackPanel>
-                </ui:CardAction>
-            </StackPanel>
-        </ui:CardExpander>
+            </ui:Card>
 
-        <!--  I'm pretty sure there's a little but of bottom margin to the expander, so use 4 instead of 5  -->
-        <ui:Card
-            Grid.Row="2"
-            Margin="0,4,0,0"
-            AllowDrop="{Binding RunningJobs, Converter={StaticResource BoolInverter}}"
-            PreviewDragOver="Card_PreviewDragOver">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
-                </Grid.RowDefinitions>
-
+            <!--  I'm pretty sure there's a little but of bottom margin to the expander, so use 4 instead of 5  -->
+            <overrides:Card
+                Grid.Column="1"
+                VerticalAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                AllowDrop="{Binding ViewModel.RunningJobs, Converter={StaticResource BoolInverter}}"
+                CornerRadius="4,0,4,4"
+                PreviewDragOver="Card_PreviewDragOver">
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="225" />
-                        <ColumnDefinition />
-                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="auto" />
+                    </Grid.RowDefinitions>
 
                     <Grid
                         x:Name="DragDropPresenter"
@@ -229,7 +152,7 @@
                             Margin="-15,-17,-15,-21"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
-                            AllowDrop="{Binding RunningJobs, Converter={StaticResource BoolInverter}}"
+                            AllowDrop="{Binding ViewModel.RunningJobs, Converter={StaticResource BoolInverter}}"
                             Background="Gray"
                             Drop="DragDropPresenter_DropAsync"
                             Opacity=".5"
@@ -243,186 +166,151 @@
                             Symbol="Dock24" />
                     </Grid>
 
-                    <!--  Selected File Information (AKA: Fuster Cluck)  -->
+                    <ctrls:DataTable
+                        Grid.Row="0"
+                        Margin="10,5"
+                        HorizontalAlignment="Stretch"
+                        ColumnSpacing="70">
 
-                    <Grid Grid.Column="2" Margin="10,5">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="170" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                        <!--  Filename  -->
+                        <ctrls:Entry>
+                            <ctrls:Entry.Header>
+                                <TextBlock
+                                    Margin="1"
+                                    FontWeight="Bold"
+                                    Text="Filename:" />
+                            </ctrls:Entry.Header>
+                            <ctrls:Entry.Body>
+                                <ui:TextBlock
+                                    Margin="1"
+                                    Text="{Binding ViewModel.ApkName}"
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTip="{Binding ViewModel.FilePath}" />
+                            </ctrls:Entry.Body>
+                        </ctrls:Entry>
 
-                        <Grid.RowDefinitions>
-                            <RowDefinition />
-                            <RowDefinition />
-                            <RowDefinition />
-                            <RowDefinition />
-                            <RowDefinition />
-                            <RowDefinition />
-                            <RowDefinition />
-                            <RowDefinition />
-                        </Grid.RowDefinitions>
+                        <!--  Output Directory  -->
+                        <ctrls:Entry>
+                            <ctrls:Entry.Header>
+                                <TextBlock
+                                    Margin="1"
+                                    FontWeight="Bold"
+                                    Text="Output Directory:" />
+                            </ctrls:Entry.Header>
+                            <ctrls:Entry.Body>
+                                <TextBlock
+                                    Margin="1"
+                                    Text="{Binding ViewModel.OutputDirectory}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </ctrls:Entry.Body>
+                        </ctrls:Entry>
 
-                        <StackPanel Grid.Column="0">
-                            <!--  Input Field Labels  -->
-                            <TextBlock
-                                Margin="1"
-                                FontWeight="Bold"
-                                Text="Filename:" />
-                        </StackPanel>
+                        <Separator />
 
-                        <StackPanel Grid.Column="1">
-                            <!--  Input Field Values  -->
+                        <!--  Required Space  -->
+                        <ctrls:Entry>
+                            <ctrls:Entry.Header>
+                                <ui:TextBlock
+                                    Margin="1"
+                                    FontWeight="Bold"
+                                    Text="Required Space:"
+                                    ToolTip="The drive space requried to rename the APK and OBB files. Not always accurate." />
+                            </ctrls:Entry.Header>
+                            <ctrls:Entry.Body>
+                                <ui:TextBlock>
+                                    <ui:TextBlock.Text>
+                                        <MultiBinding StringFormat="{}{0:n0}    ({1:n0} bytes)">
+                                            <Binding Converter="{StaticResource GBConverter}" Path="ViewModel.FootprintSizeBytes" />
+                                            <Binding Path="ViewModel.FootprintSizeBytes" />
+                                        </MultiBinding>
+                                    </ui:TextBlock.Text>
+                                </ui:TextBlock>
+                            </ctrls:Entry.Body>
+                        </ctrls:Entry>
+
+                        <Separator />
+
+                        <!--  Elapsed Time  -->
+                        <ctrls:Entry>
+                            <ctrls:Entry.Header>
+                                <TextBlock
+                                    Margin="1"
+                                    FontWeight="Bold"
+                                    Text="Elapsed Time:" />
+                            </ctrls:Entry.Header>
+                            <ctrls:Entry.Body>
+                                <TextBlock
+                                    Margin="1"
+                                    Text="{Binding ViewModel.ElapsedTime}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </ctrls:Entry.Body>
+                        </ctrls:Entry>
+
+                        <!--  Working On  -->
+                        <ctrls:Entry>
+                            <ctrls:Entry.Header>
+                                <TextBlock
+                                    Margin="1"
+                                    FontWeight="Bold"
+                                    Text="Working On:" />
+                            </ctrls:Entry.Header>
+                            <ctrls:Entry.Body>
+                                <TextBlock
+                                    Margin="1"
+                                    Text="{Binding ViewModel.JobbedApk}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </ctrls:Entry.Body>
+                        </ctrls:Entry>
+
+                        <!--  Current Action  -->
+                        <ctrls:Entry>
+                            <ctrls:Entry.Header>
+                                <TextBlock Margin="1" FontWeight="Bold">
+                                    <Run Text="{Binding ViewModel.CurrentActionTitle}" /><Run Text=":" />
+                                </TextBlock>
+                            </ctrls:Entry.Header>
+                            <ctrls:Entry.Body>
+                                <TextBlock
+                                    Margin="1"
+                                    Text="{Binding ViewModel.CurrentAction}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </ctrls:Entry.Body>
+                        </ctrls:Entry>
+                    </ctrls:DataTable>
+
+                    <ui:CardAction
+                        Grid.Row="1"
+                        Margin="0,0,0,7.5"
+                        Command="{Binding ViewModel.NavigateToRenameSettingsPageCommand}"
+                        Icon="{ui:SymbolIcon Symbol=ClipboardTextEdit24}">
+                        <StackPanel>
+                            <ui:TextBlock Text="Open Rename Settings" />
                             <ui:TextBlock
-                                Margin="1"
-                                Text="{Binding ApkName}"
-                                TextTrimming="CharacterEllipsis"
-                                ToolTip="{Binding FilePath}" />
+                                Appearance="Secondary"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                Text="Configure package renaming settings."
+                                TextWrapping="WrapWithOverflow" />
                         </StackPanel>
+                    </ui:CardAction>
 
-                        <StackPanel Grid.Row="2">
-                            <!--  Output Field Labels  -->
-                            <TextBlock
-                                Margin="1"
-                                FontWeight="Bold"
-                                Text="Output Path:" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="2" Grid.Column="1">
-                            <!--  Output Field Values  -->
-
-                            <TextBlock
-                                Margin="1"
-                                Text="{Binding OutputDirectory}"
-                                TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-
-                        <!--  File Size Info  -->
-
-                        <Separator
-                            Grid.Row="3"
-                            Grid.ColumnSpan="2"
-                            Margin="0,2.5" />
-
-                        <StackPanel Grid.Row="4">
-                            <!--  Field Labels  -->
-                            <TextBlock Margin="1" ToolTip="The drive space requried to rename the APK and OBB files. Not always accurate.">
-                                <Run FontWeight="Bold" Text="Required Space:" />
-                            </TextBlock>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="4" Grid.Column="1">
-                            <!--  Field Values  -->
-                            <TextBlock>
-                                <TextBlock.Text>
-                                    <MultiBinding StringFormat="{}{0:n0}    ({1:n0} bytes)">
-                                        <Binding Converter="{StaticResource GBConverter}" Path="FootprintSizeBytes" />
-                                        <Binding Path="FootprintSizeBytes" />
-                                    </MultiBinding>
-                                </TextBlock.Text>
-                            </TextBlock>
-                        </StackPanel>
-
-                        <Separator
-                            Grid.Row="5"
-                            Grid.ColumnSpan="2"
-                            Margin="0,2.5" />
-
-                        <!--  Job Time Labels  -->
-
-                        <StackPanel Grid.Row="6">
-                            <TextBlock FontWeight="Bold" Text="Elapsed Time:" />
-                            <TextBlock FontWeight="Bold" Text="Working On:" />
-                            <TextBlock FontWeight="Bold">
-                                <Run Text="{Binding CurrentActionTitle}" /><Run Text=":" />
-                            </TextBlock>
-                        </StackPanel>
-
-                        <!--  Job Time Values  -->
-
-                        <StackPanel Grid.Row="6" Grid.Column="1">
-                            <TextBlock
-                                Margin="1"
-                                Text="{Binding ElapsedTime}"
-                                TextTrimming="CharacterEllipsis" />
-
-                            <TextBlock
-                                Margin="1"
-                                Text="{Binding JobbedApk}"
-                                TextTrimming="CharacterEllipsis" />
-
-                            <TextBlock
-                                Margin="1"
-                                Text="{Binding CurrentAction}"
-                                TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </Grid>
-
-                    <!--  Main Interaction Buttons  -->
-
-                    <Grid Margin="0,7.5">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height=".5*" />
-                            <RowDefinition />
-                        </Grid.RowDefinitions>
-
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-
-                            <Button
-                                x:Name="LoadAPK"
-                                Width="105"
-                                VerticalAlignment="Stretch"
-                                Command="{Binding LoadApkCommand}"
-                                Content="Select APKs"
-                                Cursor="Hand"
-                                IsEnabled="{Binding CanEdit}" />
-
-                            <Button
-                                Grid.Column="1"
-                                Width="105"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Stretch"
-                                Command="{Binding ShowOutputFolderCommand}"
-                                Content="View Output"
-                                Cursor="Hand" />
-                        </Grid>
-
-                        <!--  Start/Cancel Buttons  -->
-
-                        <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
-                            <ui:Button
-                                Height="90"
-                                Margin="0,0,0,5"
-                                HorizontalAlignment="Stretch"
-                                Appearance="Success"
-                                Command="{Binding StartApkRenameCommand}"
-                                Content="Start Renaming"
-                                Cursor="Hand"
-                                IsEnabled="{Binding CanStart}"
-                                ToolTip="{Binding CantStartReason}"
-                                Visibility="{Binding StartButtonVisible, Converter={StaticResource BoolToVisibility}}" />
-
-                            <ui:Button
-                                Height="90"
-                                Margin="0,0,0,5"
-                                HorizontalAlignment="Stretch"
-                                Appearance="Caution"
-                                Command="{Binding CancelApkRenameCommand}"
-                                Content="Cancel"
-                                Cursor="Hand"
-                                Visibility="{Binding StartButtonVisible, Converter={StaticResource VisibilityInverter}}" />
-                        </StackPanel>
-                    </Grid>
+                    <ProgressBar Grid.Row="2" IsIndeterminate="{Binding ViewModel.RunningJobs}" />
                 </Grid>
+            </overrides:Card>
+        </Grid>
 
-                <ProgressBar Grid.Row="1" IsIndeterminate="{Binding RunningJobs}" />
-            </Grid>
-        </ui:Card>
+        <GridSplitter
+            Grid.Row="3"
+            Height="5"
+            Margin="0,5,0,5"
+            HorizontalAlignment="Stretch"
+            Panel.ZIndex="2"
+            Background="Transparent"
+            BorderBrush="#444c56"
+            BorderThickness="0,.5,0,.5"
+            ResizeBehavior="PreviousAndNext"
+            Visibility="Collapsed" />
 
-        <Grid Grid.Row="3" Margin="0,5,0,0">
+        <Grid Grid.Row="4" Margin="0,5,0,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto" />
                 <RowDefinition Height="*" />
@@ -488,7 +376,7 @@
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Top"
                 Panel.ZIndex="2"
-                Command="{Binding ClearLogBoxCommand}"
+                Command="{Binding ViewModel.ClearLogBoxCommand}"
                 Content="Clear Logs"
                 CornerRadius="4,4,0,0" />
 
@@ -498,7 +386,7 @@
                 MinHeight="300"
                 VerticalAlignment="Stretch"
                 Panel.ZIndex="0"
-                ctrls:RichTextBoxLogBehavior.LogEntries="{Binding LogBoxEntries}"
+                ctrls:RichTextBoxLogBehavior.LogEntries="{Binding ViewModel.LogBoxEntries}"
                 FontFamily="{StaticResource FiraRegular}"
                 FontSize="12"
                 IsReadOnly="True" />

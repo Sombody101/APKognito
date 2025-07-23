@@ -1,8 +1,7 @@
-﻿using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
+﻿using System.IO;
+using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
-using System.IO;
 using Wpf.Ui.Abstractions.Controls;
 using DataFormats = System.Windows.DataFormats;
 using DragEventArgs = System.Windows.DragEventArgs;
@@ -16,18 +15,21 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
     public static HomePage? Instance { get; private set; }
 
     public HomeViewModel ViewModel { get; }
-    public KognitoConfig Config { get; init; }
 
-    public HomePage(HomeViewModel viewModel, ConfigurationFactory _configFactory)
+    public HomePage()
+    {
+        // For Designer
+        ViewModel = new(default!, new(), default!, new());
+    }
+
+    public HomePage(HomeViewModel viewModel)
     {
         Instance = this;
 
         ViewModel = viewModel;
-        DataContext = ViewModel;
+        DataContext = this;
 
         InitializeComponent();
-
-        Config = _configFactory.GetConfig<KognitoConfig>();
 
         string[]? loadedFiles = viewModel.GetFilePaths();
         if (loadedFiles is null || loadedFiles.Length is 0)
@@ -49,7 +51,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         APKLogs.ScrollToEnd();
     }
 
-    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    private static void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
     {
         App.OpenHyperlink(sender, e);
     }
@@ -59,6 +61,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         await ViewModel.OnRenameCopyCheckedAsync();
     }
 
+    [CalledByGenerated]
     private void TextBox_KeyUp(object sender, KeyEventArgs e)
     {
         App.ForwardKeystrokeToBinding(sender);
