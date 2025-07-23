@@ -8,19 +8,20 @@ using System.Security.Principal;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 using APKognito.Helpers;
+using APKognito.Controls;
+using APKognito.Configurations.ConfigModels;
+
 
 
 #if DEBUG
 using APKognito.Views.Pages.Debugging;
 #endif
 
-using MenuItem = System.Windows.Controls.MenuItem;
-
 namespace APKognito.ViewModels.Windows;
 
 public partial class MainWindowViewModel : LoggableObservableObject
 {
-    private readonly ConfigurationFactory configFactory;
+    private readonly ConfigurationFactory _configFactory;
 
     #region Properties
 
@@ -36,7 +37,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
             Icon = new SymbolIcon { Symbol = SymbolRegular.Box16 },
             TargetPageType = typeof(HomePage),
             MenuItemsSource = new NavigationViewItem[] {
-                new("Advanced Settings", SymbolRegular.BuildingLighthouse20, typeof(AdvancedRenameConfigurationPage)),
+                new("Rename Settings", SymbolRegular.BuildingLighthouse20, typeof(RenameConfigurationPage)),
             },
         },
         new NavigationViewItem()
@@ -84,11 +85,12 @@ public partial class MainWindowViewModel : LoggableObservableObject
             TargetPageType = typeof(SettingsPage)
         },
     ];
+
     [ObservableProperty]
     public partial ObservableCollection<MenuItem> TrayMenuItems { get; set; } =
     [
         new MenuItem { Header = "Rename APK", Tag = "tray_home" },
-        new MenuItem { Header = "Close", Tag = "tray_close" },
+        new MenuItem { Header = "Close", Tag = "tray_close" }
     ];
 
     #endregion Properties
@@ -96,19 +98,20 @@ public partial class MainWindowViewModel : LoggableObservableObject
     public MainWindowViewModel()
     {
         // For designer
-        configFactory = null!;
+        _configFactory = null!;
     }
 
-    public MainWindowViewModel(ISnackbarService snack, ConfigurationFactory _configFactory)
+    public MainWindowViewModel(ISnackbarService snack, ConfigurationFactory configFactory)
     {
         SetSnackbarProvider(snack);
-        configFactory = _configFactory;
+        _configFactory = configFactory;
+        AddAdbDeviceTray();
     }
 
     public MainWindowViewModel(ObservableCollection<object> footerMenuItems)
     {
         FooterMenuItems = footerMenuItems;
-        configFactory = null!;
+        _configFactory = null!;
     }
 
     #region Commands
@@ -118,7 +121,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
     {
         try
         {
-            configFactory.SaveAllConfigs();
+            _configFactory.SaveAllConfigs();
         }
         catch (Exception ex)
         {
@@ -133,7 +136,7 @@ public partial class MainWindowViewModel : LoggableObservableObject
     private bool _cleanupDebounce = false;
 
     [RelayCommand]
-    [SuppressMessage("Critical Code Smell", "S1215:GC.Collect\" should not be called", Justification = "I don't care.")]
+    [SuppressMessage("Critical Code Smell", "S1215:GC.Collect should not be called", Justification = "I don't care.")]
     private async Task OnForceGarbageCollectionAsync()
     {
         if (_cleanupDebounce)
@@ -177,18 +180,50 @@ public partial class MainWindowViewModel : LoggableObservableObject
 
     #endregion Commands
 
-    public static readonly bool LaunchedAsAdministrator =
-        new WindowsPrincipal(WindowsIdentity.GetCurrent())
+    public void AddAdbDeviceTray()
+    {
+        if (FooterMenuItems.Any(i => ((NavigationViewItem)i).Content is AndroidDeviceInfo))
+        {
+            return;
+        }
+
+        AddAdbDeviceTrayInternal(false);
+    }
+
+    private void AddAdbDeviceTrayInternal(bool initRun)
+    {
+        AdbConfig adbConfig = _configFactory.GetConfig<AdbConfig>();
+        if (!adbConfig.AdbWorks())
+        {
+            return;
+        }
+
+        var newItem = new NavigationViewItem()
+        {
+            Content = new AndroidDeviceInfo(InfoRenderType.SideMenu),
+            TargetPageType = typeof(AdbConfigurationPage),
+        };
+
+        if (initRun)
+        {
+            FooterMenuItems.Insert(0, newItem);
+        }
+        else
+        {
+            FooterMenuItems = [newItem, .. FooterMenuItems];
+        }
+    }
+
+    public static readonly bool LaunchedAsAdministrator = new WindowsPrincipal(WindowsIdentity.GetCurrent())
             .IsInRole(WindowsBuiltInRole.Administrator);
 
-    [SuppressMessage("Major Bug", "S2583:Conditionally executed code should be reachable", Justification = "It's reachable when built for it.")]
     private static string GetBuildTypeString()
     {
-        App.Version.VersionTypeValue type = App.Version.VersionType;
-
-        return type is App.Version.VersionTypeValue.Release
-            ? string.Empty
-            : $"[{App.Version.VersionIdentifier.ToUpper()}]";
+#if RELEASE
+        return string.Empty;
+#else
+        return $"[{App.Version.VersionIdentifier.ToUpper()}]";
+#endif
     }
 
     private static long GetMemSize()
