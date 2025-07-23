@@ -1,6 +1,6 @@
 ﻿namespace APKognito.Models;
 
-public class AndroidDevice
+public record AndroidDevice
 {
     public static readonly AndroidDevice Empty = new();
 

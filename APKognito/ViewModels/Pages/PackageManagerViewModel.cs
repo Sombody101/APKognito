@@ -264,7 +264,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
         }
 
-        AdbCommandOutput result = await AdbManager.InvokeScriptAsync($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true);
+        AdbCommandOutput result = await Tools.TimeAsync(async () => await AdbManager.InvokeScriptAsync($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true));
 
         if (result.Errored)
         {
@@ -336,7 +336,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         }
 
         string outputDirectory = dialogOutput.OutputDirectory;
-        configFactory.SaveConfig<KognitoConfig>();
+        configFactory.SaveConfig<UserRenameConfiguration>();
 
         foreach (PackageEntry package in items)
         {

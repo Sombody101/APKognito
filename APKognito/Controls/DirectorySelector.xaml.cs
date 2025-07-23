@@ -1,6 +1,6 @@
-﻿using APKognito.Utilities;
+﻿using System.IO;
+using APKognito.Utilities;
 using Microsoft.Win32;
-using System.IO;
 using Wpf.Ui.Controls;
 using TextBox = Wpf.Ui.Controls.TextBox;
 
@@ -116,12 +116,9 @@ public partial class DirectorySelector
         selector.DirectoryPath = VariablePathResolver.Resolve(value);
     }
 
-    public static string? UserSelectDirectory(bool multiSelect = false, string? defaultDirectory = null)
+    public static string? UserSelectDirectory(string? defaultDirectory = null)
     {
-        OpenFolderDialog openFolderDialog = new()
-        {
-            Multiselect = multiSelect,
-        };
+        OpenFolderDialog openFolderDialog = new();
 
         if (defaultDirectory is not null)
         {
@@ -134,5 +131,22 @@ public partial class DirectorySelector
         }
 
         return openFolderDialog.FolderName;
+    }
+
+    public static string? UserSelectFile(string? defaultDirectory = null)
+    {
+        OpenFileDialog openFileDialog = new();
+
+        if (defaultDirectory is not null)
+        {
+            openFileDialog.DefaultDirectory = defaultDirectory;
+        }
+
+        if (openFileDialog.ShowDialog() is false)
+        {
+            return null;
+        }
+
+        return openFileDialog.FileName;
     }
 }

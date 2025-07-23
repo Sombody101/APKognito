@@ -8,7 +8,7 @@ namespace APKognito.Controls.ViewModels;
 
 public partial class DirectoryConfirmationViewModel : ObservableObject
 {
-    private readonly KognitoConfig kognitoConfig = App.GetService<ConfigurationFactory>()!.GetConfig<KognitoConfig>();
+    private readonly UserRenameConfiguration kognitoConfig = App.GetService<ConfigurationFactory>()!.GetConfig<UserRenameConfiguration>();
 
     #region Properties
 

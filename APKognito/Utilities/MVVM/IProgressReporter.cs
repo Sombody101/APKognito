@@ -1,4 +1,6 @@
-﻿namespace APKognito.Utilities.MVVM;
+﻿using APKognito.ApkLib;
+
+namespace APKognito.Utilities.MVVM;
 
 public interface IProgressReporter
 {
@@ -14,10 +16,4 @@ public class ProgressUpdateEventArgs(string update, ProgressUpdateType updateTyp
     public string UpdateValue { get; } = update;
 
     public ProgressUpdateType UpdateType { get; } = updateType;
-}
-
-public enum ProgressUpdateType
-{
-    Content,
-    Title,
 }

@@ -2,9 +2,6 @@
 
 public record PackageNameData
 {
-    // TODO: Implement setters for editors
-    // Will that make it harder to use each editor without the main editor context? Might need to add override parameters for each method that uses namedata.
-
     /// <summary>
     /// The replacement package company name. (Passed from caller)
     /// </summary>
@@ -69,4 +66,17 @@ public record PackageNameData
             ? path[subtractor.Length..]
             : path;
     }
+
+    /// <summary>
+    /// An empty instance of <see cref="PackageNameData"/>. This should only be used when manually using an editor and not as a
+    /// configuration argument for <see cref="PackageEditorContext"/>.
+    /// </summary>
+    public static readonly PackageNameData Empty = new()
+    {
+        ApkAssemblyDirectory = string.Empty,
+        ApkSmaliTempDirectory = string.Empty,
+        FullSourceApkFileName = string.Empty,
+        FullSourceApkPath = string.Empty,
+        NewCompanyName = string.Empty
+    };
 }

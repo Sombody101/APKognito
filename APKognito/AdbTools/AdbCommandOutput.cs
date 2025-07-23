@@ -43,10 +43,7 @@ public readonly struct AdbCommandOutput : ICommandOutput
         );
     }
 
-    public class AdbCommandException : Exception
+    public class AdbCommandException(string error) : Exception(error)
     {
-        public AdbCommandException(string error)
-            : base(error)
-        { }
     }
 }

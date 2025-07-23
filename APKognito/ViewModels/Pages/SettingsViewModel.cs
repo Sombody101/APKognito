@@ -1,4 +1,6 @@
-﻿using APKognito.Cli;
+﻿using System.IO;
+using System.Reflection;
+using APKognito.Cli;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls.Dialogs;
@@ -6,8 +8,6 @@ using APKognito.Services;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages.Debugging;
-using System.IO;
-using System.Reflection;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -17,11 +17,11 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class SettingsViewModel : ViewModel, IViewable
 {
-    private readonly IContentDialogService contentDialogService;
+    private readonly IContentDialogService _contentDialogService;
 
-    private readonly ConfigurationFactory configFactory;
-    private readonly UpdateConfig updateConfig;
-    private readonly KognitoConfig kognitoConfig;
+    private readonly ConfigurationFactory _configFactory;
+    private readonly UpdateConfig _updateConfig;
+    private readonly UserRenameConfiguration _kognitoConfig;
 
     private bool _isInitialized = false;
 
@@ -44,11 +44,11 @@ public partial class SettingsViewModel : ViewModel, IViewable
 
     public bool ClearTempFilesOnRename
     {
-        get => kognitoConfig.ClearTempFilesOnRename;
+        get => _kognitoConfig.ClearTempFilesOnRename;
         set
         {
             OnPropertyChanging(nameof(ClearTempFilesOnRename));
-            kognitoConfig.ClearTempFilesOnRename = value;
+            _kognitoConfig.ClearTempFilesOnRename = value;
             OnPropertyChanged(nameof(ClearTempFilesOnRename));
         }
     }
@@ -57,45 +57,45 @@ public partial class SettingsViewModel : ViewModel, IViewable
 
     public bool AutomaticUpdatesEnabled
     {
-        get => updateConfig.CheckForUpdates;
+        get => _updateConfig.CheckForUpdates;
         set
         {
             OnPropertyChanging(nameof(AutomaticUpdatesEnabled));
-            updateConfig.CheckForUpdates = value;
+            _updateConfig.CheckForUpdates = value;
             OnPropertyChanged(nameof(AutomaticUpdatesEnabled));
         }
     }
 
     public int UpdateDelay
     {
-        get => updateConfig.CheckDelay;
+        get => _updateConfig.CheckDelay;
         set
         {
             OnPropertyChanging(nameof(UpdateDelay));
-            updateConfig.CheckDelay = value;
+            _updateConfig.CheckDelay = value;
             OnPropertyChanged(nameof(UpdateDelay));
         }
     }
 
     #endregion Properties
 
-    public SettingsViewModel(IContentDialogService _contentDialogService, ConfigurationFactory _configFactory)
+    public SettingsViewModel(IContentDialogService contentDialogService, ConfigurationFactory configFactory)
     {
-        contentDialogService = _contentDialogService;
+        _contentDialogService = contentDialogService;
 
-        configFactory = _configFactory;
-        updateConfig = configFactory.GetConfig<UpdateConfig>();
-        kognitoConfig = configFactory.GetConfig<KognitoConfig>();
+        _configFactory = configFactory;
+        _updateConfig = configFactory.GetConfig<UpdateConfig>();
+        _kognitoConfig = configFactory.GetConfig<UserRenameConfiguration>();
 
         AppDataPath = App.AppDataDirectory.FullName;
     }
 
     public SettingsViewModel()
     {
-        configFactory = null!;
-        updateConfig = null!;
-        kognitoConfig = null!;
-        contentDialogService = null!;
+        _configFactory = null!;
+        _updateConfig = null!;
+        _kognitoConfig = null!;
+        _contentDialogService = null!;
 
         // For designer
         OnNavigatedTo();
@@ -106,13 +106,13 @@ public partial class SettingsViewModel : ViewModel, IViewable
     [RelayCommand]
     private async Task OnCreateLogpackAsync()
     {
-        await CreateLogPackAsync(contentDialogService);
+        await CreateLogPackAsync(_contentDialogService);
     }
 
     [RelayCommand]
     private void OnSaveUpdatesSettings()
     {
-        configFactory.SaveConfig(updateConfig);
+        _configFactory.SaveConfig(_updateConfig);
     }
 
     [RelayCommand]
@@ -130,7 +130,7 @@ public partial class SettingsViewModel : ViewModel, IViewable
     [RelayCommand]
     private async Task OnUninstallAppCommandAsync(object content)
     {
-        ContentDialogResult result = await contentDialogService.ShowSimpleDialogAsync(
+        ContentDialogResult result = await _contentDialogService.ShowSimpleDialogAsync(
             new SimpleContentDialogCreateOptions()
             {
                 Title = "Uninstall APKognito?",
@@ -149,7 +149,7 @@ public partial class SettingsViewModel : ViewModel, IViewable
     [RelayCommand]
     private static void OnNavigateToLogViewer()
     {
-        App.NavigateTo<LogViewerPage>();
+        App.NavigateTo(typeof(LogViewerPage));
     }
 
     [RelayCommand]
@@ -195,7 +195,7 @@ public partial class SettingsViewModel : ViewModel, IViewable
         try
         {
             var optionsDialog = new LogpackCreatorDialog(dialogService.GetDialogHost());
-            var dialogResult = await optionsDialog.ShowAsync();
+            ContentDialogResult dialogResult = await optionsDialog.ShowAsync();
 
             if (dialogResult is not ContentDialogResult.Primary)
             {

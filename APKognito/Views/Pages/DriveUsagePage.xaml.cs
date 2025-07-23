@@ -20,6 +20,9 @@ public partial class DriveUsagePage : INavigableView<DriveUsageViewModel>, IView
 
     private void FolderList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        ViewModel.TotalSelectedSpace = FolderList.SelectedItems.Cast<FootprintInfo>().Sum(item => item.FolderSizeBytes);
+        ViewModel.TotalSelectedSpace = FolderList.SelectedItems
+            .Cast<FootprintInfo>()
+            .Select(f => f.FolderSizeBytes)
+            .Aggregate((a, c) => a + c);
     }
 }

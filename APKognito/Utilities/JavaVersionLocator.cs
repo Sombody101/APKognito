@@ -8,7 +8,7 @@ namespace APKognito.Utilities;
 
 internal class JavaVersionLocator
 {
-    private LoggableObservableObject? logger = null;
+    private IViewLogger? logger = null;
 
     public static string RawJavaVersion { get; set; } = string.Empty;
     public static string? JavaExecutablePath { get; private set; } = null;
@@ -22,7 +22,7 @@ internal class JavaVersionLocator
     /// <param name="_logger"></param>
     /// <param name="forceSearch"></param>
     /// <returns></returns>
-    public bool GetJavaPath(out string? javaPath, LoggableObservableObject? _logger = null, bool forceSearch = false)
+    public bool GetJavaPath([NotNullWhen(true)] out string? javaPath, IViewLogger? _logger = null, bool forceSearch = false)
     {
         if (_logger is not null)
         {

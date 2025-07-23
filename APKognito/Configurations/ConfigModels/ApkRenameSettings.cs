@@ -2,6 +2,7 @@
 
 namespace APKognito.Configurations.ConfigModels;
 
+[Obsolete]
 public sealed record ApkRenameSettings
 {
     /// <summary>

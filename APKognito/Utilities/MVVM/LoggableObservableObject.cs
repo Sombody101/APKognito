@@ -29,7 +29,7 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     protected bool LogIconPrefixes = true;
     protected bool DisableFileLogging = true;
 
-    private string indent = string.Empty;
+    private string _indent = string.Empty;
 
     public void SetCurrentLogger()
     {
@@ -87,9 +87,9 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
             _ = text.AppendLine();
         }
 
-        if (!string.IsNullOrEmpty(indent))
+        if (!string.IsNullOrEmpty(_indent))
         {
-            _ = text.Insert(0, indent);
+            _ = text.Insert(0, _indent);
         }
 
         // This suddenly became an issue. I hadn't gotten any exceptions for it, but suddenly
@@ -176,22 +176,22 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
 
     public void AddIndent(char indenter = '\t')
     {
-        indent = $"{indent}{indenter}";
+        _indent = $"{_indent}{indenter}";
     }
 
     public void AddIndentString(string indenter = "\t")
     {
-        indent = $"{indent}{indenter}";
+        _indent = $"{_indent}{indenter}";
     }
 
     public void RemoveIndent()
     {
-        indent = indent[..^1];
+        _indent = _indent[..^1];
     }
 
     public void ResetIndent()
     {
-        indent = string.Empty;
+        _indent = string.Empty;
     }
 
     public void ClearLogs()

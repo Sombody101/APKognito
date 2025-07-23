@@ -266,7 +266,7 @@ public partial class CommandDispatcher
             }
         }
 
-        logger.LogError("Cached {Count} internal commands.", s_commands.Count);
+        logger.LogDebug("Cached {Count} internal commands.", s_commands.Count);
     }
 
     private void CheckArgumentAccess(int argCount, string[] args, FileAccess[] accessors)

@@ -1,10 +1,10 @@
-﻿using APKognito.AdbTools;
+﻿using System.Windows.Threading;
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls.ViewModels;
 using APKognito.Models;
 using APKognito.Utilities;
-using System.Windows.Threading;
 using Wpf.Ui.Abstractions.Controls;
 
 namespace APKognito.Controls;
@@ -17,16 +17,16 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
     private const int UPDATE_DELAY_MS = 10_000;
     private const int GB_DIVIDER = 1024 * 1024;
 
-    private static readonly AdbConfig adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
+    private static readonly AdbConfig s_adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
-    private static AndroidDeviceInfoViewModel viewModel = null!;
+    private static AndroidDeviceInfoViewModel s_viewModel = null!;
 
     public static readonly DependencyProperty AndroidDeviceProperty =
         DependencyProperty.Register(nameof(AndroidDevice), typeof(AndroidDevice), typeof(AndroidDeviceInfo)
     );
 
-    public static readonly DependencyProperty NoExpanderProperty =
-        DependencyProperty.Register(nameof(NoExpander), typeof(bool), typeof(AndroidDeviceInfo), new() { DefaultValue = true }
+    public static readonly DependencyProperty RenderTypeProperty =
+        DependencyProperty.Register(nameof(RenderType), typeof(InfoRenderType), typeof(AndroidDeviceInfo)
     );
 
     public static readonly RoutedEvent TriggeredEvent =
@@ -42,15 +42,15 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         get => (AndroidDevice)GetValue(AndroidDeviceProperty);
         private set
         {
-            viewModel.AndroidDevice = value;
+            s_viewModel.AndroidDevice = value;
             SetValue(AndroidDeviceProperty, value);
         }
     }
 
-    public bool NoExpander
+    public InfoRenderType RenderType
     {
-        get => (bool)GetValue(NoExpanderProperty);
-        set => SetValue(NoExpanderProperty, value);
+        get => (InfoRenderType)GetValue(RenderTypeProperty);
+        set => SetValue(RenderTypeProperty, value);
     }
 
     public event RoutedEventHandler Triggered
@@ -64,16 +64,23 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         RaiseEvent(new RoutedEventArgs(TriggeredEvent, this));
     }
 
-    public AndroidDeviceInfoViewModel ViewModel => viewModel;
+    public AndroidDeviceInfoViewModel ViewModel => s_viewModel;
 
     public AndroidDeviceInfo()
+        : this(InfoRenderType.Default)
+    {
+        // For designer
+    }
+
+    public AndroidDeviceInfo(InfoRenderType renderType)
     {
         DataContext = this;
+        RenderType = renderType;
         CreateViewModel();
 
         InitializeComponent();
 
-        Loaded += async (sender, e) => await viewModel.RefreshDevicesListAsync(true);
+        Loaded += async (sender, e) => await s_viewModel.RefreshDevicesListAsync(true);
 
         StartDeviceTimer(this);
     }
@@ -89,7 +96,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         _dropdownDebounce = true;
         _ = Dispatcher.Invoke(async () =>
         {
-            await viewModel.RefreshDevicesListAsync();
+            await s_viewModel.RefreshDevicesListAsync();
             _dropdownDebounce = false;
         });
     }
@@ -100,29 +107,29 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         ForceTick();
     }
 
-    private static Timer? _deviceUpdateTimer;
-    private static CancellationTokenSource? cts;
+    private static Timer? s_deviceUpdateTimer;
+    private static CancellationTokenSource? s_cts;
     private static void StartDeviceTimer(AndroidDeviceInfo instance)
     {
-        if (_deviceUpdateTimer is not null)
+        if (s_deviceUpdateTimer is not null)
         {
             ForceTick();
             return;
         }
 
-        _deviceUpdateTimer = new Timer(async (sender) =>
+        s_deviceUpdateTimer = new Timer(async (sender) =>
         {
-            if (cts is not null)
+            if (s_cts is not null)
             {
                 return;
             }
 
-            cts = new();
-            cts.CancelAfter(UPDATE_DELAY_MS - 1000);
+            s_cts = new();
+            s_cts.CancelAfter(UPDATE_DELAY_MS - 1000);
 
             try
             {
-                AndroidDevice? device = await UpdateDeviceInfoAsync(cts.Token);
+                AndroidDevice? device = await UpdateDeviceInfoAsync(s_cts.Token);
                 _ = await instance.Dispatcher.InvokeAsync(() => instance.AndroidDevice = device ?? AndroidDevice.Empty);
             }
             catch (OperationCanceledException)
@@ -135,8 +142,8 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             }
             finally
             {
-                cts?.Dispose();
-                cts = null;
+                s_cts?.Dispose();
+                s_cts = null;
             }
         }, null, 0, UPDATE_DELAY_MS);
 
@@ -145,30 +152,29 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
     public static void ForceTick()
     {
-        if (_deviceUpdateTimer is null)
+        if (s_deviceUpdateTimer is null)
         {
             return;
         }
 
-        _ = _deviceUpdateTimer.Change(0, 1);
-        _ = _deviceUpdateTimer.Change(0, UPDATE_DELAY_MS);
+        _ = s_deviceUpdateTimer.Change(0, 1);
+        _ = s_deviceUpdateTimer.Change(0, UPDATE_DELAY_MS);
     }
 
     private static async Task<AndroidDevice?> UpdateDeviceInfoAsync(CancellationToken token = default)
     {
-        AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? device = s_adbConfig.GetCurrentDevice();
 
         if (device is null)
         {
             return null;
         }
 
-        // Get battery charge
-        AdbCommandOutput result = await AdbManager.QuickDeviceCommandAsync("shell dumpsys battery | grep 'level' | cut -d ':' -f 2", token: token, noThrow: true);
+        // Get battery charge (Android 15 gives a whole lot more information about the battery, so trim everything but the first line)
+        AdbCommandOutput result = await AdbManager.QuickDeviceCommandAsync("shell dumpsys battery | grep 'level' | cut -d ':' -f 2 | head -n 1", token: token, noThrow: true);
 
         if (result.Errored)
         {
-            FileLogger.Log($"Failed to run command: {result.StdErr}");
             return AndroidDevice.Empty;
         }
 
@@ -177,8 +183,8 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             batteryPercentage = -1;
         }
 
-        string output = (await AdbManager.QuickDeviceCommandAsync("shell df | grep -E '^(/dev/block|rootfs|tmp)'", token: token)).StdOut;
-        (float total, float used, float free) = ParseDeviceStorage(output);
+        string rawStorageInfo = (await AdbManager.QuickDeviceCommandAsync("shell df | grep -E '^(/dev/block|rootfs|tmp)'", token: token)).StdOut;
+        (float total, float used, float free) = ParseDeviceStorage(rawStorageInfo);
 
         return new()
         {
@@ -231,6 +237,14 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
     private static void CreateViewModel()
     {
-        viewModel ??= new();
+        s_viewModel ??= new();
     }
+
+}
+
+public enum InfoRenderType
+{
+    Default,
+    Expander,
+    SideMenu,
 }

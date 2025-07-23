@@ -16,7 +16,7 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     CloseButtonText="Cancel"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-    PrimaryButtonText="Create"
+    PrimaryButtonText="Create Logpack"
     mc:Ignorable="d">
 
     <ui:ContentDialog.Resources>
@@ -24,14 +24,16 @@
     </ui:ContentDialog.Resources>
 
     <StackPanel Width="550">
-        <ui:CardControl x:Name="PullLogsCard" Icon="{ui:SymbolIcon Symbol=ClipboardError24}">
+        <ui:TextBlock Margin="0,0,0,5" Text="Your logpack will contain logs, exceptions, and optionally crash information." />
+
+        <ui:CardControl
+            x:Name="PullLogsCard"
+            Margin="0,0,0,10"
+            Icon="{ui:SymbolIcon Symbol=ClipboardError24}">
             <ui:CardControl.Header>
-                <ui:TextBlock>
+                <ui:TextBlock ToolTip="Attach crash logs from the currently connected device. Ensure the right device is enabled and selected!">
                     <Run Text="Include Package Crash Information" />
-                    <ui:SymbolIcon
-                        Foreground="LightBlue"
-                        Symbol="QuestionCircle24"
-                        ToolTip="This will fetch the crash logs from the currently plugged in device. Ensure the right device is enabled!" />
+                    <ui:SymbolIcon Symbol="QuestionCircle24" />
                 </ui:TextBlock>
             </ui:CardControl.Header>
 

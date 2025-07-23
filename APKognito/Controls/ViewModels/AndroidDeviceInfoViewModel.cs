@@ -11,7 +11,7 @@ namespace APKognito.Controls.ViewModels;
 
 public partial class AndroidDeviceInfoViewModel : ObservableObject
 {
-    private readonly AdbConfig adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
+    private readonly AdbConfig _adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
     #region Properties
 
@@ -25,7 +25,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
     public partial AndroidDevice AndroidDevice { get; set; } = AndroidDevice.Empty;
 
     [ObservableProperty]
-    public partial string BatteryLabelColor { get; set; } = string.Empty;
+    public partial string BatteryLabelColor { get; set; } = "#0000";
 
     [ObservableProperty]
     public partial string FormattedBatteryLevel { get; set; } = "?";
@@ -34,10 +34,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
     public partial int BatteryLevelWidth { get; set; } = 0;
 
     [ObservableProperty]
-    public partial int UsedStorageWidth { get; set; } = 0;
-
-    [ObservableProperty]
-    public partial int FreeStorageWidth { get; set; } = 0;
+    public partial int UsedStoragePercent { get; set; } = 0;
 
     [ObservableProperty]
     public partial AdbDeviceInfo AdbDeviceInfo { get; set; } = null!;
@@ -64,7 +61,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
             return;
         }
 
-        LoggableObservableObject.CurrentLoggableObject.SnackSuccess("Connection Successful", $"{adbConfig.CurrentDeviceId} is connected.");
+        LoggableObservableObject.CurrentLoggableObject.SnackSuccess("Connection Successful", $"{_adbConfig.CurrentDeviceId} is connected.");
     }
 
     [RelayCommand]
@@ -108,7 +105,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
                 foreach (AdbDeviceInfo device in foundDevices)
                 {
                     // The device previously used is available, so use it
-                    if (device.DeviceId == adbConfig.CurrentDeviceId)
+                    if (device.DeviceId == _adbConfig.CurrentDeviceId)
                     {
                         SelectedDevice = device;
                     }
@@ -136,21 +133,21 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
             return;
         }
 
-        adbConfig.CurrentDeviceId = value.DeviceId;
+        _adbConfig.CurrentDeviceId = value.DeviceId;
 
         // Check that the device has been selected, create new profile if not
-        var currentDevice = adbConfig.GetCurrentDevice();
+        var currentDevice = _adbConfig.GetCurrentDevice();
 
         if (currentDevice is null)
         {
-            adbConfig.AdbDevices.Add(value);
+            _adbConfig.AdbDevices.Add(value);
             LoggableObservableObject.CurrentLoggableObject?.SnackInfo("New device detected!", $"A new ADB device profile has been created for {value.DeviceId}");
         }
     }
 
     partial void OnAndroidDeviceChanged(AndroidDevice value)
     {
-        const int storageElementWidth = 300;
+        const int storageElementWidth = 298;
 
         BatteryLabelColor = MapBatteryColor(value.BatteryLevel);
 
@@ -165,7 +162,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
             BatteryLevelWidth = value.BatteryLevel;
         }
 
-        UsedStorageWidth = value == AndroidDevice.Empty
+        UsedStoragePercent = value == AndroidDevice.Empty
             ? 0
             : (int)(storageElementWidth * (value.UsedSpace / value.TotalSpace));
     }
