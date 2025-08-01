@@ -21,16 +21,17 @@ internal sealed class AdbManager : IDisposable
     public const string ANDROID_OBB = $"{ANDROID_EMULATED_BASE}/obb";
 
     public const string PLATFORM_TOOLS_INSTALL_LINK = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip";
-    public const string JDK_23_INSTALL_LINK = "https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows";
+    // They replaced 23 with 24, and I have no idea where to find it anymore
+    //public const string JDK_23_INSTALL_LINK = "https://www.oracle.com/java/technologies/downloads/?er=221886#jdk23-windows";
     public const string JDK_24_INSTALL_EXE_LINK = "https://download.oracle.com/java/24/latest/jdk-24_windows-x64_bin.exe";
 
     public Process? AdbProcess { get; private set; }
 
     public bool IsRunning => AdbProcess?.HasExited is false;
 
-    private static readonly AdbConfig adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
+    private static readonly AdbConfig s_adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
-    private static bool _noCommandRecurse = false;
+    private static bool s_noCommandRecurse = false;
 
     public void RunCommand(
         string arguments,
@@ -63,18 +64,18 @@ internal sealed class AdbManager : IDisposable
         AdbCommandOutput commandOutput = await AdbCommandOutput.GetCommandOutputAsync(adbProcess);
         await adbProcess.WaitForExitAsync(token);
 
-        if (!_noCommandRecurse && commandOutput.StdErr.StartsWith("adb.exe: device unauthorized."))
+        if (!s_noCommandRecurse && commandOutput.StdErr.StartsWith("adb.exe: device unauthorized."))
         {
             LoggableObservableObject.CurrentLoggableObject?.SnackWarning("Command failed!", "An ADB command failed to execute! Running an ADB server restart... (may take some time).");
             _ = await QuickCommandAsync("kill-server", token: token);
-            _noCommandRecurse = true;
+            s_noCommandRecurse = true;
 
             return await QuickCommandAsync(arguments, noThrow, token);
         }
-        else if (_noCommandRecurse && commandOutput.DeviceNotAuthorized)
+        else if (s_noCommandRecurse && commandOutput.DeviceNotAuthorized)
         {
             // If the error persists, then ADB is not enabled or authorized on the device.
-            _noCommandRecurse = false;
+            s_noCommandRecurse = false;
             return commandOutput;
         }
 
@@ -92,7 +93,7 @@ internal sealed class AdbManager : IDisposable
     /// <returns></returns>
     public static async Task<AdbCommandOutput> QuickDeviceCommandAsync(string arguments, string? deviceId = null, bool noThrow = false, CancellationToken token = default)
     {
-        deviceId ??= adbConfig.CurrentDeviceId;
+        deviceId ??= s_adbConfig.CurrentDeviceId;
         return await QuickCommandAsync($"-s {deviceId} {arguments}", noThrow, token);
     }
 
@@ -224,7 +225,7 @@ internal sealed class AdbManager : IDisposable
     /// </summary>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static async Task RestartAdbServerAsync(bool noThrow = false)
+    public static async Task<AdbCommandOutput> RestartAdbServerAsync(bool noThrow = false)
     {
         using Process adbRestartProcess = CreateAdbProcess(null, "restart-server");
         _ = adbRestartProcess.Start();
@@ -232,11 +233,23 @@ internal sealed class AdbManager : IDisposable
         await adbRestartProcess.WaitForExitAsync();
 
         output.ThrowIfError(noThrow, adbRestartProcess.ExitCode);
+        return output;
+    }
+
+    public static async Task<AdbCommandOutput> KillAdbServerAsync(bool noThrow = false)
+    {
+        using Process adbKillProcess = CreateAdbProcess(null, "kill-server");
+        _ = adbKillProcess.Start();
+        AdbCommandOutput output = await AdbCommandOutput.GetCommandOutputAsync(adbKillProcess);
+        await adbKillProcess.WaitForExitAsync();
+
+        output.ThrowIfError(noThrow, adbKillProcess.ExitCode);
+        return output;
     }
 
     public static bool AdbWorks([Optional] string? platformToolsPath, IViewLogger? logger = null)
     {
-        return adbConfig.AdbWorks(platformToolsPath, logger);
+        return s_adbConfig.AdbWorks(platformToolsPath, logger);
     }
 
     /// <summary>
@@ -312,13 +325,13 @@ internal sealed class AdbManager : IDisposable
 
     public static string GetAdbPath()
     {
-        return adbConfig.PlatformToolsPath;
+        return s_adbConfig.PlatformToolsPath;
     }
 
     private static Process CreateAdbProcess([Optional] string? overrideAdbPath, [Optional] string? arguments)
     {
         string adbDirectory = string.IsNullOrWhiteSpace(overrideAdbPath)
-            ? adbConfig.PlatformToolsPath
+            ? s_adbConfig.PlatformToolsPath
             : overrideAdbPath;
 
         string adbPath = Path.Combine(adbDirectory, "adb.exe");

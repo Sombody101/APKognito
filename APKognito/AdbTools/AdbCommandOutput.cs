@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 
 namespace APKognito.AdbTools;
 
@@ -33,6 +34,18 @@ public readonly struct AdbCommandOutput : ICommandOutput
     {
         StdOut = stdout;
         StdErr = stderr;
+    }
+
+    public override string ToString()
+    {
+        StringBuilder sb = new();
+
+        sb.Append(nameof(StdOut)).Append(": ").AppendLine(StdOut);
+        sb.Append(nameof(StdErr)).Append(": ").AppendLine(StdErr);
+        sb.Append(nameof(Errored)).Append(": ").AppendLine(Errored.ToString());
+        sb.Append(nameof(DeviceNotAuthorized)).Append(": ").AppendLine(DeviceNotAuthorized.ToString());
+
+        return sb.ToString();
     }
 
     public static async Task<AdbCommandOutput> GetCommandOutputAsync(Process proc)
