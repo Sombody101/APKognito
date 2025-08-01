@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Threading;
+using APKognito.AdbTools;
 using APKognito.ApkLib;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
@@ -14,6 +15,7 @@ using APKognito.Controls;
 using APKognito.Controls.Dialogs;
 using APKognito.Models;
 using APKognito.Utilities;
+using APKognito.Utilities.JavaTools;
 using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +40,8 @@ public partial class HomeViewModel : LoggableObservableObject
     private readonly AdbConfig _adbConfig;
 
     private readonly Progress<ProgressInfo> _renameProgressReporter;
+
+    private readonly JavaVersionCollector _javaVersionCollector;
 
     // Tool paths
     internal DirectoryInfo _tempData;
@@ -89,7 +93,7 @@ public partial class HomeViewModel : LoggableObservableObject
     [ObservableProperty]
     public partial ulong FootprintSizeBytes { get; set; } = 0;
 
-    public string OutputDirectory => UserRenameConfiguration.ApkOutputDirectory;
+    private string outputDirectory => UserRenameConfiguration.ApkOutputDirectory;
 
     /// <summary>
     /// A string of all APK paths separated by <see cref="PATH_SEPARATOR"/>
@@ -117,35 +121,32 @@ public partial class HomeViewModel : LoggableObservableObject
         ISnackbarService snackbarService,
         ConfigurationFactory configFactory,
         IContentDialogService dialogService,
-        SharedViewModel sharedViewModel
+        SharedViewModel sharedViewModel,
+        JavaVersionCollector javaVersionCollector
     )
     {
-        DisableFileLogging = false;
         Instance = this;
-        _dialogService = dialogService;
         SharedViewModel = sharedViewModel;
-
-        _configFactory = configFactory;
         UserRenameConfiguration = configFactory.GetConfig<UserRenameConfiguration>();
+        base.DisableFileLogging = false;
+
+        _dialogService = dialogService;
+        _configFactory = configFactory;
         _kognitoCache = configFactory.GetConfig<CacheStorage>();
         _adbConfig = configFactory.GetConfig<AdbConfig>();
+        _javaVersionCollector = javaVersionCollector;
 
         try
         {
             string appDataTools = Path.Combine(App.AppDataDirectory!.FullName, "tools");
             _ = Directory.CreateDirectory(appDataTools);
 
-            UserRenameConfiguration.ToolingPaths = new()
+            UserRenameConfiguration.BaseToolingPaths = new()
             {
                 ApkToolJarPath = Path.Combine(appDataTools, "apktool.jar"),
                 ApkToolBatPath = Path.Combine(appDataTools, "apktool.bat"),
                 ApkSignerJarPath = Path.Combine(appDataTools, "uber-apk-signer.jar"),
             };
-
-            if (new JavaVersionLocator().GetJavaPath(out string? path))
-            {
-                UserRenameConfiguration.ToolingPaths.JavaExecutablePath = path;
-            }
         }
         catch (Exception ex)
         {
@@ -192,7 +193,15 @@ public partial class HomeViewModel : LoggableObservableObject
         _renameApksCancelationSource = renameApksCancelationSource;
         CancellationToken cancellationToken = _renameApksCancelationSource.Token;
 
-        await StartPackageRenamingAsync(cancellationToken);
+        try
+        {
+            await StartPackageRenamingAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            LogError(ex);
+        }
 
         _renameApksCancelationSource = null;
     }
@@ -232,7 +241,7 @@ public partial class HomeViewModel : LoggableObservableObject
     [RelayCommand]
     private void OnShowOutputFolder()
     {
-        string directory = OutputDirectory;
+        string directory = outputDirectory;
         if (!Directory.Exists(directory))
         {
             LogError($"The directory '{directory}' does not exist. Check the path and try again.");
@@ -294,7 +303,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 return;
             }
 
-            var compressor = new PackageCompressor(UserRenameConfiguration.ToolingPaths, new()
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths(_javaVersionCollector).Item1, new()
             {
                 NewCompanyName = string.Empty,
                 ApkAssemblyDirectory = string.Empty,
@@ -337,7 +346,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Packing {sourceDirectory}");
 
-            var compressor = new PackageCompressor(UserRenameConfiguration.ToolingPaths, PackageNameData.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths(_javaVersionCollector).Item1, PackageNameData.Empty, this);
             _ = await compressor.PackPackageAsync(sourceDirectory, outputFile);
 
             Log($"Packed {Path.GetFileName(sourceDirectory)} into {packageFileName}");
@@ -363,7 +372,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Signing {filePath}");
 
-            var compressor = new PackageCompressor(UserRenameConfiguration.ToolingPaths, PackageNameData.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths(_javaVersionCollector).Item1, PackageNameData.Empty, this);
             string signedPackagePath = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetDirectoryName(filePath)!);
             await compressor.SignPackageAsync(filePath, signedPackagePath, false);
 
@@ -432,8 +441,8 @@ public partial class HomeViewModel : LoggableObservableObject
 
         string[]? files = GetFilePaths();
 
-        string? javaPath = await PrepareForRenamingAsync(files);
-        if (javaPath is null)
+        PackageToolingPaths? toolingPaths = await PrepareForRenamingAsync(files);
+        if (toolingPaths is null)
         {
             goto ChecksFailed;
         }
@@ -472,11 +481,11 @@ public partial class HomeViewModel : LoggableObservableObject
             string tempRenameDirectory = Path.Combine(_tempData.FullName, GetFormattedTimeDirectory(fileName));
             ApkMod.RenameConfiguration renameConfig = new()
             {
-                KognitoConfig = UserRenameConfiguration,
+                UserRenameConfig = UserRenameConfiguration,
                 AdvancedConfig = _configFactory.GetConfig<AdvancedApkRenameSettings>(),
-                ToolingPaths = UserRenameConfiguration.ToolingPaths,
+                ToolingPaths = toolingPaths,
                 SourcePackagePath = sourceApkPath,
-                OutputBaseDirectory = OutputDirectory,
+                OutputBaseDirectory = outputDirectory,
                 TempDirectory = tempRenameDirectory,
                 ReplacementCompanyName = UserRenameConfiguration.ApkNameReplacement
             };
@@ -507,10 +516,15 @@ public partial class HomeViewModel : LoggableObservableObject
         if (completeJobs != files.Length)
         {
             LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
-            SnackError(
-                "Jobs failed!",
-                $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details."
-            );
+
+            // Don't snack the error if they were all canceled
+            if (!token.IsCancellationRequested)
+            {
+                SnackError(
+                    "Jobs failed!",
+                    $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details."
+                );
+            }
         }
 
         if (UserRenameConfiguration.ClearTempFilesOnRename)
@@ -537,7 +551,7 @@ public partial class HomeViewModel : LoggableObservableObject
         CanEdit = true;
     }
 
-    private async Task<string?> PrepareForRenamingAsync(string[] files)
+    private async Task<PackageToolingPaths?> PrepareForRenamingAsync(string[] files)
     {
         if (files is null || files.Length is 0)
         {
@@ -545,23 +559,23 @@ public partial class HomeViewModel : LoggableObservableObject
             return null;
         }
 
-        string? javaPath = await RenameConditionsMetAsync();
-        if (javaPath is null)
+        PackageToolingPaths? toolingPaths = await RenameConditionsMetAsync();
+        if (toolingPaths is null)
         {
             return null;
         }
 
         Log("Completed all checks.");
 
-        if (!Directory.Exists(OutputDirectory))
+        if (!Directory.Exists(outputDirectory))
         {
             try
             {
-                _ = Directory.CreateDirectory(OutputDirectory);
+                _ = Directory.CreateDirectory(outputDirectory);
             }
             catch (Exception ex)
             {
-                LogError($"Failed to create directory '{OutputDirectory}' ({ex.GetType().Name}). Check for formatting or spelling issues and try again.");
+                LogError($"Failed to create directory '{outputDirectory}' ({ex.GetType().Name}). Check for formatting or spelling issues and try again.");
                 LogDebug(ex);
                 FileLogger.LogException(ex);
                 return null;
@@ -573,10 +587,10 @@ public partial class HomeViewModel : LoggableObservableObject
         _ = DirectoryManager.ClaimDirectory(_tempData.FullName);
         Log($"Using temp directory: {_tempData.FullName}");
 
-        return javaPath;
+        return toolingPaths;
     }
 
-    private async Task<string?> RenameConditionsMetAsync()
+    private async Task<PackageToolingPaths?> RenameConditionsMetAsync()
     {
         if (string.IsNullOrWhiteSpace(UserRenameConfiguration.ApkNameReplacement))
         {
@@ -598,7 +612,32 @@ public partial class HomeViewModel : LoggableObservableObject
 
         Log("Verifying that Java 8+ and APK tools are installed...");
 
-        return new JavaVersionLocator().GetJavaPath(out string? javaPath, this) && await VerifyToolInstallationAsync() ? javaPath : null;
+        try
+        {
+            (PackageToolingPaths toolingPaths, JavaVersionInformation versionInfo) = UserRenameConfiguration.GetToolingPaths(_javaVersionCollector);
+
+            if (await VerifyToolInstallationAsync())
+            {
+                Log($"Using {versionInfo.JavaType} {versionInfo.Version}");
+                return toolingPaths;
+            }
+
+            return null;
+        }
+        catch (JavaVersionCollector.NoJavaInstallationsException noJava)
+        {
+            FileLogger.LogException(noJava);
+            LogError($"Failed to find a valid JDK/JRE installation!\n" +
+                "You can install JDK 24 by navigating to the ADB Configuration page and running the installation quick command.\n" +
+                "Alternatively, you can run the command `:install-java` in the Console page, or manually install a preferred version.\n" +
+                $"\tJDK 24: {AdbManager.JDK_24_INSTALL_EXE_LINK}");
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+        }
+
+        return null;
     }
 
     private async Task<bool> VerifyToolInstallationAsync()
@@ -607,7 +646,7 @@ public partial class HomeViewModel : LoggableObservableObject
         {
             bool allSuccess = true;
 
-            string apktoolJarPath = UserRenameConfiguration.ToolingPaths.ApkToolJarPath;
+            string apktoolJarPath = UserRenameConfiguration.BaseToolingPaths.ApkToolJarPath;
             if (!File.Exists(apktoolJarPath))
             {
                 Log("Installing Apktool (JAR)...");
@@ -617,7 +656,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 }
             }
 
-            string apktoolBatPath = UserRenameConfiguration.ToolingPaths.ApkToolBatPath;
+            string apktoolBatPath = UserRenameConfiguration.BaseToolingPaths.ApkToolBatPath;
             if (!File.Exists(apktoolBatPath))
             {
                 Log("Installing Apktool (BAT)...");
@@ -627,7 +666,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 }
             }
 
-            string apksignerJarPath = UserRenameConfiguration.ToolingPaths.ApkSignerJarPath;
+            string apksignerJarPath = UserRenameConfiguration.BaseToolingPaths.ApkSignerJarPath;
             if (!File.Exists(apksignerJarPath))
             {
                 Log("Installing ApkSigner...");
