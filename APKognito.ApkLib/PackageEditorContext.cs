@@ -59,7 +59,11 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, 
     /// <returns></returns>
     public PackageCompressor CreatePackageCompressor()
     {
-        return new PackageCompressor(_toolingPaths, _nameData, _logger);
+        ThrowIfNullConfig();
+
+        CompressorConfiguration compressorConfig = RenameConfiguration!.CompressorConfiguration;
+
+        return new PackageCompressor(compressorConfig, _toolingPaths, _nameData, _logger);
     }
 
     /// <summary>

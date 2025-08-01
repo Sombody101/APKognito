@@ -12,17 +12,19 @@ public sealed class PackageCompressor
     // This class doesn't implement a logger or reporter only because there isn't enough going on
     // that can be reported. Verbose logs will be implemented eventually, but nothing beyond that.
 
+    private readonly CompressorConfiguration _compressorConfiguration;
     private readonly ILogger _logger;
     private readonly PackageToolingPaths _toolingPaths;
     private readonly PackageNameData _nameData;
 
-    public PackageCompressor(PackageToolingPaths toolPaths, PackageNameData nameData)
-        : this(toolPaths, nameData, null)
+    public PackageCompressor(CompressorConfiguration compressorConfig, PackageToolingPaths toolPaths, PackageNameData nameData)
+        : this(compressorConfig, toolPaths, nameData, null)
     {
     }
 
-    public PackageCompressor(PackageToolingPaths toolPaths, PackageNameData nameData, ILogger? logger)
+    public PackageCompressor(CompressorConfiguration compressorConfig, PackageToolingPaths toolPaths, PackageNameData nameData, ILogger? logger)
     {
+        ArgumentNullException.ThrowIfNull(compressorConfig);
         ArgumentNullException.ThrowIfNull(toolPaths);
         InvalidConfigurationException.ThrowIfNull(nameData);
         ArgumentException.ThrowIfNullOrWhiteSpace(toolPaths.JavaExecutablePath);
@@ -31,6 +33,7 @@ public sealed class PackageCompressor
         _toolingPaths = toolPaths;
         _nameData = nameData;
         _logger = MockLogger.MockIfNull(logger);
+        _compressorConfiguration = compressorConfig;
     }
 
     /// <summary>
@@ -301,11 +304,13 @@ public sealed class PackageCompressor
         }
     }
 
-    private static async Task<CliToolExecutionResult> RunCliCommandAsync(string toolPath, IEnumerable<string> apkToolArgs, CancellationToken token = default)
+    private async Task<CliToolExecutionResult> RunCliCommandAsync(string toolPath, IEnumerable<string> apkToolArgs, CancellationToken token = default)
     {
+        apkToolArgs = [.. _compressorConfiguration.ExtraJavaOptions, .. apkToolArgs];
         using Process javaProc = JavaCreator.CreateManualProcess(toolPath, apkToolArgs);
 
         string command = $"{javaProc.StartInfo.FileName} {string.Join(" ", apkToolArgs)}";
+        _logger.LogDebug("Running command: {Command}", command);
 
         try
         {
