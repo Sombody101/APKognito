@@ -1,7 +1,7 @@
-﻿
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace APKognito.Utilities;
+
 /// <summary>
 /// This exception is only to test how APKognito handles random exceptions. 
 /// It will prevent compilation on release builds. 

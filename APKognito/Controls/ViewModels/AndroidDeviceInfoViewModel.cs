@@ -9,7 +9,7 @@ using System.Windows.Threading;
 
 namespace APKognito.Controls.ViewModels;
 
-public partial class AndroidDeviceInfoViewModel : ObservableObject
+public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 {
     private readonly AdbConfig _adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
@@ -84,7 +84,7 @@ public partial class AndroidDeviceInfoViewModel : ObservableObject
                 {
                     LoggableObservableObject.CurrentLoggableObject?.SnackError(
                         "No devices found",
-                        "Cannot get any ADB devices (Ensure they're plugged in and have developer mode enabled)."
+                        "Cannot get any ADB devices (Ensure they're connected and have developer mode enabled)."
                     );
                 }
 

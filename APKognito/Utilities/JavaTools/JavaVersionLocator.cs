@@ -1,69 +1,70 @@
-﻿using APKognito.AdbTools;
+﻿using System.IO;
+using System.Text;
+using APKognito.AdbTools;
 using APKognito.Utilities.MVVM;
 using Microsoft.Win32;
-using System.IO;
-using System.Text;
 
-namespace APKognito.Utilities;
+namespace APKognito.Utilities.JavaTools;
 
+[Obsolete("Use JavaVersionCollector instead.")]
 internal class JavaVersionLocator
 {
-    private IViewLogger? logger = null;
+    private static JavaVersionInformation? CachedJavaInformation { get; set; }
 
-    public static string RawJavaVersion { get; set; } = string.Empty;
-    public static string? JavaExecutablePath { get; private set; } = null;
-    public static bool JavaIsUpToDate { get; private set; } = false;
+    private readonly IViewLogger? _logger = null;
+
+    public JavaVersionLocator()
+        : this(null)
+    {
+    }
+
+    public JavaVersionLocator(IViewLogger? logger)
+    {
+        _logger = logger;
+    }
 
     /// <summary>
-    /// Gets the Java path (JDK or JRE) that is Java Language 8+, and returns <see langword="true"/>. Otherwise, retuning <see langword="false"/> and <paramref name="javaPath"/>
+    /// Gets the Java path (JDK or JRE) that is Java Language 8+, and returns <see langword="true"/>. Otherwise, retuning <see langword="false"/> and <paramref name="javaInfo"/>
     /// as <see langword="null"/>
     /// </summary>
-    /// <param name="javaPath"></param>
-    /// <param name="_logger"></param>
+    /// <param name="javaInfo"></param>
+    /// <param name="logger"></param>
     /// <param name="forceSearch"></param>
     /// <returns></returns>
-    public bool GetJavaPath([NotNullWhen(true)] out string? javaPath, IViewLogger? _logger = null, bool forceSearch = false)
+    public bool GetJavaPath([NotNullWhen(true)] out JavaVersionInformation? javaInfo, bool forceSearch = false)
     {
-        if (_logger is not null)
+        if (!forceSearch && CachedJavaInformation is { UpToDate: true } && File.Exists(CachedJavaInformation.JavaPath))
         {
-            logger = _logger;
-        }
+            _logger?.Log($"Using cached Java version '{CachedJavaInformation.RawVersion}'.");
 
-        if (!forceSearch && JavaIsUpToDate && File.Exists(JavaExecutablePath))
-        {
-            // Java already found
-            _logger?.Log($"Using cached Java version '{RawJavaVersion}'.");
-
-            javaPath = JavaExecutablePath;
+            javaInfo = CachedJavaInformation;
             return true;
         }
 
         // Get Java path
-        JavaIsUpToDate = VerifyJavaInstallation(out javaPath);
-        JavaExecutablePath = javaPath;
-
-        if (JavaIsUpToDate && !string.IsNullOrWhiteSpace(RawJavaVersion))
+        bool pathFound = VerifyJavaInstallation(out javaInfo);
+        if (pathFound)
         {
-            FileLogger.Log($"Using found Java version '{RawJavaVersion}'");
+            FileLogger.Log($"Using found Java version '{javaInfo!.RawVersion}'");
         }
         else
         {
             FileLogger.LogWarning("Failed to find any valid Java installations.");
         }
 
-        return JavaIsUpToDate;
+        CachedJavaInformation = javaInfo;
+        return pathFound;
     }
 
-    private bool VerifyJavaInstallation(out string? javaPath)
+    private bool VerifyJavaInstallation([NotNullWhen(true)] out JavaVersionInformation? javaInfo)
     {
-        javaPath = null;
+        javaInfo = null;
 
         // Check for JDK via registry (there's likely not a Java install if these don't exist)
         try
         {
             FileLogger.Log("Checking Registry for JDK/JRE installation.");
-            if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out javaPath, "JDK")
-                || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaPath, "JRE"))
+            if (CheckRegistryKeys(out javaInfo))
             {
                 return true;
             }
@@ -77,7 +78,7 @@ internal class JavaVersionLocator
         try
         {
             FileLogger.Log("Checking for Java LTS directory.");
-            if (CheckLtsDirectory(out javaPath))
+            if (CheckLtsDirectory(out javaInfo))
             {
                 return true;
             }
@@ -91,7 +92,7 @@ internal class JavaVersionLocator
         try
         {
             FileLogger.Log("Checking JAVA_HOME environment variable.");
-            if (CheckJavaHome(out javaPath))
+            if (CheckJavaHome(out javaInfo))
             {
                 return true;
             }
@@ -102,18 +103,32 @@ internal class JavaVersionLocator
         }
 
         // Nothing found, inform user and yeet false
-        logger?.LogError($"Failed to find a valid JDK/JRE installation!\nYou can install the latest JDK version from here: {AdbManager.JDK_23_INSTALL_LINK}\n" +
-            "If you know you have a Java installation, set your JAVA_HOME environment variable to the proper path for your Java installation. " +
-            "Alternatively, you can run the command `:install-java` in the Console page");
+        _logger?.LogError($"Failed to find a valid JDK/JRE installation!\n" +
+            "You can install JDK 24 by navigating to the ADB Configuration page and running the installation quick command.\n" +
+            "Alternatively, you can run the command `:install-java` in the Console page, or manually install a preferred version.\n" +
+            $"\tJDK 24: {AdbManager.JDK_24_INSTALL_EXE_LINK}");
 
         return false;
     }
 
-    private static bool CheckLtsDirectory(out string? javaPath)
+    private bool CheckRegistryKeys([NotNullWhen(true)] out JavaVersionInformation? javaInfo)
+    {
+        if (GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\JDK"), out JavaVersionInformation? javaKeyInfo, "JDK")
+            || GetKey(Registry.LocalMachine.OpenSubKey("SOFTWARE\\JavaSoft\\Java Runtime Environment"), out javaKeyInfo, "JRE"))
+        {
+            javaInfo = javaKeyInfo;
+            return true;
+        }
+
+        javaInfo = null;
+        return false;
+    }
+
+    private static bool CheckLtsDirectory([NotNullWhen(true)] out JavaVersionInformation? javaInfo)
     {
         const string JAVA_LTS_DIRECTORY = @"C:\Program Files\Java\latest";
 
-        javaPath = null;
+        javaInfo = null;
 
         if (!Directory.Exists(JAVA_LTS_DIRECTORY))
         {
@@ -129,9 +144,9 @@ internal class JavaVersionLocator
             {
                 DirectoryInfo latest = new(dirs[0]);
 
-                if (VerifyRawJavaVersion(latest.Name))
+                if (VerifyRawJavaVersion(latest.Name, out Version? jdkVersion))
                 {
-                    javaPath = latest.FullName;
+                    javaInfo = new(latest.FullName, jdkVersion, latest.Name);
                     return true;
                 }
             }
@@ -144,9 +159,9 @@ internal class JavaVersionLocator
         return false;
     }
 
-    private static bool CheckJavaHome(out string? javaPath)
+    private static bool CheckJavaHome([NotNullWhen(true)] out JavaVersionInformation? javaInfo)
     {
-        javaPath = null;
+        javaInfo = null;
 
         // Check with the environment variable first
         string? javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
@@ -180,14 +195,15 @@ internal class JavaVersionLocator
 
         if (string.IsNullOrWhiteSpace(javaHome)
             || !Directory.Exists(javaHome)
-            || !VerifyRawJavaVersion(dirVersionName))
+            || !VerifyRawJavaVersion(dirVersionName, out Version? jdkVersion))
         {
             return false;
         }
 
-        javaPath = Path.Combine(javaHome, "bin\\java.exe");
+        string javaPath = Path.Combine(javaHome, "bin\\java.exe");
         if (File.Exists(javaPath))
         {
+            javaInfo = new(javaPath, jdkVersion, dirVersionName);
             return true;
         }
 
@@ -197,9 +213,9 @@ internal class JavaVersionLocator
         return false;
     }
 
-    private bool GetKey(RegistryKey? javaRegKey, out string? javaPath, string javaType)
+    private bool GetKey(RegistryKey? javaRegKey, [NotNullWhen(true)] out JavaVersionInformation? javainfo, string javaType)
     {
-        javaPath = null;
+        javainfo = null;
 
         if (javaRegKey is null)
         {
@@ -209,62 +225,46 @@ internal class JavaVersionLocator
 
         FileLogger.Log($"Checking Registry key '{javaRegKey.Name}'.");
 
-        if (javaRegKey.GetValue("CurrentVersion") is not string _rawJavaVersion)
+        if (javaRegKey.GetValue("CurrentVersion") is not string rawJavaVersion)
         {
-            logger?.LogWarning($"A {javaType} installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
+            _logger?.LogWarning($"A {javaType} installation key was found, but there was no Java version associated with it. Did a Java installation or uninstallation not complete correctly?");
             return false;
         }
 
-        RawJavaVersion = _rawJavaVersion;
-
-        if (!VerifyRawJavaVersion(_rawJavaVersion))
+        if (!VerifyRawJavaVersion(rawJavaVersion, out Version? jdkVersion))
         {
-            logger?.LogWarning($"{javaType} installation found with the version {_rawJavaVersion}, but it's not Java 8+.");
+            _logger?.LogWarning($"{javaType} installation found with the version {rawJavaVersion}, but it's not Java 8+.");
             return false;
         }
 
-        string keyPath = (string)javaRegKey.OpenSubKey(_rawJavaVersion)!.GetValue("JavaHome")!;
-        string subJavaPath = Path.Combine(keyPath, "bin\\java.exe");
+        string keyPath = (string)javaRegKey.OpenSubKey(rawJavaVersion)!.GetValue("JavaHome")!;
+        string javaPath = Path.Combine(keyPath, "bin\\java.exe");
 
         // This is a VERY rare case
-        if (!File.Exists(subJavaPath))
+        if (!File.Exists(javaPath))
         {
-            logger?.LogError($"Java version {_rawJavaVersion} found, but the Java directory it points to does not exist: {subJavaPath}");
+            _logger?.LogError($"Java version {rawJavaVersion} found, but the Java directory it points to does not exist: {javaPath}");
             return false;
         }
 
-        logger?.Log($"Using Java version {_rawJavaVersion} at {subJavaPath}");
-        javaPath = subJavaPath;
+        _logger?.Log($"Using Java version {rawJavaVersion} at {javaPath}");
+        javainfo = new(javaPath, jdkVersion, rawJavaVersion);
         return true;
     }
 
-    private static bool VerifyRawJavaVersion(string versionStr)
+    private static bool VerifyRawJavaVersion(string versionStr, [NotNullWhen(true)] out Version? version)
     {
-        bool supportedVersion =
-            // Java versions 8-22
-            (Version.TryParse(versionStr, out Version? jdkVersion)
-                && jdkVersion.Major == 1
-                && jdkVersion.Minor >= 8)
-            // Formatting for Java versions 23+ (or the JAVA_HOME path)
-            || (int.TryParse(versionStr.Split('.')[0], out int major) && major >= 9);
-
-        if (supportedVersion)
-        {
-            // Keep the successful version
-            RawJavaVersion = versionStr;
-        }
-
-        return supportedVersion;
+        return Version.TryParse(versionStr, out version) && JavaVersionInformation.VersionUpToDate(version, versionStr);
     }
 
     private static void LogInvalidInstallation(string javaPath)
     {
         StringBuilder logBuffer = new();
-        bool binExists = Directory.Exists($"{javaPath}\\bin");
 
         _ = logBuffer.Append("JAVA_HOME is set to '")
             .Append(javaPath).Append("', but does not have java.exe. bin\\: does ");
 
+        bool binExists = Directory.Exists($"{javaPath}\\bin");
         if (!binExists)
         {
             _ = logBuffer.Append("not ");

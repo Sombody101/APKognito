@@ -11,8 +11,6 @@ using APKognito.Helpers;
 using APKognito.Controls;
 using APKognito.Configurations.ConfigModels;
 
-
-
 #if DEBUG
 using APKognito.Views.Pages.Debugging;
 #endif

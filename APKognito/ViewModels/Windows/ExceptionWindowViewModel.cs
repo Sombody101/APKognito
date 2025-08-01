@@ -85,8 +85,7 @@ public partial class ExceptionWindowViewModel : LoggableObservableObject
 
         try
         {
-            FileLogger.LogFatal("Fatal exception details:");
-            FileLogger.LogFatal(exception);
+            FileLogger.LogFatal("Fatal exception details:", exception);
         }
         catch (Exception ex)
         {

@@ -8,6 +8,7 @@
     xmlns:helpers="clr-namespace:APKognito.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    x:Name="this"
     d:DataContext="{d:DesignInstance ctrls:AndroidDeviceInfo,
                                      IsDesignTimeCreatable=True}"
     d:DesignWidth="800"
@@ -39,9 +40,9 @@
                         <ComboBox.ItemTemplate>
                             <DataTemplate DataType="conf:AdbDeviceInfo">
                                 <ui:TextBlock>
-                                    <Run Text="{Binding DeviceName}" />
+                                    <Run Text="{Binding DeviceName, Mode=OneTime}" />
                                     <Run Text="-" />
-                                    <Run Text="{Binding DeviceId}" />
+                                    <Run Text="{Binding DeviceId, Mode=OneTime}" />
                                 </ui:TextBlock>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>

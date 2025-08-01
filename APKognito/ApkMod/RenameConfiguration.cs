@@ -5,7 +5,7 @@ namespace APKognito.ApkMod;
 
 public record RenameConfiguration
 {
-    public required Configurations.ConfigModels.UserRenameConfiguration KognitoConfig { get; set; }
+    public required UserRenameConfiguration UserRenameConfig { get; set; }
 
     public required AdvancedApkRenameSettings AdvancedConfig { get; set; }
 
