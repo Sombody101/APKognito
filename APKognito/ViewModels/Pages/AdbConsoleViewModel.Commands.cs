@@ -9,6 +9,7 @@ using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Helpers;
 using APKognito.Utilities;
+using APKognito.Utilities.JavaTools;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
 
@@ -16,7 +17,7 @@ namespace APKognito.ViewModels.Pages;
 
 public partial class AdbConsoleViewModel
 {
-    internal IReadOnlyCollection<CommandInfo> GetCommands()
+    internal static IReadOnlyCollection<CommandInfo> GetCommands()
     {
         if (s_commands.Count is 0)
         {
@@ -202,33 +203,43 @@ public partial class AdbConsoleViewModel
     }
 
     /*
- * Installer commands
- */
+     * Installer commands
+     */
 
     [Command("install-adb", "Auto installs platform tools.", "[--force|-f]")]
     private static async Task InstallAdbCommandAsync(ParsedCommand ctx, IViewLogger logger, CancellationToken token)
     {
-        if (AdbManager.AdbWorks()
-            && !ctx.Args.Contains("--force")
-            && !ctx.Args.Contains("-f"))
+        bool adbFunctional = AdbManager.AdbWorks();
+        if (!ctx.ContainsArgs("--force", "-f")
+            && adbFunctional)
         {
             logger.LogError("ADB is already installed. Run with '--force' to force a reinstall.");
             return;
         }
 
         string appDataPath = App.AppDataDirectory.FullName;
-        logger.WriteGenericLogLine($"Installing platform tools to: {appDataPath}\\platform-tools");
+        logger.Log($"Installing platform tools to: {appDataPath}\\platform-tools");
 
         string zipFile = $"{appDataPath}\\adb.zip";
-        _ = await WebGet.DownloadAsync(Constants.ADB_INSTALL_URL, zipFile, logger, token);
 
-        logger.WriteGenericLogLine("Unpacking platform tools.");
+        using (IDisposable? scope = logger.BeginScope("CLIENT"))
+        {
+            _ = await WebGet.DownloadAsync(Constants.ADB_INSTALL_URL, zipFile, logger, token);
+        }
 
-        // Keeps track of the most recent file extraction attempt and shows it to the user
-        // in the try/catch.
+        logger.Log("Extracting platform tools.");
+
+        // Only to keep track of whatever file causes an error (likely ADB.exe if timing is right)
         string lastFile = string.Empty;
         try
         {
+            if (adbFunctional)
+            {
+                logger.Log("Attempting to kill ADB.");
+                AdbCommandOutput adbOutput = await AdbManager.KillAdbServerAsync(noThrow: false);
+                logger.LogDebug(adbOutput.ToString());
+            }
+
             using ZipArchive archive = new(File.OpenRead(zipFile), ZipArchiveMode.Read);
             foreach (ZipArchiveEntry entry in archive.Entries)
             {
@@ -257,7 +268,7 @@ public partial class AdbConsoleViewModel
 
         File.Delete(zipFile);
 
-        logger.WriteGenericLogLine("Updating ADB configuration.");
+        logger.Log("Updating ADB configuration.");
 
         ConfigurationFactory configFactory = App.GetService<ConfigurationFactory>()!;
         AdbConfig adbConfig = configFactory.GetConfig<AdbConfig>();
@@ -265,9 +276,9 @@ public partial class AdbConsoleViewModel
         adbConfig.PlatformToolsPath = $"{appDataPath}\\platform-tools";
         configFactory.SaveConfig(adbConfig);
 
-        logger.WriteGenericLogLine("Testing adb...");
+        logger.Log("Testing adb...");
         AdbCommandOutput output = await AdbManager.QuickCommandAsync("--version", token: token);
-        logger.WriteGenericLogLine(output.StdOut);
+        logger.Log(output.StdOut);
 
         if (output.Errored)
         {
@@ -291,65 +302,76 @@ public partial class AdbConsoleViewModel
 
         string javaDownload = Path.Combine(tempDirectory, "jdk-24.exe");
 
-        if (File.Exists(javaDownload))
+        if (!File.Exists(javaDownload))
         {
-            logger.Log("Using previous install attempt executable.");
-            await FinishInstall();
-            return;
-        }
-
-        logger.AddIndentString("+ ");
-        bool result = await WebGet.DownloadAsync(AdbManager.JDK_24_INSTALL_EXE_LINK, javaDownload, logger, token);
-        logger.ResetIndent();
-
-        if (!result)
-        {
-            logger.LogError("Failed to install JDK 24.");
-            return;
-        }
-
-        await FinishInstall();
-
-        async Task FinishInstall()
-        {
-            Process installer = new()
+            using (IDisposable? scope = logger.BeginScope("CLIENT"))
             {
-                StartInfo = new()
-                {
-                    FileName = javaDownload,
-                    UseShellExecute = true,
-                    Verb = "runas",
-                }
-            };
+                bool result = await WebGet.DownloadAsync(AdbManager.JDK_24_INSTALL_EXE_LINK, javaDownload, logger, token);
 
-            try
-            {
-                logger.Log("Waiting for installer to exit...");
-                _ = installer.Start();
-                await installer.WaitForExitAsync(token);
-
-                if (installer.ExitCode is not 0)
+                if (!result)
                 {
-                    logger.LogWarning("Java install aborted!");
+                    logger.LogError("Failed to install JDK 24.");
                     return;
                 }
-
-                logger.LogSuccess("JDK 24 installed successfully! Checking Java executable path...");
-                _ = new JavaVersionLocator().GetJavaPath(out _, logger);
-
-                File.Delete(javaDownload);
             }
-            catch (Win32Exception)
+        }
+        else
+        {
+            logger.Log("Using previously downloaded installer.");
+        }
+
+        using Process installer = new()
+        {
+            StartInfo = new()
             {
-                logger.LogWarning("Installer canceled.");
+                FileName = javaDownload,
+                UseShellExecute = true,
+                Verb = "runas",
+            }
+        };
+
+        try
+        {
+            logger.Log("Waiting for installer to exit...");
+            _ = installer.Start();
+            await installer.WaitForExitAsync(token);
+
+            // 0: Install successful
+            // 1602: Any kind of user decline during the installer (including if it was already installed and user was prompted for removal), or, if the installer feels like fucking with you.
+            if (installer.ExitCode is not 0)
+            {
+                logger.LogWarning("Java install likely aborted! Checking Java executable path...");
+            }
+            else
+            {
+                logger.LogSuccess("JDK 24 installed successfully! Checking Java executable path...");
+            }
+
+            JavaVersionCollector? javaCollector = App.GetService<JavaVersionCollector>();
+            JavaVersionInformation? foundVersion = javaCollector!.CollectVersions().FirstOrDefault(v => v.Version.Major is 24);
+
+            if (foundVersion is not null)
+            {
+                logger.LogSuccess($"Detected {foundVersion}");
+            }
+            else
+            {
+                logger.LogError("Failed to detect newly installed JDK. Try restarting APKognito, or you computer, or reinstalling.");
                 return;
             }
-            finally
+
+            File.Delete(javaDownload);
+        }
+        catch (Win32Exception)
+        {
+            logger.LogWarning("Installer canceled.");
+            return;
+        }
+        finally
+        {
+            if (File.Exists(javaDownload))
             {
-                if (File.Exists(javaDownload))
-                {
-                    logger.Log($"The JDK installer has not been deleted in case you want to install later. You can find it in the Drive Footprint page, or:\n{javaDownload}");
-                }
+                logger.Log($"The JDK installer has not been deleted in case you want to install later. You can find it in the Drive Footprint page, or:\n{javaDownload}");
             }
         }
     }
