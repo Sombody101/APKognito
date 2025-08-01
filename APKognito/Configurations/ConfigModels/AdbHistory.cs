@@ -1,10 +1,7 @@
-﻿using MemoryPack;
+﻿namespace APKognito.Configurations.ConfigModels;
 
-namespace APKognito.Configurations.ConfigModels;
-
-[ConfigFile("adb-history.bin", ConfigType.MemoryPacked, ConfigModifiers.MemoryPacked | ConfigModifiers.Compressed)]
-[MemoryPackable]
-internal partial class AdbHistory : IKognitoConfig
+[ConfigFile("adb-history.bin", ConfigType.Bson, ConfigModifiers.Compressed)]
+internal sealed record AdbHistory : IKognitoConfig
 {
     public List<string> CommandHistory { get; set; } = [];
     public Dictionary<string, string> Variables { get; set; } = GetDefaultVariables();
@@ -13,7 +10,6 @@ internal partial class AdbHistory : IKognitoConfig
     {
     }
 
-    [MemoryPackConstructor]
     public AdbHistory(List<string> commandHistory, Dictionary<string, string> variables)
     {
         CommandHistory = commandHistory;

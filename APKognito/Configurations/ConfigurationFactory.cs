@@ -3,8 +3,8 @@ using System.IO.Compression;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
 using APKognito.Utilities;
-using MemoryPack;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Bson;
 
 namespace APKognito.Configurations;
 
@@ -97,12 +97,15 @@ public class ConfigurationFactory
         switch (configAttribute.ConfigType)
         {
             case ConfigType.Json:
-                Save_Json(config, filePath, configAttribute.ConfigModifier);
+                Save_Json(config, filePath, configAttribute.ConfigModifiers);
                 break;
 
-            case ConfigType.MemoryPacked:
-                Save_MemoryPack(config, filePath, configAttribute.ConfigModifier);
+            case ConfigType.Bson:
+                Save_Bson(config, filePath, configAttribute.ConfigModifiers);
                 break;
+
+            default:
+                throw new UnknownConfigTypeException(configAttribute.ConfigType);
         }
     }
 
@@ -168,63 +171,40 @@ public class ConfigurationFactory
         // their respective files.
         return configAttribute.ConfigType switch
         {
-            ConfigType.Json => Load_Json<T>(configPath, configAttribute.ConfigModifier) ?? new(),
-            ConfigType.MemoryPacked => Load_MemoryPack<T>(configPath, configAttribute.ConfigModifier) ?? new(),
-            _ => new T(),
+            ConfigType.Json => Load_Json<T>(configPath, configAttribute.ConfigModifiers) ?? new(),
+            ConfigType.Bson => Load_Bson<T>(configPath, configAttribute.ConfigModifiers) ?? new(),
+            // ConfigType.MemoryPacked => Load_MemoryPack<T>(configPath, configAttribute.ConfigModifier) ?? new(),
+            _ => throw new UnknownConfigTypeException(configAttribute.ConfigType),
         };
     }
 
-    private static T? Load_MemoryPack<T>(string filePath, ConfigModifiers modifier) where T : IKognitoConfig, new()
+    private static T? Load_Json<T>(string filePath, ConfigModifiers modifiers) where T : IKognitoConfig, new()
     {
         if (!File.Exists(filePath))
         {
             return new();
         }
 
-        byte[] loadedData = File.ReadAllBytes(filePath);
-
-        if (modifier.HasFlag(ConfigModifiers.Compressed))
+        try
         {
-            loadedData = Unzip(loadedData);
+            using StreamReader reader = new(filePath);
+            using JsonTextReader jsonReader = new(reader);
+            JsonSerializer serializer = new()
+            {
+                NullValueHandling = NullValueHandling.Ignore,
+                MissingMemberHandling = modifiers.HasFlag(ConfigModifiers.JsonIgnoreMissing)
+                    ? MissingMemberHandling.Ignore
+                    : MissingMemberHandling.Error,
+            };
+
+            return serializer.Deserialize<T>(jsonReader)!;
         }
-
-        T? loadedConfig = MemoryPackSerializer.Deserialize<T>(loadedData);
-
-        return loadedConfig!;
-    }
-
-    private static void Save_MemoryPack(IKognitoConfig config, string filePath, ConfigModifiers modifier)
-    {
-        Type type = config.GetType();
-
-        byte[] packed = MemoryPackSerializer.Serialize(type, config);
-
-        if (modifier.HasFlag(ConfigModifiers.Compressed))
+        catch (Exception ex)
         {
-            packed = Zip(packed);
-        }
-
-        File.WriteAllBytes(filePath, packed);
-    }
-
-    private static T? Load_Json<T>(string filePath, ConfigModifiers modifier) where T : IKognitoConfig, new()
-    {
-        if (!File.Exists(filePath))
-        {
+            FileLogger.LogException(ex);
             return new();
         }
 
-        using StreamReader reader = new(filePath);
-        using JsonTextReader jsonReader = new(reader);
-        JsonSerializer serializer = new()
-        {
-            NullValueHandling = NullValueHandling.Ignore,
-            MissingMemberHandling = modifier.HasFlag(ConfigModifiers.JsonIgnoreMissing)
-                ? MissingMemberHandling.Ignore
-                : MissingMemberHandling.Error,
-        };
-
-        return serializer.Deserialize<T>(jsonReader)!;
     }
 
     private static void Save_Json<T>(T config, string filePath, ConfigModifiers modifier) where T : IKognitoConfig
@@ -242,6 +222,60 @@ public class ConfigurationFactory
         serializer.Serialize(jsonWriter, config);
     }
 
+    private static T? Load_Bson<T>(string filePath, ConfigModifiers modifiers) where T : IKognitoConfig, new()
+    {
+        if (!File.Exists(filePath))
+        {
+            return new();
+        }
+
+        try
+        {
+            byte[] data = File.ReadAllBytes(filePath);
+
+            if (modifiers.HasFlag(ConfigModifiers.Compressed))
+            {
+                data = Unzip(data);
+            }
+
+            using MemoryStream stream = new(data);
+            using BsonDataReader reader = new(stream);
+
+            var deserializer = new JsonSerializer();
+            return deserializer.Deserialize<T>(reader);
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            return new();
+        }
+    }
+
+    private static void Save_Bson<T>(T config, string filePath, ConfigModifiers modifiers) where T : IKognitoConfig
+    {
+        using MemoryStream ms = new();
+        using BsonDataWriter writer = new(ms);
+
+        JsonSerializer serializer = new()
+        {
+            NullValueHandling = NullValueHandling.Ignore,
+            MissingMemberHandling = modifiers.HasFlag(ConfigModifiers.JsonIgnoreMissing)
+                ? MissingMemberHandling.Ignore
+                : MissingMemberHandling.Error
+        };
+
+        serializer.Serialize(writer, config);
+
+        byte[] serialized = ms.ToArray();
+
+        if (modifiers.HasFlag(ConfigModifiers.Compressed))
+        {
+            serialized = Zip(serialized);
+        }
+
+        File.WriteAllBytes(filePath, serialized);
+    }
+
     private ConfigFileAttribute GetConfigAttribute(Type configType)
     {
         if (_cachedAttributes.TryGetValue(configType, out ConfigFileAttribute? attribute))
@@ -249,10 +283,7 @@ public class ConfigurationFactory
             return attribute;
         }
 
-        attribute = configType.GetCustomAttributes(typeof(ConfigFileAttribute), true)
-            .Cast<ConfigFileAttribute>()
-            .First();
-
+        attribute = GetNoCacheConfigAttribute(configType);
         _cachedAttributes.Add(configType, attribute);
 
         return attribute;
@@ -317,5 +348,9 @@ public class ConfigurationFactory
         {
             FileLogger.LogException("Failed to delete configuration directory", ex);
         }
+    }
+
+    public sealed class UnknownConfigTypeException(ConfigType configType) : Exception($"No implementation found for '{configType}'")
+    {
     }
 }

@@ -1,10 +1,8 @@
 ﻿using APKognito.Models;
-using MemoryPack;
 
 namespace APKognito.Configurations.ConfigModels;
 
-[MemoryPackable]
-[ConfigFile("history.bin", ConfigType.MemoryPacked)]
+[ConfigFile("history.bin", ConfigType.Bson)]
 public partial class RenameSessionList : IKognitoConfig
 {
     public List<RenameSession> RenameSessions { get; set; } = [];
@@ -12,7 +10,6 @@ public partial class RenameSessionList : IKognitoConfig
     public RenameSessionList()
     { }
 
-    [MemoryPackConstructor]
     private RenameSessionList(List<RenameSession> renameSessions)
     {
         RenameSessions = renameSessions;

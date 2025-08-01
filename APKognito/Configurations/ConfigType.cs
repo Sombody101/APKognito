@@ -8,6 +8,5 @@ public enum ConfigType
     // Uses Newtonsoft.Json to serialize the model
     Json,
 
-    // Uses MemoryPacker
-    MemoryPacked,
+    Bson,
 }

@@ -1,23 +1,17 @@
-﻿using MemoryPack;
+﻿namespace APKognito.Models;
 
-namespace APKognito.Models;
-
-[MemoryPackable]
-public partial record RenameSession
+public sealed record RenameSession
 {
     private const string SEPARATOR = ";;";
 
-    [MemoryPackIgnore]
     public static readonly RenameSession Empty = new();
 
     public string[] ApkTransforms { get; }
 
     public long DateEpochSeconds { get; }
 
-    [MemoryPackIgnore]
     public string FormattedDate => DateTimeOffset.FromUnixTimeSeconds(DateEpochSeconds).DateTime.ToString();
 
-    [MemoryPackConstructor]
     public RenameSession(string[] apkTransforms, long dateEpochSeconds)
     {
         ApkTransforms = apkTransforms;

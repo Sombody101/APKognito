@@ -1,10 +1,7 @@
-﻿using MemoryPack;
+﻿namespace APKognito.Configurations.ConfigModels;
 
-namespace APKognito.Configurations.ConfigModels;
-
-[MemoryPackable]
-[ConfigFile("misc.cache", ConfigType.MemoryPacked)]
-internal partial class CacheStorage : IKognitoConfig
+[ConfigFile("misc.cache", ConfigType.Bson)]
+internal record CacheStorage : IKognitoConfig
 {
     /// <summary>
     /// Holds old APK paths to load (at least so there's content to present).
@@ -23,13 +20,5 @@ internal partial class CacheStorage : IKognitoConfig
 
     public CacheStorage()
     {
-    }
-
-    [MemoryPackConstructor]
-    private CacheStorage(string? apkSourcePath, string? lastDialogDirectory, string? updateSourceLocation)
-    {
-        ApkSourcePath = apkSourcePath;
-        LastDialogDirectory = lastDialogDirectory;
-        UpdateSourceLocation = updateSourceLocation;
     }
 }

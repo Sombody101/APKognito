@@ -11,7 +11,7 @@ public class ConfigFileAttribute : Attribute
 
     public ConfigType ConfigType { get; }
 
-    public ConfigModifiers ConfigModifier { get; }
+    public ConfigModifiers ConfigModifiers { get; }
 
     public ConfigFileAttribute(
         string fileName,
@@ -20,6 +20,6 @@ public class ConfigFileAttribute : Attribute
     {
         FileName = fileName;
         ConfigType = configType;
-        ConfigModifier = configModifier;
+        ConfigModifiers = configModifier;
     }
 }

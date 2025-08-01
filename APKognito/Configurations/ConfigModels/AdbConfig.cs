@@ -53,7 +53,7 @@ internal sealed class AdbConfig : IKognitoConfig
 }
 
 /// <summary>
-/// Information for a given ADB device/
+/// Information for a given ADB device
 /// </summary>
 public sealed class AdbDeviceInfo
 {
