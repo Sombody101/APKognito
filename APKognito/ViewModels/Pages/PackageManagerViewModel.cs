@@ -1,5 +1,7 @@
-﻿using APKognito.AdbTools;
-using APKognito.ApkLib;
+﻿using System.Collections.ObjectModel;
+using System.IO;
+using System.Windows.Threading;
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;
@@ -8,9 +10,6 @@ using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using Ionic.Zip;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Windows.Threading;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
@@ -264,7 +263,23 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
         }
 
-        AdbCommandOutput result = await Tools.TimeAsync(async () => await AdbManager.InvokeScriptAsync($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true));
+        AdbCommandOutput result = await Tools.TimeAsync(async () =>
+        {
+            try
+            {
+                return await AdbManager.InvokeScriptAsync($"{nameof(AdbScripts.GetPackageInfo)}.sh", string.Empty, true);
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogException(ex);
+                return default;
+            }
+        });
+
+        if (result.Equals(default(AdbCommandOutput)))
+        {
+            return;
+        }
 
         if (result.Errored)
         {
