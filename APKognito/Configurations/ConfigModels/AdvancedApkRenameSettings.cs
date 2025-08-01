@@ -7,6 +7,7 @@ namespace APKognito.Configurations.ConfigModels;
 public class AdvancedApkRenameSettings : IKognitoConfig
 {
     public const string DEFAULT_RENAME_REGEX = "(?<=[./_])({value})(?=[./_])";
+    public const string DEFAULT_JAVA_ADDED_FLAGS = "--enable-native-access=ALL-UNNAMED ";
 
     /// <summary>
     /// The regex to be used on a package name to rename it. Use <see cref="BuildRegex(string, int)"/> to get the compiled form.
@@ -14,19 +15,8 @@ public class AdvancedApkRenameSettings : IKognitoConfig
     [JsonProperty("package_replace_regex")]
     public string PackageReplaceRegexString { get; set; } = DEFAULT_RENAME_REGEX;
 
-    /// <summary>
-    /// The number of threads the thread pool is allowed to use. (set to 1 to disable multi threading)
-    /// </summary>
-    [JsonProperty("threads")]
-    public int ThreadCount
-    {
-        get;
-        set
-        {
-            field = value;
-            ThreadPool.SetMaxThreads(value, value);
-        }
-    } = Environment.ProcessorCount;
+    [JsonProperty("java_flags")]
+    public string JavaFlags { get; set; } = DEFAULT_JAVA_ADDED_FLAGS;
 
     /// <summary>
     /// Renames the literal library file (e.g., "libappname.so" -> "libapkognito.so")

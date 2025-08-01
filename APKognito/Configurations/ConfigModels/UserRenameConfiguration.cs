@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using APKognito.ApkLib.Configuration;
+using APKognito.Utilities.JavaTools;
 using Newtonsoft.Json;
 
 namespace APKognito.Configurations.ConfigModels;
@@ -42,6 +43,22 @@ public sealed partial class UserRenameConfiguration : ObservableObject, IKognito
     [ObservableProperty]
     public partial bool PushAfterRename { get; set; } = false;
 
+    [JsonProperty("java_version")]
+    public string? SelectedRawJavaVersion { get; set; }
+
     [JsonIgnore]
-    public PackageToolingPaths ToolingPaths { get; set; } = new();
+    public PackageToolingPaths BaseToolingPaths { get; set; } = new();
+
+    public (PackageToolingPaths, JavaVersionInformation) GetToolingPaths(JavaVersionCollector collector)
+    {
+        JavaVersionInformation wantedVersion = collector.GetVersion(SelectedRawJavaVersion);
+
+        return (new()
+        {
+            JavaExecutablePath = wantedVersion.JavaPath,
+            ApkSignerJarPath = BaseToolingPaths.ApkToolJarPath,
+            ApkToolBatPath = BaseToolingPaths.ApkToolBatPath,
+            ApkToolJarPath = BaseToolingPaths.ApkToolJarPath
+        }, wantedVersion);
+    }
 }
