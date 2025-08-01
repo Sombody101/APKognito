@@ -200,7 +200,7 @@
                             <ctrls:Entry.Body>
                                 <TextBlock
                                     Margin="1"
-                                    Text="{Binding ViewModel.OutputDirectory}"
+                                    Text="{Binding ViewModel.UserRenameConfiguration.ApkOutputDirectory}"
                                     TextTrimming="CharacterEllipsis" />
                             </ctrls:Entry.Body>
                         </ctrls:Entry>

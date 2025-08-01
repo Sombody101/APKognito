@@ -19,7 +19,7 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
     public HomePage()
     {
         // For Designer
-        ViewModel = new(default!, new(), default!, new());
+        ViewModel = new(default!, new(), default!, new(), new());
     }
 
     public HomePage(HomeViewModel viewModel)
