@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!--  APKLib targets Windows for simplcity, but can (and likely will) be changed in the future.  -->
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
