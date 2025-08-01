@@ -82,7 +82,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
 
         Loaded += async (sender, e) => await s_viewModel.RefreshDevicesListAsync(true);
 
-        StartDeviceTimer(this);
+        StartDeviceTimer();
     }
 
     private bool _dropdownDebounce = false;
@@ -107,9 +107,9 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
         ForceTick();
     }
 
-    private static Timer? s_deviceUpdateTimer;
-    private static CancellationTokenSource? s_cts;
-    private static void StartDeviceTimer(AndroidDeviceInfo instance)
+    private static Timer? s_deviceUpdateTimer { get; set; }
+    private static CancellationTokenSource? s_cts { get; set; }
+    private void StartDeviceTimer()
     {
         if (s_deviceUpdateTimer is not null)
         {
@@ -130,7 +130,7 @@ public partial class AndroidDeviceInfo : INavigableView<AndroidDeviceInfoViewMod
             try
             {
                 AndroidDevice? device = await UpdateDeviceInfoAsync(s_cts.Token);
-                _ = await instance.Dispatcher.InvokeAsync(() => instance.AndroidDevice = device ?? AndroidDevice.Empty);
+                _ = await Dispatcher.InvokeAsync(() => AndroidDevice = device ?? AndroidDevice.Empty);
             }
             catch (OperationCanceledException)
             {
