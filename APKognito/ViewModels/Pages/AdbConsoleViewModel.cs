@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Printing;
+using System.Text.RegularExpressions;
 using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
@@ -278,6 +279,11 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             {
                 throw new ArgumentException("Command isn't long enough.");
             }
+        }
+
+        public bool ContainsArgs(params string[] args)
+        {
+            return Array.Exists(Args, a => args.Contains(a));
         }
 
         public override string ToString()
