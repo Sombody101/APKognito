@@ -23,7 +23,7 @@ public sealed partial class ConsoleDialog
         base.OnLoaded();
     }
 
-    private async void ContentDialog_Closed(ContentDialog sender, ContentDialogClosedEventArgs args)
+    private async void ContentDialog_ClosedAsync(ContentDialog sender, ContentDialogClosedEventArgs args)
     {
         await ViewModel.CancelCommandCommand.ExecuteAsync(null);
         ViewModel.Dispose();
@@ -46,10 +46,14 @@ public sealed partial class ConsoleDialog
 
         public async Task StartCommandAsync()
         {
-            var token = _cancellationTokenSource.Token;
-            await Task.Run(async () => await AdbConsoleViewModel.RunBuiltinCommandAsync(_command, this, token), token);
+            CancellationToken token = _cancellationTokenSource.Token;
+            await Task.Run(async () =>
+            await AdbConsoleViewModel.RunBuiltinCommandAsync(_command, this, token), token);
 
             InteractionButtonText = "Close";
+
+            WriteGenericLogLine();
+            Log("You may now close this dialog.");
         }
 
         [RelayCommand]

@@ -15,7 +15,7 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     CloseButtonText="{Binding ViewModel.InteractionButtonText}"
-    Closed="ContentDialog_Closed"
+    Closed="ContentDialog_ClosedAsync"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
