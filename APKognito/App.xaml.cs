@@ -7,6 +7,7 @@ using System.Windows.Data;
 using APKognito.Configurations;
 using APKognito.Services;
 using APKognito.Utilities;
+using APKognito.Utilities.JavaTools;
 using APKognito.ViewModels.Pages;
 using APKognito.ViewModels.Pages.Debugging;
 using APKognito.ViewModels.Windows;
@@ -63,6 +64,7 @@ public partial class App
                 .AddSingleton<INavigationService, NavigationService>()
                 .AddSingleton<IContentDialogService, ContentDialogService>()
                 .AddSingleton<INavigationWindow, MainWindow>()
+                .AddTransient<JavaVersionCollector>()
                 // Pages
                 .AddSingleton<HomePage>()
                 .AddTransient<AdbConsolePage>()
@@ -98,23 +100,12 @@ public partial class App
             // Exception window model
             _ = services.AddSingleton<ExceptionWindowViewModel>();
 
+#if DEBUG
+            FileLogger.Log("Update service disabled. Use a Public Debug or full Release to get updates.");
+#else
             // Auto update service
             _ = services.AddHostedService<AutoUpdaterService>();
-
-            // Load all pages (any class that implements IViewable)
-            //Tools.Time(() =>
-            //{
-            //    IEnumerable<Type> types = typeof(App).Assembly.GetTypes()
-            //        .Where(t => !(t.IsAbstract || t.IsInterface) && typeof(IViewable).IsAssignableFrom(t));
-            //
-            //    foreach (Type? type in types)
-            //    {
-            //        _ = services.AddSingleton(type);
-            //
-            //        Console.WriteLine($".AddSingleton<{type.Name}>()");
-            //    }
-            //}, "IViewable collection");
-
+#endif
         }).Build();
 
     /// <summary>
@@ -122,8 +113,7 @@ public partial class App
     /// </summary>
     /// <typeparam name="T">Type of the service to get.</typeparam>
     /// <returns>Instance of the service or <see langword="null"/>.</returns>
-    public static T? GetService<T>()
-        where T : class
+    public static T? GetService<T>() where T : class
     {
         return s_host.Services.GetService(typeof(T)) as T;
     }
@@ -227,7 +217,15 @@ public partial class App
                 _ = new MessageBox()
                 {
                     Title = "Failed to open directory",
-                    Content = $"Failed to open directory as it does not exist.\n\n{directory}",
+                    //Content = $"Failed to open directory as it does not exist.\n\n{directory}",
+                    Content = new StackPanel()
+                    {
+                        Children =
+                        {
+                            new WPFUI::Controls.TextBlock() { Text = "A directory failed to be opened in explorer as it does not exist.", Margin = new(0,10,0,0) },
+                            new WPFUI::Controls.TextBox() { Text = directory, IsReadOnly = true, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new(0,10,0,0) }
+                        }
+                    }
                 }.ShowDialogAsync();
             }
 
