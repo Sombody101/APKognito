@@ -83,7 +83,7 @@ case "$3" in
     ;;
 esac
 
-[[ "$4" == "gen" ]] && bash "./generate_version.sh" "$release_type"
+! bash "./generate_version.sh" "$release_type" && exit
 
 readonly build_path="./APKognito/bin/Release/net8.0-windows/win-x64/"
 
