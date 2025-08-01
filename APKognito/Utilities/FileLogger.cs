@@ -11,11 +11,18 @@ using APKognito.AdbTools;
 using APKognito.Cli;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
+using APKognito.ConsoleAbstractions;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
 using Microsoft.Extensions.Logging;
 using Wpf.Ui.Appearance;
+
+#if DEBUG
+using Color = System.Windows.Media.Color;
+using Paragraph = System.Windows.Documents.Paragraph;
+using Spectre.Console;
+#endif
 
 namespace APKognito.Utilities;
 
@@ -44,7 +51,7 @@ public static class FileLogger
     private static readonly string s_logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
     private static readonly string s_exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
 
-    private static string UtcTime => DateTime.UtcNow.ToString(TIME_FORMAT_STRING, CultureInfo.InvariantCulture);
+    private static string UtcFormattedTime => DateTime.UtcNow.ToString(TIME_FORMAT_STRING, CultureInfo.InvariantCulture);
 
     static FileLogger()
     {
@@ -81,9 +88,21 @@ public static class FileLogger
             ? "\n\n"
             : "\n";
 
-        string logEntry = $"[{DateTime.UtcNow} {logLevel.ToString().ToUpper()}" +
+#if DEBUG
+        StringBuilder builder = new();
+
+        builder.Append("[[")
+            .Append(DateTime.Now.ToString(TIME_FORMAT_STRING)).Append(' ')
+            .Append(LogLevelColors.GetAnsiColor(logLevel)).Append(logLevel.ToString().ToUpper()).Append("[/] ")
+            .Append(MainWindowViewModel.LaunchedAsAdministrator ? " [yellow]ADMIN[/]" : string.Empty)
+            .Append("[[").Append(GetCallerInfo().EscapeMarkup()).Append("]] ").Append(text).Append(lineSuffix);
+
+        string logEntry = builder.ToString();
+#else
+        string logEntry = $"[{UtcFormattedTime} {logLevel.ToString().ToUpper()}" +
                           $"{(MainWindowViewModel.LaunchedAsAdministrator ? " ADMIN" : string.Empty)}]" +
                           $" [{GetCallerInfo()}] {text}{lineSuffix}";
+#endif
 
         LogGenericFinal(logEntry);
     }
@@ -92,7 +111,7 @@ public static class FileLogger
     {
         StringBuilder log = new();
 
-        _ = log.Append('[').Append(UtcTime).Append("]: EXCEPTION");
+        _ = log.Append('[').Append(UtcFormattedTime).Append("]: EXCEPTION");
 
         if (MainWindowViewModel.LaunchedAsAdministrator)
         {
@@ -153,6 +172,16 @@ public static class FileLogger
 
         LogGeneric($"StackTrace added to exlog: {exception.GetType().Name}: {exception.Message}", LogLevel.FATAL);
         LogGenericException(exception, "[LogFatal added message: Fatal exception]");
+    }
+
+    public static void LogFatal(string message, Exception ex, bool ignore = false)
+    {
+        if (ignore)
+        {
+            return;
+        }
+
+        LogGenericException(ex, message);
     }
 
     [Conditional("DEBUG")]
@@ -305,13 +334,18 @@ public static class FileLogger
 
             if (CliMain.ConsoleActive)
             {
-                Console.WriteLine(entry.TrimEnd());
+                ConsoleAbstraction.WriteLine(entry.TrimEnd());
 
                 if (ex is not null)
                 {
-                    Console.WriteLine(ex);
+                    ConsoleAbstraction.WriteException(ex);
                 }
             }
+
+#if DEBUG
+            entry = ConsoleAbstraction.RemoveMarkup(entry);
+#endif
+
 
             lock (s_lock)
             {
@@ -349,8 +383,7 @@ public static class FileLogger
             StackFrame? frame = stackTrace.GetFrame(frameDepth);
             MethodBase? method = frame?.GetMethod();
 
-            if (method is null
-                || method.DeclaringType is null
+            if (method is null or { DeclaringType: null }
                 || method.DeclaringType == fileLoggerType
                 || method.DeclaringType == loggableObservableObjectType
                 || method.DeclaringType == loggerExtensionsType)
@@ -364,7 +397,7 @@ public static class FileLogger
             if (typeof(IAsyncStateMachine).IsAssignableFrom(method.DeclaringType))
             {
                 // Fix async methods (<AwaitedMethodName>d__10.MoveNext -> RealClassName.AwaitedMethodName)
-                className = GetNonCompilerGeneratedClassName(method);// method.DeclaringType.DeclaringType?.Name ?? "[Unknown.IAsyncClass]";
+                className = GetNonCompilerGeneratedClassName(method);
                 methodName = method.DeclaringType.Name.TrimStart('<');
                 methodName = methodName[0..methodName.IndexOf('>')];
             }
@@ -471,7 +504,9 @@ public static class FileLogger
             byte green = (byte)((color >> 8) & 0xFF);
             byte blue = (byte)(color & 0xFF);
 
-            return new SolidColorBrush(Color.FromArgb(255, red, green, blue));
+            var newColor = new SolidColorBrush(Color.FromArgb(255, red, green, blue));
+            newColor.Freeze();
+            return newColor;
         }
 
         private static void PopulateColors(bool dark = true)
@@ -504,5 +539,21 @@ public static class FileLogger
             Debug = ToBrush(0x00ffff);
             Trace = ToBrush(0x3F51B5);
         }
+
+#if DEBUG
+        internal static string GetAnsiColor(LogLevel level)
+        {
+            return level switch
+            {
+                LogLevel.TRACE => "[cyan1]",
+                LogLevel.DEBUG => "[cyan1]",
+                LogLevel.INFO => "[dodgerblue2]",
+                LogLevel.WARNING => "[yellow]",
+                LogLevel.ERROR => "[red]",
+                LogLevel.FATAL => "[deeppink2]",
+                _ => string.Empty
+            };
+        }
+#endif
     }
 }
