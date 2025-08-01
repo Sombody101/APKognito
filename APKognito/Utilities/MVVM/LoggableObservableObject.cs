@@ -75,12 +75,12 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
 #endif
     }
 
-    public void WriteGenericLog(string text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None, bool newline = true)
+    public void WriteGenericLog(string text, [Optional] Brush? color, LogEntryType? logType = LogEntryType.None, bool newline = true)
     {
         WriteGenericLog(new StringBuilder(text), color, logType, newline);
     }
 
-    public void WriteGenericLog(StringBuilder text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None, bool newline = false)
+    public void WriteGenericLog(StringBuilder text, [Optional] Brush? color, LogEntryType? logType = LogEntryType.None, bool newline = false)
     {
         if (newline)
         {
@@ -90,13 +90,6 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
         if (!string.IsNullOrEmpty(_indent))
         {
             _ = text.Insert(0, _indent);
-        }
-
-        // This suddenly became an issue. I hadn't gotten any exceptions for it, but suddenly
-        // no logs could be made with color.
-        if (color is { CanFreeze: true })
-        {
-            color.Freeze();
         }
 
         LogBoxEntry newEntry = new()
@@ -109,12 +102,17 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
         LogBoxEntries.Add(newEntry);
     }
 
-    public void WriteGenericLogLine(string text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None)
+    public void WriteGenericLogLine()
+    {
+        WriteGenericLogLine(string.Empty, null, null);
+    }
+
+    public void WriteGenericLogLine(string text, [Optional] Brush? color, LogEntryType? logType = LogEntryType.None)
     {
         WriteGenericLog(text, color, logType, newline: true);
     }
 
-    public void WriteGenericLogLine(StringBuilder text, [Optional] Brush color, LogEntryType? logType = LogEntryType.None)
+    public void WriteGenericLogLine(StringBuilder text, [Optional] Brush? color, LogEntryType? logType = LogEntryType.None)
     {
         WriteGenericLog(text, color, logType, newline: true);
     }
