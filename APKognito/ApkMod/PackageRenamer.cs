@@ -116,7 +116,7 @@ public sealed class PackageRenamer
 
             return result;
         }
-        catch (OperationCanceledException)
+        catch (TaskCanceledException)
         {
             // Handle cancellation
             _logger.LogWarning("Job canceled.");
@@ -145,97 +145,83 @@ public sealed class PackageRenamer
         PackageNameData nameData,
         CancellationToken token)
     {
-        try
+        _reporter.Report(new(string.Empty, ProgressUpdateType.Reset));
+
+        PackageEditorContext context = new PackageEditorContext(renameConfig, nameData, modRenameConfig.ToolingPaths, _logger)
+            .SetReporter(_reporter);
+
+        /* Unpack */
+
+        PackageCompressor compressor = context.CreatePackageCompressor();
+        await TimeAsync(async () =>
         {
-            _reporter.Report(new(string.Empty, ProgressUpdateType.Reset));
+            await compressor.UnpackPackageAsync(token: token);
+            compressor.GatherPackageMetadata();
 
-            PackageEditorContext context = new PackageEditorContext(renameConfig, nameData, modRenameConfig.ToolingPaths, _logger)
-                .SetReporter(_reporter);
+            _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameData.OriginalPackageName, nameData.NewPackageName);
+        }, nameof(compressor.UnpackPackageAsync));
 
-            /* Unpack */
+        AutoConfigModel? automationConfig = modRenameConfig.AdvancedConfig.AutoPackageEnabled
+            ? await GetParsedAutoConfigAsync(modRenameConfig.AdvancedConfig.AutoPackageConfig)
+            : null;
 
-            PackageCompressor compressor = context.CreatePackageCompressor();
-            await TimeAsync(async () =>
-            {
-                await compressor.UnpackPackageAsync(token: token);
-                compressor.GatherPackageMetadata();
+        _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameData);
 
-                _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameData.OriginalPackageName, nameData.NewPackageName);
-            }, nameof(compressor.UnpackPackageAsync));
-
-            AutoConfigModel? automationConfig = modRenameConfig.AdvancedConfig.AutoPackageEnabled
-                ? await GetParsedAutoConfigAsync(modRenameConfig.AdvancedConfig.AutoPackageConfig)
-                : null;
-
-            _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameData);
-
-            await TimeAsync(async () =>
-            {
-                context.CreateDirectoryEditor()
-                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Directory, nameData))
-                    .Run();
-            }, nameof(DirectoryEditor));
-
-            /* Libraries */
-
-            await TimeAsync(async () =>
-            {
-                LibraryEditor libraryEditor = context.CreateLibraryEditor()
-                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Library, nameData));
-                await libraryEditor.RunAsync(token: token);
-            }, nameof(LibraryEditor));
-
-            /* Smali */
-
-            await TimeAsync(async () =>
-            {
-                SmaliEditor smaliEditor = context.CreateSmaliEditor()
-                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Smali, nameData));
-                await smaliEditor.RunAsync(token: token);
-            }, nameof(SmaliEditor));
-
-            /* Assets */
-
-            string? outputAssetDirectory = null;
-            await TimeAsync(async () =>
-            {
-                AssetEditor assetEditor = context.CreateAssetEditor()
-                    .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Assets, nameData));
-                outputAssetDirectory = await assetEditor.RunAsync(token: token);
-            }, nameof(AssetEditor));
-
-            _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack, nameData);
-
-            /* Pack and Sign */
-
-            await TimeAsync(async () => await compressor.PackPackageAsync(token: token), nameof(compressor.PackPackageAsync));
-            await TimeAsync(async () => await compressor.SignPackageAsync(token: token), nameof(compressor.SignPackageAsync));
-
-            /* Cleanup */
-
-            CleanUpTemporary(renameConfig, nameData);
-
-            /* Finalize and return paths */
-
-            string outputPackagePath = Path.Combine(nameData.FinalOutputDirectory, $"{nameData.NewPackageName}.apk");
-
-            return new PackageRenameResult()
-            {
-                Successful = true,
-                OutputLocations = new(outputPackagePath, outputAssetDirectory, nameData.NewPackageName)
-            };
-        }
-        catch (Exception ex)
+        await TimeAsync(async () =>
         {
-            _logger.LogError(ex, "Failed to rename {FullSourceApkFileName}.", nameData.FullSourceApkFileName);
-            FileLogger.LogException($"Failed to rename {nameData.FullSourceApkFileName}", ex);
+            context.CreateDirectoryEditor()
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Directory, nameData))
+                .Run();
+        }, nameof(DirectoryEditor));
 
-            return new PackageRenameResult()
-            {
-                OutputLocations = new(string.Empty, null, string.Empty),
-                ResultStatus = ex.Message
-            };
-        }
+        /* Libraries */
+
+        await TimeAsync(async () =>
+        {
+            LibraryEditor libraryEditor = context.CreateLibraryEditor()
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Library, nameData));
+            await libraryEditor.RunAsync(token: token);
+        }, nameof(LibraryEditor));
+
+        /* Smali */
+
+        await TimeAsync(async () =>
+        {
+            SmaliEditor smaliEditor = context.CreateSmaliEditor()
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Smali, nameData));
+            await smaliEditor.RunAsync(token: token);
+        }, nameof(SmaliEditor));
+
+        /* Assets */
+
+        string? outputAssetDirectory = null;
+        await TimeAsync(async () =>
+        {
+            AssetEditor assetEditor = context.CreateAssetEditor()
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Assets, nameData));
+            outputAssetDirectory = await assetEditor.RunAsync(token: token);
+        }, nameof(AssetEditor));
+
+        _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack, nameData);
+
+        /* Pack and Sign */
+
+        await TimeAsync(async () => await compressor.PackPackageAsync(token: token), nameof(compressor.PackPackageAsync));
+        await TimeAsync(async () => await compressor.SignPackageAsync(token: token), nameof(compressor.SignPackageAsync));
+
+        /* Cleanup */
+
+        CleanUpTemporary(renameConfig, nameData);
+
+        /* Finalize and return paths */
+
+        string outputPackagePath = Path.Combine(nameData.FinalOutputDirectory, $"{nameData.NewPackageName}.apk");
+
+        return new PackageRenameResult()
+        {
+            Successful = true,
+            OutputLocations = new(outputPackagePath, outputAssetDirectory, nameData.NewPackageName)
+        };
     }
 
     private static PackageRenameConfiguration MapRenameSettings(RenameConfiguration settings)
@@ -247,9 +233,13 @@ public sealed class PackageRenamer
 
         return new()
         {
-            ClearTempFilesOnRename = settings.KognitoConfig.ClearTempFilesOnRename,
+            ClearTempFilesOnRename = settings.UserRenameConfig.ClearTempFilesOnRename,
             RenameRegex = settings.AdvancedConfig.PackageReplaceRegexString,
             ReplacementInfoDelimiter = " |> ",
+            CompressorConfiguration = new()
+            {
+                ExtraJavaOptions = settings.AdvancedConfig.JavaFlags.Split().Where(s => !string.IsNullOrWhiteSpace(s))
+            },
             DirectoryRenameConfiguration = new()
             {
                 // BaseDirectory = string.Empty
@@ -267,7 +257,7 @@ public sealed class PackageRenamer
             AssetRenameConfiguration = new()
             {
                 AssetDirectory = assetDirectory,
-                CopyAssets = settings.KognitoConfig.CopyFilesWhenRenaming,
+                CopyAssets = settings.UserRenameConfig.CopyFilesWhenRenaming,
                 RenameObbArchiveEntries = settings.AdvancedConfig.RenameObbsInternal,
                 ExtraInternalPackagePaths = [.. settings.AdvancedConfig.RenameObbsInternalExtras],
             }
