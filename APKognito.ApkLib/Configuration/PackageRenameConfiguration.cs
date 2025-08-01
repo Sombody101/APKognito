@@ -17,6 +17,11 @@ public sealed record class PackageRenameConfiguration : BaseRenameConfiguration
     public bool ClearTempFilesOnRename { get; init; }
 
     /// <summary>
+    /// Configurations for the <see cref="Editors.PackageCompressor"/>
+    /// </summary>
+    public CompressorConfiguration CompressorConfiguration { get; set; }
+
+    /// <summary>
     /// Optional override configurations for the <see cref="Editors.DirectoryEditor"/>.
     /// </summary>
     public DirectoryRenameConfiguration? DirectoryRenameConfiguration { get; init; }
