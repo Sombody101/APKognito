@@ -13,4 +13,5 @@ global using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 global using RichTextBox = Wpf.Ui.Controls.RichTextBox;
 global using Timer = System.Threading.Timer;
 global using WPF = System.Windows;
+global using WPFUI = Wpf.Ui;
 global using MenuItem = System.Windows.Controls.MenuItem;
