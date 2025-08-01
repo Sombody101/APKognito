@@ -88,6 +88,7 @@ internal static partial class CliMain
             ConsoleActive = true;
 
             Console.WriteLine("Console Active");
+            Console.Title = $"APKognito, {App.Version.VersionIdentifier} (CLOSING THIS CLOSES APKOGNITO)";
 
             return;
         }
