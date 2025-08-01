@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Text.RegularExpressions;
 using APKognito.ApkLib.Configuration;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
+using APKognito.Utilities.JavaTools;
 using APKognito.Utilities.MVVM;
 using Wpf.Ui;
 
@@ -12,7 +12,7 @@ namespace APKognito.ViewModels.Pages;
 
 public sealed partial class RenameConfigurationViewModel : LoggableObservableObject, IDataErrorInfo
 {
-    private readonly UserRenameConfiguration _kognitoConfig;
+    private readonly UserRenameConfiguration _renameConfig;
     private readonly AdvancedApkRenameSettings _advancedSettings;
     private readonly CacheStorage _kognitoCache;
     private readonly ConfigurationFactory _configFactory;
@@ -22,15 +22,11 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
 
     #region Properties
 
-    public string JavaExecutablePath
-    {
-        get => _kognitoConfig.ToolingPaths.JavaExecutablePath;
-        set
-        {
-            _kognitoConfig.ToolingPaths.JavaExecutablePath = value;
-            OnPropertyChanged(nameof(JavaExecutablePath));
-        }
-    }
+    [ObservableProperty]
+    public partial ObservableCollection<JavaVersionInformation> FoundJavaVersions { get; set; } = [];
+
+    [ObservableProperty]
+    public partial JavaVersionInformation SelectedJavaVersion { get; set; }
 
     /// <summary>
     /// Creates a copy of the source files rather than moving them.
@@ -38,16 +34,16 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     /// </summary>
     public bool CopyWhenRenaming
     {
-        get => _kognitoConfig.CopyFilesWhenRenaming;
-        set => _kognitoConfig.CopyFilesWhenRenaming = value;
+        get => _renameConfig.CopyFilesWhenRenaming;
+        set => _renameConfig.CopyFilesWhenRenaming = value;
     }
 
     public bool PushAfterRename
     {
-        get => _kognitoConfig.PushAfterRename;
+        get => _renameConfig.PushAfterRename;
         set
         {
-            _kognitoConfig.PushAfterRename = value;
+            _renameConfig.PushAfterRename = value;
             OnPropertyChanged(nameof(PushAfterRename));
         }
     }
@@ -70,11 +66,11 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     /// </summary>
     public string OutputDirectory
     {
-        get => _kognitoConfig.ApkOutputDirectory;
+        get => _renameConfig.ApkOutputDirectory;
         set
         {
             value = VariablePathResolver.Resolve(value);
-            _kognitoConfig.ApkOutputDirectory = value;
+            _renameConfig.ApkOutputDirectory = value;
             OnPropertyChanged(nameof(OutputDirectory));
         }
     }
@@ -84,15 +80,15 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     /// </summary>
     public string ApkReplacementName
     {
-        get => _kognitoConfig.ApkNameReplacement;
+        get => _renameConfig.ApkNameReplacement;
         set
         {
-            if (value == _kognitoConfig.ApkNameReplacement)
+            if (value == _renameConfig.ApkNameReplacement)
             {
                 return;
             }
 
-            _kognitoConfig.ApkNameReplacement = value;
+            _renameConfig.ApkNameReplacement = value;
             OnPropertyChanged(nameof(ApkReplacementName));
         }
     }
@@ -159,6 +155,16 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         }
     }
 
+    public string JavaFlags
+    {
+        get => _advancedSettings.JavaFlags;
+        set
+        {
+            _advancedSettings.JavaFlags = value;
+            OnPropertyChanged(nameof(JavaFlags));
+        }
+    }
+
     public bool AdbConfigured => !string.IsNullOrEmpty(_adbConfig.PlatformToolsPath);
 
     [ObservableProperty]
@@ -189,21 +195,23 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     public RenameConfigurationViewModel()
     {
         // For designer
-        _kognitoConfig = null!;
+        _renameConfig = null!;
         _advancedSettings = null!;
         _kognitoCache = null!;
         _configFactory = null!;
         _adbConfig = null!;
         SharedViewModel = null!;
+        SelectedJavaVersion = null!;
     }
 
     public RenameConfigurationViewModel(
         ISnackbarService snackService,
         ConfigurationFactory configFactory,
-        SharedViewModel sharedViewModel
+        SharedViewModel sharedViewModel,
+        JavaVersionCollector javaCollector
     )
     {
-        _kognitoConfig = configFactory.GetConfig<UserRenameConfiguration>();
+        _renameConfig = configFactory.GetConfig<UserRenameConfiguration>();
         _kognitoCache = configFactory.GetConfig<CacheStorage>();
         _advancedSettings = configFactory.GetConfig<AdvancedApkRenameSettings>();
         _adbConfig = configFactory.GetConfig<AdbConfig>();
@@ -212,6 +220,13 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         SharedViewModel = sharedViewModel;
 
         SetSnackbarProvider(snackService);
+
+        foreach (JavaVersionInformation javaVersion in javaCollector.JavaVersions)
+        {
+            FoundJavaVersions.Add(javaVersion);
+        }
+
+        SelectedJavaVersion = FoundJavaVersions.FirstOrDefault(i => i.RawVersion == _renameConfig.SelectedRawJavaVersion) ?? FoundJavaVersions.FirstOrDefault()!;
     }
 
     #region Commands
@@ -233,9 +248,22 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     }
 
     [RelayCommand]
-    private void OnResetRegex()
+    private void OnResetField(string name)
     {
-        PackageReplaceRegexString = AdvancedApkRenameSettings.DEFAULT_RENAME_REGEX;
+        switch (name)
+        {
+            case "regex":
+                PackageReplaceRegexString = AdvancedApkRenameSettings.DEFAULT_RENAME_REGEX;
+                return;
+
+            case "java_flags":
+                JavaFlags = AdvancedApkRenameSettings.DEFAULT_JAVA_ADDED_FLAGS;
+                return;
+
+            default:
+                SnackError("Unknown field!", $"Unknown field '{name}'. Cannot reset.");
+                return;
+        }
     }
 
     [RelayCommand]
@@ -271,7 +299,7 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     [RelayCommand]
     private void OnSaveSettings()
     {
-        _configFactory.SaveConfigs(_kognitoCache, _kognitoConfig, _advancedSettings);
+        _configFactory.SaveConfigs(_kognitoCache, _renameConfig, _advancedSettings);
         Log("Settings saved!");
     }
 
@@ -297,6 +325,16 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         base.OnNavigatedTo();
     }
 
+    partial void OnSelectedJavaVersionChanged(JavaVersionInformation value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        _renameConfig.SelectedRawJavaVersion = value.RawVersion;
+    }
+
     public sealed partial class ExtraPackageFileViewModel : ObservableObject
     {
         [ObservableProperty]
@@ -305,22 +343,16 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         [ObservableProperty]
         public partial FileType FileType { get; set; } = FileType.RegularText;
 
-        public static implicit operator ExtraPackageFile(ExtraPackageFileViewModel viewModel)
+        public static implicit operator ExtraPackageFile(ExtraPackageFileViewModel viewModel) => new()
         {
-            return new ExtraPackageFile
-            {
-                FilePath = viewModel.FilePath.TrimStart('/', '\\'),
-                FileType = viewModel.FileType
-            };
-        }
+            FilePath = viewModel.FilePath.TrimStart('/', '\\'),
+            FileType = viewModel.FileType
+        };
 
-        public static implicit operator ExtraPackageFileViewModel(ExtraPackageFile model)
+        public static implicit operator ExtraPackageFileViewModel(ExtraPackageFile model) => new()
         {
-            return new ExtraPackageFileViewModel
-            {
-                FilePath = model.FilePath,
-                FileType = model.FileType
-            };
-        }
+            FilePath = model.FilePath,
+            FileType = model.FileType
+        };
     }
 }

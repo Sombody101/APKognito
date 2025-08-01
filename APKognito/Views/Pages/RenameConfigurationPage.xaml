@@ -6,6 +6,7 @@
     xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:APKognito.Helpers"
+    xmlns:javatools="clr-namespace:APKognito.Utilities.JavaTools"
     xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
@@ -14,7 +15,7 @@
     Title="AdvancedRenameConfigurationPage"
     d:DataContext="{d:DesignInstance local:RenameConfigurationPage,
                                      IsDesignTimeCreatable=True}"
-    d:DesignHeight="2200"
+    d:DesignHeight="2500"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -64,9 +65,14 @@
             <Grid HorizontalAlignment="Stretch">
 
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="{StaticResource ValueControlWidth}" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="{StaticResource ValueControlWidth}" />
                 </Grid.ColumnDefinitions>
+
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
 
                 <Grid>
                     <Grid.RowDefinitions>
@@ -77,22 +83,31 @@
                     <ui:TextBlock
                         VerticalAlignment="Center"
                         FontWeight="Bold"
-                        Text="Java Executable" />
+                        Text="Java Version" />
 
-                    <ui:TextBlock Grid.Row="1" Text="The path to your Java executable." />
+                    <ui:TextBlock Grid.Row="1" Text="Which Java version you'd like to use." />
                 </Grid>
 
-
-                <ctrls:DirectorySelector
+                <ComboBox
                     Grid.Column="1"
-                    BrowseButtonIcon="{ui:SymbolIcon Symbol=Document20}"
-                    DirectoryPath="{Binding ViewModel.JavaExecutablePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    IsEnabled="{Binding ViewModel.SharedViewModel.ConfigurationControlsEnabled, Mode=OneWay}"
-                    SelectingDirectory="False" />
+                    ItemsSource="{Binding ViewModel.FoundJavaVersions, Mode=OneTime}"
+                    SelectedItem="{Binding ViewModel.SelectedJavaVersion, Mode=TwoWay}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate DataType="javatools:JavaVersionInformation">
+                            <TextBlock Text="{Binding Path=.}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
             </Grid>
         </ui:Card>
 
-        <ui:Card Margin="0,8,0,0">
+        <ui:TextBlock
+            Margin="0,16,0,0"
+            FontSize="20"
+            FontWeight="Medium"
+            Text="Output Settings" />
+
+        <ui:Card Margin="0,8,0,0" Padding="16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="{StaticResource ValueControlWidth}" />
@@ -120,11 +135,11 @@
             </Grid>
         </ui:Card>
 
-        <ui:Card Margin="0,8,0,0">
+        <ui:Card Margin="0,8,0,0" Padding="16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="{StaticResource ValueControlWidth}" />
                 </Grid.ColumnDefinitions>
 
                 <Grid>
@@ -183,7 +198,7 @@
             </Grid>
         </ui:Card>
 
-        <ui:Card Margin="0,8,0,0">
+        <ui:Card Margin="0,8,0,0" Padding="16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -216,7 +231,7 @@
             </Grid>
         </ui:Card>
 
-        <ui:Card Margin="0,8,0,0">
+        <ui:Card Margin="0,8,0,0" Padding="16">
 
             <ui:Card.Resources>
                 <Style BasedOn="{StaticResource {x:Type ui:Card}}" TargetType="ui:Card">
@@ -320,7 +335,7 @@
 
         <StackPanel Margin="0,16,0,0">
 
-            <ui:CardControl Icon="{ui:SymbolIcon Symbol=TextWholeWord20}">
+            <ui:CardControl Padding="16" Icon="{ui:SymbolIcon Symbol=TextWholeWord20}">
                 <ui:CardControl.Header>
                     <Grid>
                         <Grid.RowDefinitions>
@@ -378,8 +393,10 @@
                         Grid.Column="1"
                         Margin="5,5,0,5"
                         VerticalAlignment="Stretch"
-                        Command="{Binding ViewModel.ResetRegexCommand}"
-                        Icon="{ui:SymbolIcon Symbol=ArrowCounterclockwise48}" />
+                        Command="{Binding ViewModel.ResetFieldCommand}"
+                        CommandParameter="regex"
+                        Icon="{ui:SymbolIcon Symbol=ArrowCounterclockwise48}"
+                        ToolTip="Reset" />
                 </Grid>
             </ui:CardControl>
         </StackPanel>
@@ -391,7 +408,7 @@
             Text="Rename Options" />
 
         <StackPanel Margin="0,16,0,0">
-            <ui:Card>
+            <ui:Card Padding="16">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />
@@ -417,7 +434,7 @@
                 </Grid>
             </ui:Card>
 
-            <ui:Card>
+            <ui:Card Padding="16">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />
@@ -451,7 +468,7 @@
                 </Grid>
             </ui:Card>
 
-            <ui:Card>
+            <ui:Card Padding="16">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />
@@ -496,7 +513,10 @@
             Text="OBB Renaming" />
 
         <StackPanel Margin="0,16,0,0">
-            <ui:Card Margin="0,5" IsEnabled="{Binding ViewModel.RenameObbsInternal}">
+            <ui:Card
+                Margin="0,5"
+                Padding="16"
+                IsEnabled="{Binding ViewModel.RenameObbsInternal}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />
@@ -568,7 +588,7 @@
                     <ItemsControl
                         Grid.Row="1"
                         Margin="0,7.5,0,0"
-                        d:ItemsSource="{d:SampleData ItemCount=5}"
+                        d:ItemsSource="{d:SampleData ItemCount=3}"
                         ItemsSource="{Binding ViewModel.ExtraPackageItems}"
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl.ItemsPanel>
@@ -614,6 +634,60 @@
                 </Grid>
             </ui:Card>
         </StackPanel>
+
+        <ui:TextBlock
+            Margin="0,20,0,0"
+            FontSize="20"
+            FontWeight="Medium"
+            Text="Java Options" />
+
+        <ui:Card Margin="0,8,0,0" Padding="16">
+            <Grid HorizontalAlignment="Stretch">
+
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{StaticResource ValueControlWidth}" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+
+                    <ui:TextBlock
+                        VerticalAlignment="Center"
+                        FontWeight="Bold"
+                        Text="Java Executable Flags" />
+
+                    <ui:TextBlock Grid.Row="1" Text="The path to your Java executable." />
+                </Grid>
+
+                <Grid Grid.Column="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBox
+                        Grid.Column="0"
+                        MinWidth="300"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Text="{Binding ViewModel.JavaFlags}" />
+
+                    <ui:Button
+                        Grid.Column="1"
+                        Margin="5,5,0,5"
+                        VerticalAlignment="Stretch"
+                        Command="{Binding ViewModel.ResetFieldCommand}"
+                        CommandParameter="java_flags"
+                        Icon="{ui:SymbolIcon Symbol=ArrowCounterclockwise48}"
+                        ToolTip="Reset" />
+                </Grid>
+            </Grid>
+        </ui:Card>
 
         <ui:TextBlock
             Margin="0,20,0,0"

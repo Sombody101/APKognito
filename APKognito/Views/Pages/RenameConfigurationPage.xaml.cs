@@ -36,4 +36,10 @@ public sealed partial class RenameConfigurationPage : INavigableView<RenameConfi
     {
         await RenameConfigurationViewModel.OnRenameCopyCheckedAsync();
     }
+
+    [CalledByGenerated]
+    private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+
+    }
 }
