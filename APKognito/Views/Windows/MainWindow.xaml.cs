@@ -1,4 +1,5 @@
-﻿using APKognito.Utilities;
+﻿using System.Diagnostics;
+using APKognito.Utilities;
 using APKognito.ViewModels.Windows;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
@@ -111,14 +112,5 @@ public partial class MainWindow : INavigationWindow
     public void SetServiceProvider(IServiceProvider serviceProvider)
     {
         throw new NotImplementedException();
-    }
-
-    [CalledByGenerated]
-    private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.Source is IInputElement elm)
-        {
-            Keyboard.Focus(elm);
-        }
     }
 }
