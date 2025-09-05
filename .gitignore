@@ -5,6 +5,8 @@
 
 *.diagsession
 
+*.private.*
+
 # User-specific files
 *.rsuser
 *.suo
