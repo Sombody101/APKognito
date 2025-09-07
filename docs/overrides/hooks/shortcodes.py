@@ -175,7 +175,7 @@ def _metadata(args: str) -> str:
 
 def _resolve_control_type(arg: str) -> tuple[str, str, str]:
     match (arg):
-        case "num":
+        case "num" | "number":
             return ("Number selector", "material-pound")
 
         case "text":

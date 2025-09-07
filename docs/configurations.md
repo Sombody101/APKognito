@@ -2,18 +2,26 @@
 title: Configurations
 ---
 
-<!-- md:meta config | settings.json -->
+# Configurations
 
-APKognito offers both basic and advanced configurations. All basic configurations can be found under the card expander on the main package renaming page.
+<!-- md:meta config | rename-settings.json -->
+
+APKognito offers both basic and advanced configurations. All basic configurations can be at the top of the Rename Settings page.
 
 ![basic configurations location](images/configurations/basic-configurations-location.webp)
 
 There a several basic options that come build into a dropdown card menu on the main package renamer page.
 
-### Java Executable
+## Java Path
 
-This is the path directing to the Java runtime executable. This is set every time APKognito opens and when the `Start Renaming` button is pressed.
-If no path is found, then this field is left blank and the user will be warned about an invalid Java path when a rename job is attempted.
+### Java Version
+
+<!-- md:flag required -->
+<!-- md:meta text | java_version -->
+
+Allows you to select which JDK or JRE version to use.
+
+## Output Settings
 
 ### Output Directory
 
@@ -23,7 +31,7 @@ This is the directory that all renamed packages are placed into.
 
 The default path is `%APPDATA%\APKognito\output`.
 
-### Output APK Name
+### New Package Name
 
 <!-- md:meta text | apk_replacement_name -->
 
@@ -57,4 +65,4 @@ Each renamed package will be pushed to an ADB enabled device after being renamed
 
 <!-- md:meta page -->
 
-This action card will bring you to the Advanced Renaming Options page. To learn more, go to the [Advanced configuration](advanced/advanced_package_configurations.md) guide.
+To learn more about the Advanced Configurations APKognito has to offer, go to the [Advanced configuration](advanced/advanced_package_configurations.md) guide.

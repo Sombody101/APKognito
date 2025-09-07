@@ -22,4 +22,4 @@ To create a logpack, navigate to the settings menu at the bottom left of the APK
 All needed information will then be written to a ZIP archive. If it's created successfully, a dialog menu will appear asking if you'd like to open Explorer in the same directory as the logpack, then click `Open`. Otherwise, click `Close` and the dialog will disappear.
 
 !!! note
-    A logpack is required to submit a bug report or issue on both GitHub and Discord. A link will be given to this Wiki article explaining how to do so.
+    If you were given this link after making a post, then you've already ignored several notices explaining a logpack is required.

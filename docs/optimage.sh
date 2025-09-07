@@ -7,14 +7,14 @@
 
 echo "Optimizing images"
 
-for file in $(find -name "*.png"); do
+while IFS= read -r -d '' file; do
     echo "$file"
     cwebp "$file" -o "${file%.png}.webp" && rm "$file"
-done
+done < <(find . -name "*.png" -print0)
 
 echo "Changing image references"
 
-for file in $(find -name "*.md"); do
+while IFS= read -r -d '' file; do
     echo "$file"
-    sed -i -e 's/\.png/\.webp/g' $file
-done
+    sed -i -e 's/\.png/\.webp/g' "$file"
+done < <(find . -name "*.md" -print0)
