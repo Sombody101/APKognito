@@ -11,7 +11,7 @@ public partial class CommandDispatcher
 {
     private const string BINDING_TARGET_NAMESPACE = "APKognito.ApkLib.Automation.CommandBindings";
 
-    private static Dictionary<string, CommandInfo>? s_commands;
+    private static Dictionary<string, CommandInfo> s_commands = null!;
 
     private readonly RenameStage _renameStage;
 
@@ -49,11 +49,9 @@ public partial class CommandDispatcher
 
     public async Task<CommandStageResult> DispatchCommandsAsync()
     {
-        CacheInternalCommands(_logger);
-
         foreach (Command command in _renameStage.Commands)
         {
-            if (!s_commands!.TryGetValue(command.Name, out CommandInfo? commandInfo))
+            if (!s_commands.TryGetValue(command.Name, out CommandInfo? commandInfo))
             {
                 throw new UnknownCommandException(command.Name);
             }
@@ -72,10 +70,7 @@ public partial class CommandDispatcher
     private async Task<CommandStageResult?> ExecuteCommandAsync(CommandInfo commandInfo, string[] args)
     {
         // Resolve all variables. They're CMD style %VAR%. That might change later, though.
-        for (int i = 0; i < args.Length; ++i)
-        {
-            args[i] = ReplaceVariables(args[i]);
-        }
+        ResolveCommandArguments(args);
 
         CheckArgumentAccess(commandInfo.ArgumentCount, args, commandInfo.Accessors);
 
@@ -106,10 +101,15 @@ public partial class CommandDispatcher
             break;
         }
 
-        int totalMethodParameters = commandInfo.Parameters.Length;
+        CreateInvokeArguments(commandInfo, args, out int totalMethodParameters, out object?[] invocationArgs);
 
-        object?[] invocationArgs = new object?[totalMethodParameters];
+        return await InvokeCommandAsync(commandInfo, totalMethodParameters, invocationArgs);
+    }
 
+    private void CreateInvokeArguments(CommandInfo commandInfo, string[] args, out int totalMethodParameters, out object?[] invocationArgs)
+    {
+        totalMethodParameters = commandInfo.Parameters.Length;
+        invocationArgs = new object?[totalMethodParameters];
         if (commandInfo.ArgumentCount == CommandAttribute.ANY)
         {
             if (totalMethodParameters > 0)
@@ -132,43 +132,48 @@ public partial class CommandDispatcher
         {
             invocationArgs[totalMethodParameters - 1] = _logger;
         }
+    }
 
+    private async Task<CommandStageResult?> InvokeCommandAsync(CommandInfo commandInfo, int totalMethodParameters, object?[] invocationArgs)
+    {
         try
         {
             object? result = commandInfo.Method.Invoke(null, invocationArgs);
 
             if (commandInfo.IsAsync)
             {
-                if (result is Task task)
+                switch (result)
                 {
-                    await task;
-                }
-                else if (result is Task<CommandStageResult> resultTask)
-                {
-                    return await resultTask;
+                    case Task<CommandStageResult> resultTask:
+                        return await resultTask;
+
+                    case Task task:
+                        await task;
+                        break;
                 }
             }
-            else
+            else if (result is CommandStageResult commandResult)
             {
-                if (result is CommandStageResult commandResult)
-                {
-                    return commandResult;
-                }
+                return commandResult;
             }
 
             return null;
         }
-        catch (TargetParameterCountException ex)
+        catch (TargetParameterCountException tpcex)
         {
-            _logger.LogError(ex, "Internal Invocation Error for command '{Name}': Parameter count mismatch. Method expects {TotalMethodParameters}, built {Length}.",
+            _logger.LogError(tpcex, "Internal Invocation Error for command '{Name}': Parameter count mismatch. Method expects {TotalMethodParameters}, built {Length}.",
                 commandInfo.Name, totalMethodParameters, invocationArgs.Length);
             throw;
         }
+        catch (TargetInvocationException tex)
+        {
+            Exception real = tex.InnerException!;
+            _logger.LogError(real, "Command '{Name}' failed", commandInfo.Name);
+            throw real;
+        }
         catch (Exception ex)
         {
-#pragma warning disable S6667 // Logging in a catch clause should pass the caught exception as a parameter.
-            _logger.LogError(ex.InnerException ?? ex, "Command '{Name}' failed", commandInfo.Name);
-#pragma warning restore S6667 // Logging in a catch clause should pass the caught exception as a parameter.
+            _logger.LogError(ex, "Command '{Name}' failed", commandInfo.Name);
             throw;
         }
     }
@@ -199,74 +204,86 @@ public partial class CommandDispatcher
                 continue;
             }
 
-            ParameterInfo[] parameters = methodInfo.GetParameters();
-
-            bool hasViewLogger = parameters.Length > 0 && parameters[^1].ParameterType == typeof(ILogger);
-
-            int declaredCommandArgsCount = hasViewLogger
-                ? parameters.Length - 1
-                : parameters.Length;
-
-            bool signatureMatchesAttribute = false;
-
-            switch (attribute.ArgumentCount)
+            (bool flowControl, bool requestsLogger) = AssembleCommandPrototype(logger, methodInfo, attribute);
+            if (!flowControl)
             {
-                case CommandAttribute.ANY:
-                {
-                    signatureMatchesAttribute = declaredCommandArgsCount is 1 && parameters[0].ParameterType == typeof(string[]);
-
-                    if (!signatureMatchesAttribute)
-                    {
-                        logger.LogError("Command '{AttributeName}' ({Name}) has ArgumentCount.ANY but command-specific signature is not (string[] args).", attribute.Name, methodInfo.Name);
-                        continue;
-                    }
-                }
-                break;
-
-                case CommandAttribute.NONE:
-                {
-                    signatureMatchesAttribute = declaredCommandArgsCount is 0;
-
-                    if (!signatureMatchesAttribute)
-                    {
-                        logger.LogError("Command '{AttributeName}' ({Name}) has ArgumentCount.NONE but command-specific signature is not ().", attribute.Name, methodInfo.Name);
-                        continue;
-                    }
-                }
-                break;
-
-                default:
-                {
-                    signatureMatchesAttribute = declaredCommandArgsCount == attribute.ArgumentCount
-                        && parameters.Take(declaredCommandArgsCount).All(p => p.ParameterType == typeof(string));
-
-                    if (!signatureMatchesAttribute)
-                    {
-                        logger.LogError("Command '{AttributeName}' ({Name}) expects {ArgumentCount} string arguments but command-specific signature is not (string, string, ...).",
-                            attribute.Name, methodInfo.Name, attribute.ArgumentCount);
-                        continue;
-                    }
-                }
-                break;
+                continue;
             }
 
-            try
-            {
-                CommandInfo info = new(attribute, methodInfo, hasViewLogger);
+            CommandInfo info = new(attribute, methodInfo, requestsLogger);
 
-                if (!s_commands.TryAdd(info.Name, info))
-                {
-                    logger.LogError("Duplicate command name found: '{InfoName}' defined by {Name}. Previous definition will be overwritten.", info.Name, methodInfo.Name);
-                    s_commands[info.Name] = info;
-                }
-            }
-            catch (Exception ex)
+            if (!s_commands.TryAdd(info.Name, info))
             {
-                logger.LogError(ex, "Failed to initialize command '{AttributeName}' ({Name}())", attribute.Name, methodInfo.Name);
+                logger.LogError("Duplicate command name found: '{InfoName}' defined by {Name}. Previous definition will be overwritten.", info.Name, methodInfo.Name);
+                s_commands[info.Name] = info;
             }
         }
 
         logger.LogDebug("Cached {Count} internal commands.", s_commands.Count);
+    }
+
+    private static (bool flowControl, bool value) AssembleCommandPrototype(ILogger logger, MethodInfo methodInfo, CommandAttribute attribute)
+    {
+        ParameterInfo[] parameters = methodInfo.GetParameters();
+
+        bool hasViewLogger = parameters.Length > 0 && parameters[^1].ParameterType == typeof(ILogger);
+
+        int declaredCommandArgsCount = hasViewLogger
+            ? parameters.Length - 1
+            : parameters.Length;
+
+        bool signatureMatchesAttribute = false;
+
+        switch (attribute.ArgumentCount)
+        {
+            case CommandAttribute.ANY:
+            {
+                signatureMatchesAttribute = declaredCommandArgsCount is 1 && parameters[0].ParameterType == typeof(string[]);
+
+                if (!signatureMatchesAttribute)
+                {
+                    logger.LogError("Command '{AttributeName}' ({Name}) has ArgumentCount.ANY but command-specific signature is not (string[] args).", attribute.Name, methodInfo.Name);
+                    return (flowControl: false, value: default);
+                }
+            }
+            break;
+
+            case CommandAttribute.NONE:
+            {
+                signatureMatchesAttribute = declaredCommandArgsCount is 0;
+
+                if (!signatureMatchesAttribute)
+                {
+                    logger.LogError("Command '{AttributeName}' ({Name}) has ArgumentCount.NONE but command-specific signature is not ().", attribute.Name, methodInfo.Name);
+                    return (flowControl: false, value: default);
+                }
+            }
+            break;
+
+            default:
+            {
+                signatureMatchesAttribute = declaredCommandArgsCount == attribute.ArgumentCount
+                    && parameters.Take(declaredCommandArgsCount).All(p => p.ParameterType == typeof(string));
+
+                if (!signatureMatchesAttribute)
+                {
+                    logger.LogError("Command '{AttributeName}' ({Name}) expects {ArgumentCount} string arguments but command-specific signature is not (string, string, ...).",
+                        attribute.Name, methodInfo.Name, attribute.ArgumentCount);
+                    return (flowControl: false, value: default);
+                }
+            }
+            break;
+        }
+
+        return (flowControl: true, value: default);
+    }
+
+    private void ResolveCommandArguments(string[] args)
+    {
+        for (int i = 0; i < args.Length; ++i)
+        {
+            args[i] = ReplaceVariables(args[i]);
+        }
     }
 
     private void CheckArgumentAccess(int argCount, string[] args, FileAccess[] accessors)

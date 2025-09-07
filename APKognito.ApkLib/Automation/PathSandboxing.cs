@@ -17,7 +17,7 @@ public class PathSandboxing
     {
         if (userPath.Any(char.IsControl))
         {
-            throw new UnsafeExtraPathException($"The given path '{CleanStringBytes(userPath)}' contains control characters.");
+            throw new UnsafeExtraPathException($"The given path '{SanitizeStringBytes(userPath)}' contains control characters.");
         }
 
         drivePath = drivePath.TrimEnd('\\');
@@ -31,12 +31,12 @@ public class PathSandboxing
             throw new UnsafeExtraPathException($"The given path '{userPath}' attempts to modify the project root directory.");
         }
 
-        return !combinedPath.StartsWith(normalizedBasePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+        return !combinedPath.StartsWith($"{normalizedBasePath}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
             ? throw new UnsafeExtraPathException($"The given path '{userPath}' escapes the package directory.")
             : combinedPath;
     }
 
-    private static string CleanStringBytes(string offending)
+    private static string SanitizeStringBytes(string offending)
     {
         StringBuilder output = new();
 

@@ -1,8 +1,9 @@
-﻿using System.IO;
+﻿using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 
 namespace APKognito.ApkLib.Automation;
 
+[Obsolete("Use AutoConfigVisitor instead.")]
 public sealed partial class ConfigParser
 {
     private const char STAGE_PREFIX = '@',
@@ -10,7 +11,7 @@ public sealed partial class ConfigParser
 
     private readonly StreamReader _stream;
 
-    private readonly AutoConfigModel _configBuilder;
+    private readonly AutoConfigBuilder _configBuilder;
 
     private RenameStage _currentStage;
 
@@ -24,18 +25,21 @@ public sealed partial class ConfigParser
         _currentStage = null!;
     }
 
-    public async Task<AutoConfigModel> BeginParseAsync()
+    public async Task<AutoConfig> BeginParseAsync()
     {
         if (_stream.EndOfStream)
         {
-            return _configBuilder;
+            return new()
+            {
+                Stages = ReadOnlyCollection<RenameStage>.Empty,
+                ConfigVersion = new(),
+                MetadataTable = ReadOnlyDictionary<string, string>.Empty,
+            };
         }
 
         await StartParseAsync();
 
-        _configBuilder.Organize();
-
-        return _configBuilder;
+        return _configBuilder.Build();
     }
 
     private async Task StartParseAsync()
@@ -127,35 +131,25 @@ public sealed partial class ConfigParser
         _currentStage.Commands.Add(command);
     }
 
-    private void CollectVersion(string versionLine)
-    {
-        throw new NotImplementedException("Versions have not been implemented yet!s");
-
-        if (_configBuilder.ConfigVersion is not null)
-        {
-            throw new InvalidVersionConfigException($"The configuration version can not be set more than once. (line {lineIndex})");
-        }
-    }
-
     [GeneratedRegex(@"\s*;.*")]
     private static partial Regex TrimCommentRegex();
 
     [GeneratedRegex(@"^\s*(?<command>\w+)(\s+(""(?<args>[^""]*)""|'(?<args>[^']*)'))*")]
     private static partial Regex SplitCommandRegex();
+}
 
-    public class InvalidCommandOrderException(string message) : Exception(message)
-    {
-    }
+public class InvalidCommandOrderException(string message) : Exception(message)
+{
+}
 
-    public class UnknownStageException(string stageName, int line) : Exception($"Unknown stage '{stageName}' at line {line}.")
-    {
-    }
+public class UnknownStageException(string stageName, int line) : Exception($"Unknown stage '{stageName}' at line {line}.")
+{
+}
 
-    public class InvalidCommandFormatException(int line) : Exception($"The line {line} is not in a valid format. (command 'argument' \"argument\" ...)")
-    {
-    }
+public class InvalidCommandFormatException(int line) : Exception($"The line {line} is not in a valid format. (command 'argument' \"argument\" ...)")
+{
+}
 
-    public class InvalidVersionConfigException(string message) : Exception(message)
-    {
-    }
+public class InvalidVersionConfigException(string message) : Exception(message)
+{
 }
