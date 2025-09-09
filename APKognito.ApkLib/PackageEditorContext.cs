@@ -1,11 +1,12 @@
 ﻿using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
+using APKognito.ApkLib.Exceptions;
 using APKognito.ApkLib.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib;
 
-public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, ISettableNameDataContext<PackageEditorContext>
+public sealed class PackageEditorContext : IReportable<PackageEditorContext>
 {
     private readonly ILogger _logger;
     private readonly PackageToolingPaths _toolingPaths;
@@ -33,12 +34,13 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, 
     public PackageEditorContext(PackageRenameConfiguration renameConfiguration, PackageNameData nameData, PackageToolingPaths toolingPaths, ILogger? logger)
     {
         ArgumentNullException.ThrowIfNull(renameConfiguration);
+        ArgumentNullException.ThrowIfNull(nameData);
         ArgumentNullException.ThrowIfNull(toolingPaths);
 
-        _logger = MockLogger.MockIfNull(logger);
-        _toolingPaths = toolingPaths;
         RenameConfiguration = renameConfiguration;
         _nameData = nameData;
+        _toolingPaths = toolingPaths;
+        _logger = MockLogger.MockIfNull(logger);
     }
 
     /// <summary>
@@ -61,7 +63,7 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, 
     {
         ThrowIfNullConfig();
 
-        CompressorConfiguration compressorConfig = RenameConfiguration!.CompressorConfiguration;
+        CompressorConfiguration compressorConfig = RenameConfiguration!.CompressorConfiguration ?? new();
 
         return new PackageCompressor(compressorConfig, _toolingPaths, _nameData, _logger);
     }
@@ -123,6 +125,46 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>//, 
     }
 
     #endregion Editor Instance Creators
+
+    /// <summary>
+    /// Assigns the package names to the shared <see cref="PackageNameData"/>. This is required in order for the rest of the renaming
+    /// process to function.
+    /// </summary>
+    public void GatherPackageMetadata(string? manifestPath = null)
+    {
+        manifestPath = BaseRenameConfiguration.Coalesce(manifestPath, () => Path.Combine(_nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
+        _nameData.OriginalPackageName = PackageCompressor.GetPackageName(manifestPath);
+
+        (
+            _,
+            _nameData.OriginalCompanyName,
+            _nameData.NewPackageName
+        ) = PackageCompressor.SplitPackageName(_nameData);
+
+        // Also set the output directory as long as a base directory is set and a explicit directory is not.
+        if (_nameData.RenamedPackageOutputBaseDirectory is not null)
+        {
+            if (_nameData.RenamedPackageOutputDirectory is not null)
+            {
+                throw new InvalidConfigurationException("The RenamedPackageOutputDirectory must be null if RenamedPackageOutputBaseDirectory is set.");
+            }
+
+            _nameData.RenamedOutputDirectoryInternal = Path.Combine(_nameData.RenamedPackageOutputBaseDirectory, PackageUtils.GetFormattedTimeDirectory(_nameData.NewPackageName));
+        }
+        else
+        {
+            if (_nameData.RenamedPackageOutputDirectory is null)
+            {
+                throw new InvalidConfigurationException("Either RenamedPackageOutputBaseDirectory or RenamedPackageOutputDirectory must be set to valid paths.");
+            }
+
+            _nameData.RenamedOutputDirectoryInternal = _nameData.RenamedPackageOutputDirectory!;
+        }
+
+        _ = Directory.CreateDirectory(_nameData.RenamedOutputDirectoryInternal);
+
+        RenameConfiguration?.BuildAndCacheRegex(_nameData.OriginalCompanyName);
+    }
 
     public PackageEditorContext SetReporter(IProgress<ProgressInfo>? reporter)
     {
