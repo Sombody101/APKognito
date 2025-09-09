@@ -11,18 +11,19 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
 {
     private readonly LibraryRenameConfiguration _renameConfiguration;
     private readonly ILogger _logger;
-    private readonly PackageNameData? _nameData;
+    private readonly PackageNameData _nameData;
 
     private IProgress<ProgressInfo>? _reporter;
 
-    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageNameData? nameData)
+    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageNameData nameData)
         : this(renameConfiguration, nameData, null)
     {
     }
 
-    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageNameData? nameData, ILogger? logger)
+    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageNameData nameData, ILogger? logger)
     {
         ArgumentNullException.ThrowIfNull(renameConfiguration);
+        ArgumentNullException.ThrowIfNull(nameData);
 
         _renameConfiguration = renameConfiguration;
         _nameData = nameData;
@@ -38,13 +39,11 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
     public async Task RunAsync(string? libraryDirectory = null, CancellationToken token = default)
     {
         InvalidConfigurationException.ThrowIfNull(_renameConfiguration);
-        InvalidConfigurationException.ThrowIfNull(_nameData);
 
-        libraryDirectory ??= Path.Combine(_nameData!.ApkAssemblyDirectory, "lib");
+        libraryDirectory ??= Path.Combine(_nameData.ApkAssemblyDirectory, "lib");
 
         if (!_renameConfiguration.EnableLibraryRenaming && !_renameConfiguration.EnableLibraryFileRenaming)
         {
-            // Early return
             _logger.LogInformation("Skipping binaries.");
             return;
         }
@@ -55,8 +54,12 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
             return;
         }
 
-        _logger.LogInformation("Renaming libraries.");
+        if (_nameData.OriginalCompanyName.Length != _nameData.NewCompanyName.Length)
+        {
+            throw new InvalidOperationException("The package replacement name cannot be a different length of the original name.");
+        }
 
+        _logger.LogInformation("Renaming libraries.");
         _reporter.ReportProgressTitle("Renaming libraries");
 
         IEnumerable<string> libraries = GetLibraryPaths(libraryDirectory);
@@ -83,8 +86,6 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
     /// </summary>
     public void RenameLibraryFile(string libraryPath)
     {
-        InvalidConfigurationException.ThrowIfNull(_nameData);
-
         string originalName = Path.GetFileName(libraryPath);
         string newFileName = _renameConfiguration.BuildAndCacheRegex(_nameData.OriginalCompanyName)
             .Replace(originalName, _nameData.NewCompanyName);
@@ -105,8 +106,6 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
     /// </summary>
     public async Task RenameLibraryTablesAsync(string libraryPath, CancellationToken token = default)
     {
-        InvalidConfigurationException.ThrowIfNull(_nameData);
-
         using IDisposable? scope = _logger.BeginScope('\t');
 
         var binaryReplace = new BinaryReplace(libraryPath, _reporter, _logger);
@@ -122,7 +121,7 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
         return Directory.EnumerateFiles(libraryDirectory, "*.so", SearchOption.AllDirectories)
             .Concat(_renameConfiguration.ExtraInternalPackagePaths
                 .Where(p => p.FileType is FileType.Elf)
-                .Select(p => Path.Combine(_nameData!.ApkAssemblyDirectory, p.FilePath)))
+                .Select(p => Path.Combine(_nameData.ApkAssemblyDirectory, p.FilePath)))
             .Where(p => !p.EndsWith(".config.so") && !p.Equals("libscript.so")) // These are usually a Json or JS file, not an ELF.
             .FilterByAdditions(Inclusions, Exclusions);
     }

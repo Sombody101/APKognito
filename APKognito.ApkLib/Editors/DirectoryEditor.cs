@@ -1,27 +1,28 @@
 ﻿using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Exceptions;
 using APKognito.ApkLib.Interfaces;
+using APKognito.ApkLib.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;
 
-public sealed class DirectoryEditor : Additionals<DirectoryEditor>,
-    IReportable<DirectoryEditor>
+public sealed class DirectoryEditor : Additionals<DirectoryEditor>, IReportable<DirectoryEditor>
 {
     private readonly ILogger _logger;
     private readonly DirectoryRenameConfiguration _renameConfig;
-    private readonly PackageNameData? _nameData;
+    private readonly PackageNameData _nameData;
 
     private IProgress<ProgressInfo>? _reporter;
 
-    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageNameData? nameData)
+    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageNameData nameData)
         : this(renameConfig, nameData, null)
     {
     }
 
-    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageNameData? nameData, ILogger? logger)
+    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageNameData nameData, ILogger? logger)
     {
         ArgumentNullException.ThrowIfNull(renameConfig);
+        ArgumentNullException.ThrowIfNull(nameData);
 
         _renameConfig = renameConfig;
         _nameData = nameData;
@@ -59,7 +60,7 @@ public sealed class DirectoryEditor : Additionals<DirectoryEditor>,
     /// <param name="originalCompanyName"></param>
     /// <param name="newCompanyName"></param>
     /// <param name="additionals"></param>
-    public void ReplaceAllDirectoryNames(string? baseDirectory, string originalCompanyName, string newCompanyName)
+    public void ReplaceAllDirectoryNames(string baseDirectory, string originalCompanyName, string newCompanyName)
     {
         _logger.LogInformation("Renaming Smali directories.");
 

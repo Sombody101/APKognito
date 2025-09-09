@@ -7,23 +7,23 @@ using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;
 
-public sealed class AssetEditor : Additionals<AssetEditor>,
-    IReportable<AssetEditor>
+public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEditor>
 {
     private readonly AssetRenameConfiguration _renameConfiguration;
     private readonly ILogger _logger;
-    private readonly PackageNameData? _nameData;
+    private readonly PackageNameData _nameData;
 
     private IProgress<ProgressInfo>? _reporter;
 
-    public AssetEditor(AssetRenameConfiguration renameConfig, PackageNameData? nameData)
+    public AssetEditor(AssetRenameConfiguration renameConfig, PackageNameData nameData)
         : this(renameConfig, nameData, null)
     {
     }
 
-    public AssetEditor(AssetRenameConfiguration renameConfig, PackageNameData? nameData, ILogger? logger)
+    public AssetEditor(AssetRenameConfiguration renameConfig, PackageNameData nameData, ILogger? logger)
     {
         ArgumentNullException.ThrowIfNull(renameConfig);
+        ArgumentNullException.ThrowIfNull(nameData);
 
         _renameConfiguration = renameConfig;
         _nameData = nameData;
@@ -57,7 +57,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
 
     public void MoveAssets(string? assetsDirectory, string outputLocation)
     {
-        // This relies on the user not using a separate drive for output files. Although it's very likely.
+        // This relies on the user not using a separate drive for output files due to speed. Although it's very likely.
         Directory.Move(
             BaseRenameConfiguration.Coalesce(assetsDirectory, _renameConfiguration.AssetDirectory),
             outputLocation
@@ -66,7 +66,6 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
 
     public async Task<string?> RunAsync(string? assetDirectory = null, string? outputDirectory = null, CancellationToken token = default)
     {
-        InvalidConfigurationException.ThrowIfNull(_nameData);
         InvalidConfigurationException.ThrowIfNullEmptyOrWhitespace(_nameData.RenamedOutputDirectoryInternal, "No set output renamed package output directory. Remember to run PackageCompressor.GatherPackageMetadata()!");
 
         return await RunInternalAsync(
@@ -88,7 +87,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
         if (assetDirectory is null)
         {
             // Assume the asset directory is next to the package. Otherwise, this needs to be an overridden path.
-            string parentDirectory = Path.GetDirectoryName(_nameData!.FullSourceApkPath)!;
+            string parentDirectory = Path.GetDirectoryName(_nameData.FullSourceApkPath)!;
             assetDirectory = Path.Combine(parentDirectory, _nameData.OriginalPackageName);
         }
 
@@ -109,6 +108,13 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
 
         foreach (string assetPath in GetAssetPaths(assetDirectory))
         {
+            if (!assetPath.EndsWith(".obb"))
+            {
+                string fileName = Path.GetFileName(assetPath);
+                await MoveAssetAsync(assetPath, Path.Combine(outputDirectory, fileName), mode, token);
+                continue;
+            }
+
             await RenameAssetInternalAsync(assetPath, outputDirectory, mode, token);
 
             if (_renameConfiguration.RenameObbArchiveEntries)
@@ -124,18 +130,23 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
     {
         _reporter.ReportProgressMessage(Path.GetFileName(assetPath));
 
-        string newAssetName = $"{Path.GetFileNameWithoutExtension(assetPath).Replace(_nameData!.OriginalCompanyName, _nameData.NewCompanyName)}.obb";
+        string newAssetName = Path.GetFileName(assetPath).Replace(_nameData.OriginalCompanyName, _nameData.NewCompanyName);
 
         _logger.LogInformation("Renaming asset file: {GetFileName}{InternalRenameInfoLogDelimiter}{NewAssetName} (Mode: {Mode})", Path.GetFileName(assetPath), _renameConfiguration.InternalRenameInfoLogDelimiter, newAssetName, mode);
 
         string assetOutputPath = Path.Combine(outputDirectory, newAssetName);
+        await MoveAssetAsync(assetPath, assetOutputPath, mode, token);
+    }
+
+    private async ValueTask MoveAssetAsync(string assetPath, string targetDirectory, AssetTransferMode mode, CancellationToken token)
+    {
         if (mode is AssetTransferMode.Copy)
         {
-            await CopyLargeAsync(assetPath, assetOutputPath, token);
+            await CopyLargeAsync(assetPath, targetDirectory, _renameConfiguration.AssetCopyBuffer, token);
         }
         else
         {
-            File.Move(assetPath, assetOutputPath);
+            File.Move(assetPath, targetDirectory);
         }
     }
 
@@ -146,31 +157,29 @@ public sealed class AssetEditor : Additionals<AssetEditor>,
             var binaryReplace = new ArchiveReplace(_reporter, _logger);
             await binaryReplace.ModifyArchiveStringsAsync(
                 assetPath,
-                _renameConfiguration.BuildAndCacheRegex(_nameData!.OriginalCompanyName),
+                _renameConfiguration.BuildAndCacheRegex(_nameData.OriginalCompanyName),
                 _nameData.NewCompanyName,
                 [.. _renameConfiguration.RenameObbsInternalExtras],
                 token
             );
         }
-        catch (ZipException)
+        catch (ZipException zex)
         {
-            _logger.LogWarning("The file '{Path}' is not an archive. Skipping.", Path.GetFileName(assetPath));
+            _logger.LogWarning(zex, "The file '{FileName}' is not an archive. Skipping.", Path.GetFileName(assetPath));
         }
     }
 
     private IEnumerable<string> GetAssetPaths(string assetDirectory)
     {
-        InvalidConfigurationException.ThrowIfNull(_nameData);
-
-        return Directory.EnumerateFiles(assetDirectory, $"*{_nameData.FullSourceApkFileName}.obb")
+        return Directory.EnumerateFiles(assetDirectory)//, $"*{_nameData.FullSourceApkFileName}.obb")
             .Concat(_renameConfiguration.ExtraInternalPackagePaths)
             .FilterByAdditions(Inclusions, Exclusions);
     }
 
-    private static async Task CopyLargeAsync(string sourceFile, string targetFile, CancellationToken token)
+    private static async Task CopyLargeAsync(string sourceFile, string targetFile, int bufferSize, CancellationToken token)
     {
-        using FileStream sourceStream = new(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
-        using FileStream destinationStream = new(targetFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true);
+        using FileStream sourceStream = new(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, true);
+        using FileStream destinationStream = new(targetFile, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, true);
 
         await sourceStream.CopyToAsync(destinationStream, token);
     }

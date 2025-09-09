@@ -2,14 +2,16 @@
 // #define ASYNC_RENAME_DISABLED
 #endif
 
+using System.Runtime.CompilerServices;
+using System.Text;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Exceptions;
 using APKognito.ApkLib.Interfaces;
+using APKognito.ApkLib.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;
 
-// TODO: Port SmaliEditor from legacy ApkLib
 public sealed class SmaliEditor : Additionals<SmaliEditor>,
     IReportable<SmaliEditor>
 {
@@ -34,29 +36,33 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
         _logger = MockLogger.MockIfNull(logger);
     }
 
-    public async Task RunAsync(CancellationToken token = default)
+    public async Task RunAsync(IProgress<ProgressInfo>? reporter = null, CancellationToken token = default)
     {
         InvalidConfigurationException.ThrowIfNull(_nameData);
-
         Directory.CreateDirectory(_nameData.ApkSmaliTempDirectory);
-
-        int workingOnFile = 0;
-
-        IEnumerable<string> renameFiles = GetSmaliFiles();
 
 #if DEBUG
 #if ASYNC_RENAME_DISABLED
-        _logger.LogDebug("Beginning single-threaded rename on {Count:n0} smali files.", renameFiles.Count());
+        _logger.LogDebug("Beginning single-threaded rename on smali files.");
 #else
-        _logger.LogDebug("Beginning multi-threaded rename on {Count:n0} smali files.", renameFiles.Count());
+        _logger.LogDebug("Beginning multi-threaded rename on smali files.");
 #endif
 #else
         _logger.LogInformation("Renaming Smali files.");
 #endif
 
-        _reporter.ReportProgressTitle("Renaming file");
+        reporter ??= _reporter;
+
+        reporter.Clear();
+        reporter.ReportProgressTitle("Renaming file");
+
+        int workingOnFile = 0;
 
 #if ASYNC_RENAME_DISABLED
+        var renameFiles = _renameConfiguration.ScanSmaliBeforeReplace
+            ? GetSmaliFilesAsync(reporter, token)
+            : GetSmaliFiles();
+
         foreach (string file in renameFiles)
         {
             workingOnFile++;
@@ -65,21 +71,32 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
             await ReplaceTextInFileAsync(file, token);
         }
 #else
-        object lockobj = new(); // This should be changed to the 'Lock' object once APKognito updates to .net 9eee
-        await Parallel.ForEachAsync(renameFiles, token,
-            async (filePath, subcToken) =>
+        var progressChannel = System.Threading.Channels.Channel.CreateUnbounded<string>();
+        _ = Task.Run(async () =>
+        {
+            await foreach (string message in progressChannel.Reader.ReadAllAsync())
             {
-                Interlocked.Increment(ref workingOnFile);
-
-                if (Monitor.TryEnter(lockobj))
-                {
-                    _reporter.ReportProgressMessage($"{workingOnFile}: {Path.GetFileName(filePath)}");
-                }
-
-                await ReplaceTextInFileAsync(filePath, subcToken);
+                reporter.ReportProgressMessage(message);
             }
-        );
+        }, token);
+
+        await (_renameConfiguration.ScanSmaliBeforeReplace
+            ? Parallel.ForEachAsync(GetSmaliFilesAsync(reporter, token), token, RenameFile)
+            : Parallel.ForEachAsync(GetSmaliFiles(), token, RenameFile));
+
+        async ValueTask RenameFile(string filePath, CancellationToken subcToken)
+        {
+            subcToken.ThrowIfCancellationRequested();
+
+            int count = Interlocked.Increment(ref workingOnFile);
+            await progressChannel.Writer.WriteAsync($"{count}: {Path.GetFileName(filePath)}", subcToken);
+
+            await ReplaceTextInFileAsync(filePath, subcToken);
+        }
 #endif
+
+        reporter.ReportProgressTitle("Finished");
+        reporter.ReportProgressMessage("Finished");
     }
 
     /// <inheritdoc/>
@@ -91,27 +108,64 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
 
     private IEnumerable<string> GetSmaliFiles()
     {
-        string smaliDirectory = Path.Combine(_nameData!.ApkAssemblyDirectory, "smali");
-        IEnumerable<string> renameFiles = Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories)
-            .Append($"{_nameData.ApkAssemblyDirectory}\\AndroidManifest.xml")
-            .Append($"{_nameData.ApkAssemblyDirectory}\\apktool.yml")
-            .FilterByAdditions(Inclusions, Exclusions);
+        string apkAssemblyDirectory = _nameData!.ApkAssemblyDirectory;
 
-        foreach (string directory in Directory.GetDirectories(_nameData.ApkAssemblyDirectory, "smali_*"))
+        IEnumerable<string> smaliFiles = Directory.EnumerateFiles(
+            Path.Combine(apkAssemblyDirectory, "smali"),
+            "*.smali",
+            SearchOption.AllDirectories);
+
+        IEnumerable<string> additionalSmaliFiles = Directory.EnumerateDirectories(apkAssemblyDirectory, "smali_*")
+            .SelectMany(dir => Directory.EnumerateFiles(dir, "*.smali", SearchOption.AllDirectories));
+
+        IEnumerable<string> allFiles = smaliFiles
+            .Concat(additionalSmaliFiles)
+            .Append(Path.Combine(apkAssemblyDirectory, "AndroidManifest.xml"))
+            .Append(Path.Combine(apkAssemblyDirectory, "apktool.yml"));
+
+        string libDirectory = Path.Combine(apkAssemblyDirectory, "lib");
+        if (Directory.Exists(libDirectory))
         {
-            renameFiles = renameFiles.Concat(Directory.EnumerateFiles(directory, "*.smali", SearchOption.AllDirectories));
+            allFiles = allFiles.Concat(
+                Directory.EnumerateFiles(libDirectory, "*.config.so", SearchOption.AllDirectories));
+        }
+
+        IEnumerable<string> extraFiles = _renameConfiguration.ExtraInternalPackagePaths
+            .Where(p => p.FileType is FileType.RegularText)
+            .Select(p => Path.Combine(apkAssemblyDirectory, p.FilePath));
+
+        allFiles = allFiles.Concat(extraFiles);
+
+        return allFiles.FilterByAdditions(Inclusions, Exclusions);
+    }
+
+    public async IAsyncEnumerable<string> GetSmaliFilesAsync(IProgress<ProgressInfo>? reporter, [EnumeratorCancellation] CancellationToken token)
+    {
+        string[] smalidDirectories = Directory.GetDirectories(_nameData!.ApkAssemblyDirectory, "smali_*");
+
+        await foreach (string filePath in FunctionalGrep.FindFilesWithSubstringAsync(_nameData.OriginalCompanyName, smalidDirectories, reporter, token))
+        {
+            yield return filePath;
         }
 
         string libDirectory = Path.Combine(_nameData.ApkAssemblyDirectory, "lib");
         if (Directory.Exists(libDirectory))
         {
-            renameFiles = Directory.EnumerateFiles(libDirectory, "*.config.so", SearchOption.AllDirectories)
-                .Concat(renameFiles);
+            foreach (string libFile in Directory.EnumerateFiles(libDirectory, "*.config.so", SearchOption.AllDirectories))
+            {
+                yield return libFile;
+            }
         }
 
-        return renameFiles.Concat(_renameConfiguration.ExtraInternalPackagePaths
+        yield return Path.Combine(_nameData.ApkAssemblyDirectory, "AndroidManifest.xml");
+        yield return Path.Combine(_nameData.ApkAssemblyDirectory, "apktool.yml");
+
+        foreach (string? extraPath in _renameConfiguration.ExtraInternalPackagePaths
             .Where(p => p.FileType is FileType.RegularText)
-            .Select(p => Path.Combine(_nameData.ApkAssemblyDirectory, p.FilePath)));
+            .Select(p => Path.Combine(_nameData.ApkAssemblyDirectory, p.FilePath)))
+        {
+            yield return extraPath;
+        }
     }
 
     private async Task ReplaceTextInFileAsync(string filePath, CancellationToken cToken)
@@ -126,34 +180,52 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
 
         if (fileInfo.Length < _renameConfiguration.MaxSmaliLoadSize)
         {
+            await FullFileReplace(filePath, cToken);
+        }
+
+        await StreamFileReplace(fileInfo, cToken);
+
+        async Task FullFileReplace(string filePath, CancellationToken cToken)
+        {
             string content = await File.ReadAllTextAsync(filePath, cToken);
+
+            // Might seem dumb/redundant, but it reduced driver call overhead by ~12% on large packages
+            if (!content.Contains(_nameData!.OriginalCompanyName))
+            {
+                return;
+            }
+
             string newContent = Replace(content);
             await File.WriteAllTextAsync(filePath, newContent, cToken);
             return;
         }
 
-        string tempSmaliFile = Path.Combine(_nameData!.ApkSmaliTempDirectory, $"${fileInfo.Name}_{Random.Shared.Next():x}");
-        using StreamReader reader = new(fileInfo.FullName);
-        using StreamWriter writer = new(tempSmaliFile);
-
-        string? line;
-        while ((line = await reader.ReadLineAsync(cToken)) is not null)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)] // Hot path
+        async Task StreamFileReplace(FileInfo fileInfo, CancellationToken cToken)
         {
-            if (!string.IsNullOrEmpty(line)
-                && line.Length >= _nameData!.OriginalCompanyName.Length
-                && !line.StartsWith('#'))
+            string tempSmaliFile = Path.Combine(_nameData!.ApkSmaliTempDirectory, $"${fileInfo.Name}_{Random.Shared.Next():x}");
+            using StreamReader reader = new(fileInfo.FullName, Encoding.Default, detectEncodingFromByteOrderMarks: true, bufferSize: _renameConfiguration.SmaliBufferSize);
+            using StreamWriter writer = new(tempSmaliFile, append: false, reader.CurrentEncoding, _renameConfiguration.SmaliBufferSize);
+
+            string? line;
+            while ((line = await reader.ReadLineAsync(cToken)) is not null)
             {
-                line = Replace(line);
+                if (!string.IsNullOrEmpty(line)
+                    && !line.StartsWith('#')
+                    && line.Contains(_nameData!.OriginalCompanyName))
+                {
+                    line = Replace(line);
+                }
+
+                await writer.WriteLineAsync(line);
             }
 
-            await writer.WriteLineAsync(line);
+            reader.Close();
+            writer.Close();
+
+            File.Delete(fileInfo.FullName);
+            File.Move(tempSmaliFile, fileInfo.FullName);
         }
-
-        reader.Close();
-        writer.Close();
-
-        File.Delete(fileInfo.FullName);
-        File.Move(tempSmaliFile, fileInfo.FullName);
 
         string Replace(string original)
         {

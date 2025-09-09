@@ -113,44 +113,6 @@ public sealed class PackageCompressor
         );
     }
 
-    /// <summary>
-    /// Assigns the package names to the shared <see cref="PackageNameData"/>. This is required in order for the rest of the renaming
-    /// process to function.
-    /// </summary>
-    public void GatherPackageMetadata(string? manifestPath = null)
-    {
-        manifestPath = BaseRenameConfiguration.Coalesce(manifestPath, () => Path.Combine(_nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
-        _nameData.OriginalPackageName = GetPackageName(manifestPath);
-
-        (
-            _,
-            _nameData.OriginalCompanyName,
-            _nameData.NewPackageName
-        ) = SplitPackageName(_nameData);
-
-        // Also set the output directory as long as a base directory is set and a explicit directory is not.
-        if (_nameData.RenamedPackageOutputBaseDirectory is not null)
-        {
-            if (_nameData.RenamedPackageOutputDirectory is not null)
-            {
-                throw new InvalidConfigurationException("The RenamedPackageOutputDirectory must be null if RenamedPackageOutputBaseDirectory is set.");
-            }
-
-            _nameData.RenamedOutputDirectoryInternal = Path.Combine(_nameData.RenamedPackageOutputBaseDirectory, PackageUtils.GetFormattedTimeDirectory(_nameData.NewPackageName));
-        }
-        else
-        {
-            if (_nameData.RenamedPackageOutputDirectory is null)
-            {
-                throw new InvalidConfigurationException("Either RenamedPackageOutputBaseDirectory or RenamedPackageOutputDirectory must be set to valid paths.");
-            }
-
-            _nameData.RenamedOutputDirectoryInternal = _nameData.RenamedPackageOutputDirectory!;
-        }
-
-        _ = Directory.CreateDirectory(_nameData.RenamedOutputDirectoryInternal);
-    }
-
     private async Task UnpackPackageInternalAsync(string packagePath, string outputDirectory, bool overwrite, CancellationToken token)
     {
         if (!File.Exists(packagePath))
