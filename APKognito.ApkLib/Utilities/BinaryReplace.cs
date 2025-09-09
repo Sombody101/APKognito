@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using ELFSharp.ELF;
 using ELFSharp.ELF.Sections;
@@ -8,8 +10,8 @@ namespace APKognito.ApkLib.Utilities;
 
 internal sealed class BinaryReplace(string filePath, IProgress<ProgressInfo>? progressReporter, ILogger _logger)
 {
+    private const int ELF_MAGIC = 0x464c457f;
     private const int BUFFER_SIZE = 1024 * 1024;
-    private readonly Encoding _encoding = Encoding.UTF8;
 
     public async Task ModifyElfStringsAsync(Regex pattern, string replacement, CancellationToken token)
     {
@@ -19,31 +21,34 @@ internal sealed class BinaryReplace(string filePath, IProgress<ProgressInfo>? pr
 
         try
         {
+            // TODO: Change the buffer to a config value at some point...
+            if (!VerifyElf(filePath, BUFFER_SIZE, out FileStream? stream))
+            {
+                _logger?.LogWarning("Object file '{Name}' is not an ELF.", Path.GetFileName(filePath));
+                return;
+            }
+
+            using FileStream writeStream = stream;
+
             File.Copy(filePath, elfReadPath, true);
 
-            try
+            if (!ELFReader.TryLoad(elfReadPath, out elfFile))
             {
-                elfFile = ELFReader.Load(elfReadPath);
-            }
-            catch (ArgumentException aex)
-            {
-                _logger?.LogWarning(aex, "Object file '{GetFileName}' is not an ELF.", Path.GetFileName(filePath));
+                _logger?.LogWarning("Failed to load ELF file '{Name}'", Path.GetFileName(filePath));
                 return;
             }
 
             IEnumerable<StringTable<ulong>> stringTableSections = elfFile.GetSections<StringTable<ulong>>()
                 .Where(t => t.Name is not ".shstrtab");
 
-            using FileStream binaryStream = new(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite, BUFFER_SIZE);
-
             foreach (StringTable<ulong> section in stringTableSections)
             {
-                await ReplaceStringsInSectionAsync(binaryStream, (long)section.Offset, (long)section.Size, pattern, replacement, token);
+                await ReplaceStringsInSectionAsync(writeStream, (long)section.Offset, (long)section.Size, pattern, replacement, token);
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error processing ELF file '{BinaryFilePath}'", filePath);
+            _logger?.LogError(ex, "Error processing ELF file '{BinaryPath}'", filePath);
             throw;
         }
         finally
@@ -81,6 +86,11 @@ internal sealed class BinaryReplace(string filePath, IProgress<ProgressInfo>? pr
         int currentOffsetInSection = 0;
         while (currentOffsetInSection < sectionData.Length)
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
             int stringStart = currentOffsetInSection;
             while (currentOffsetInSection < sectionData.Length && sectionData[currentOffsetInSection] != 0)
             {
@@ -89,7 +99,7 @@ internal sealed class BinaryReplace(string filePath, IProgress<ProgressInfo>? pr
 
             if (currentOffsetInSection > stringStart)
             {
-                ReplaceBinarySubstring(searchPattern, replacement, sectionData, _encoding, currentOffsetInSection, stringStart);
+                await ReplaceBinarySubstringAsync(searchPattern, replacement, sectionData, Encoding.UTF8, currentOffsetInSection, stringStart, token);
             }
 
             currentOffsetInSection++;
@@ -101,7 +111,16 @@ internal sealed class BinaryReplace(string filePath, IProgress<ProgressInfo>? pr
         _ = elfStream.Seek(originalPosition, SeekOrigin.Begin);
     }
 
-    private void ReplaceBinarySubstring(Regex searchPattern, string replacement, byte[] sectionData, Encoding encoding, int currentOffsetInSection, int stringStart)
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private async ValueTask ReplaceBinarySubstringAsync(
+        Regex searchPattern,
+        string replacement,
+        byte[] sectionData,
+        Encoding encoding,
+        int currentOffsetInSection,
+        int stringStart,
+        CancellationToken token
+    )
     {
         int stringLength = currentOffsetInSection - stringStart;
         string originalString = encoding.GetString(sectionData, stringStart, stringLength);
@@ -112,11 +131,48 @@ internal sealed class BinaryReplace(string filePath, IProgress<ProgressInfo>? pr
 
         if (newString.Length != originalString.Length)
         {
-            _logger?.LogWarning("Replacement string '{NewString}' is longer than the original '{OriginalString}'. Skipping.", newString, originalString);
+            if (_logger is not null)
+            {
+                _logger.LogWarning("Replacement string '{NewString}' is longer than the original '{OriginalString}'. Skipping.", newString, originalString);
+
+                // It's dumb, but allows the UI thread to catch up.
+                // Very specific to APKognito. Will be removed if this lib is used by other people for whatever reason...
+                await Task.Delay(1, token);
+            }
+
             return;
         }
 
         byte[] newStringBytes = encoding.GetBytes(newString);
         Array.Copy(newStringBytes, 0, sectionData, stringStart, newStringBytes.Length);
+    }
+
+    private static bool VerifyElf(string path, int bufferSize, [NotNullWhen(true)] out FileStream? stream)
+    {
+        stream = null;
+        FileStream? fileStream = null;
+
+        try
+        {
+            fileStream = new(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, bufferSize);
+            using BinaryReader reader = new(fileStream, Encoding.UTF8, true);
+
+            int readMagic = reader.ReadInt32();
+
+            if (readMagic != ELF_MAGIC)
+            {
+                fileStream.Dispose();
+                return false;
+            }
+
+            fileStream.Seek(0, SeekOrigin.Begin);
+            stream = fileStream;
+            return true;
+        }
+        catch
+        {
+            fileStream?.Dispose();
+            return false;
+        }
     }
 }
