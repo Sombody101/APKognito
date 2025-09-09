@@ -104,12 +104,12 @@ public enum CommandStage
     Smali,
 
     /// <summary>
+    /// Right before the package is packed.
+    /// </summary>
+    Pack,
+
+    /// <summary>
     /// Right before asset files are renamed (OBBs and bundles).
     /// </summary>
     Assets,
-
-    /// <summary>
-    /// Right before the package is packed.
-    /// </summary>
-    Pack
 }

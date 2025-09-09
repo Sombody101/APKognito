@@ -8,8 +8,6 @@ public sealed record class PackageRenameConfiguration : BaseRenameConfiguration
         InternalRenameInfoLogDelimiter = " to ";
     }
 
-    // public int MaxThreads { get; init; }
-
     /// <summary>
     /// Usually used for debugging.
     /// Stops all temporary files from being deleted during the cleanup stage. This does not apply to temporary Smali files within the '<see langword="$(project)\$smali"/>' directory.
@@ -19,7 +17,7 @@ public sealed record class PackageRenameConfiguration : BaseRenameConfiguration
     /// <summary>
     /// Configurations for the <see cref="Editors.PackageCompressor"/>
     /// </summary>
-    public CompressorConfiguration CompressorConfiguration { get; set; }
+    public CompressorConfiguration? CompressorConfiguration { get; set; }
 
     /// <summary>
     /// Optional override configurations for the <see cref="Editors.DirectoryEditor"/>.

@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using APKognito.ApkLib.Exceptions;
 
@@ -59,6 +60,7 @@ public record BaseRenameConfiguration
         BuildAndCacheRegex(originalCompanyName);
     }
 
+    [DebuggerHidden]
     internal static T Coalesce<T>(T? overrideValue, T? configValue, [CallerArgumentExpression(nameof(configValue))] string? configName = null)
     {
         if (overrideValue is not null)
@@ -71,6 +73,7 @@ public record BaseRenameConfiguration
             : configValue;
     }
 
+    [DebuggerHidden]
     internal static T Coalesce<T>(T? overrideValue, Func<T> resolveValue, [CallerArgumentExpression(nameof(overrideValue))] string? configName = null)
     {
         if (overrideValue is not null)
@@ -81,6 +84,7 @@ public record BaseRenameConfiguration
         return resolveValue() ?? throw new InvalidConfigurationException($"{configName} of type {typeof(T).Name} was null, and no override value was supplied.");
     }
 
+    [DebuggerHidden]
     internal static T CoalesceConfigurations<T>(T? overrideValue, T? configValue, T defaultValue)
     {
         if (overrideValue is not null)
@@ -93,6 +97,7 @@ public record BaseRenameConfiguration
             : defaultValue;
     }
 
+    [DebuggerHidden]
     internal static T CoalesceConfigurations<T>(T? overrideValue, Func<T> resolveValue, T defaultValue)
     {
         if (overrideValue is not null)
@@ -106,6 +111,10 @@ public record BaseRenameConfiguration
             : defaultValue;
     }
 
+#if DEBUG
+    private static int s_regexBuildCount = 0;
+#endif
+
     internal Regex BuildAndCacheRegex(string originalCompanyName, int regexTimeoutMs = 60_000, bool forceBuild = false)
     {
         if (_builtRegexCache is not null && !forceBuild)
@@ -114,6 +123,10 @@ public record BaseRenameConfiguration
         }
 
         ArgumentNullException.ThrowIfNull(RenameRegex);
+
+#if DEBUG
+        Console.WriteLine($"{{##}} Regex build {Interlocked.Increment(ref s_regexBuildCount)}");
+#endif
 
         string pattern = RenameRegex.Replace("{value}", originalCompanyName);
 
@@ -132,7 +145,7 @@ public record BaseRenameConfiguration
         InternalRenameInfoLogDelimiter ??= global.InternalRenameInfoLogDelimiter;
 
         // This *might* help with reducing regex build count. Only works if
-        // I'm building the regex from the global config somewhere in the PackageEditorContext.
+        // building the regex from the global config somewhere in the PackageEditorContext.
         _builtRegexCache ??= global._builtRegexCache;
     }
 }

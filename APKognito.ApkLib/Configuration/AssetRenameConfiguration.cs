@@ -29,4 +29,9 @@ public record AssetRenameConfiguration : BaseRenameConfiguration
     /// Extra files to force rename. These paths must be absolute from the APK root. (i.g., "/AndroidManifest.xml" rather than "C:\...\AndroidManifest.xml")
     /// </summary>
     public string[] ExtraInternalPackagePaths { get; init; } = [];
+
+    /// <summary>
+    /// The buffer size when copying assets. Defaults to 128KB.
+    /// </summary>
+    public int AssetCopyBuffer { get; init; } = 1024 * 128;
 }
