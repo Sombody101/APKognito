@@ -1,4 +1,6 @@
-﻿#if DEBUG
+﻿//#define MOCK_RELEASE
+
+#if DEBUG &&! MOCK_RELEASE
 using Spectre.Console;
 #endif
 
@@ -8,7 +10,7 @@ public static class ConsoleAbstraction
 {
     public static void WriteException(Exception ex)
     {
-#if DEBUG
+#if DEBUG &&! MOCK_RELEASE
         AnsiConsole.WriteException(ex);
 #else
         Console.WriteLine(ex);
@@ -26,7 +28,7 @@ public static class ConsoleAbstraction
 
     public static void WriteLine(string value)
     {
-#if DEBUG
+#if DEBUG &&! MOCK_RELEASE
         AnsiConsole.MarkupLine(value);
 #else
         Console.WriteLine(value);
@@ -35,7 +37,7 @@ public static class ConsoleAbstraction
 
     public static string RemoveMarkup(this string value)
     {
-#if DEBUG
+#if DEBUG &&! MOCK_RELEASE
         value = StringExtensions.RemoveMarkup(value);
 #endif
 
