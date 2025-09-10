@@ -25,7 +25,6 @@ internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger
 
     private async Task ModifyArchiveStringsInternalAsync(string archivePath, Regex pattern, string replacement, string[] extraFiles, CancellationToken token)
     {
-        _logger?.LogInformation("Renaming OBB file '{GetFileName}'", Path.GetFileName(archivePath));
         _reporter.ReportProgressTitle("Renaming OBB internal");
 
         // Not really indexing, but it sounds cooler :p
