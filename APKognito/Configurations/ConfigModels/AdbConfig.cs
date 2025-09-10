@@ -2,7 +2,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using APKognito.AdbTools;
-using APKognito.Models;
 using APKognito.Utilities.MVVM;
 using Newtonsoft.Json;
 
@@ -30,9 +29,9 @@ internal sealed class AdbConfig : IKognitoConfig
     {
         deviceId ??= CurrentDeviceId;
 
-        return deviceId is null 
-            ? null 
-            : AdbDevices.Find(device => device.DeviceId == deviceId);
+        return deviceId is not null
+            ? AdbDevices.Find(device => device.DeviceId == deviceId)
+            : null;
     }
 
     public bool AdbWorks([Optional] string? platformToolsPath, IViewLogger? logger = null)
@@ -55,13 +54,21 @@ internal sealed class AdbConfig : IKognitoConfig
 /// <summary>
 /// Information for a given ADB device
 /// </summary>
-public sealed class AdbDeviceInfo
+public sealed record AdbDeviceInfo
 {
     [JsonIgnore]
     public static readonly byte[] DefaultIp = [0, 0, 0, 0];
 
     [JsonProperty("device_id")]
-    public string DeviceId { get; set; }
+    public string DeviceId
+    {
+        get;
+        set
+        {
+            field = value;
+            DeviceHashId = GetUlongHash(value);
+        }
+    }
 
     [JsonProperty("device_name")]
     public string DeviceName { get; set; } = string.Empty;
@@ -75,8 +82,24 @@ public sealed class AdbDeviceInfo
     [JsonIgnore]
     public bool ConnectedByLan => StructuralComparisons.StructuralEqualityComparer.Equals(IpAddress, DefaultIp);
 
+    [JsonIgnore]
+    public ulong DeviceHashId { get; private set; }
+
     public AdbDeviceInfo(string id)
     {
         DeviceId = id;
+    }
+
+    public static ulong GetUlongHash(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return 0;
+        }
+
+        int hash1 = input.GetHashCode();
+        int hash2 = input.Substring(input.Length / 2).GetHashCode();
+
+        return ((ulong)hash1 << 32) | (uint)hash2;
     }
 }
