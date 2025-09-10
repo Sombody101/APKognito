@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using System.IO;
+using Newtonsoft.Json;
 
 namespace APKognito.ApkMod;
 
@@ -18,4 +19,14 @@ public sealed record RenamedPackageMetadata
 
     [JsonProperty("kognito_version"), JsonRequired]
     public required Version ApkognitoVersion { get; set; }
+
+    public string? GetNormalizedAssetPath(string packagePath)
+    {
+        if (RelativeAssetsPath is null)
+        {
+            return null;
+        }
+
+        return Path.Combine(Path.GetDirectoryName(packagePath)!, RelativeAssetsPath);
+    }
 }

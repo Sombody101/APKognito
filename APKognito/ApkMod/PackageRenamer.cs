@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics;
 using System.IO;
-using System.Text;
 using APKognito.AdbTools;
 using APKognito.ApkLib;
 using APKognito.ApkLib.Automation;
+using APKognito.ApkLib.Automation.Parser;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
 using APKognito.Configurations;
@@ -43,7 +43,7 @@ public sealed class PackageRenamer
         PackageRenameConfiguration renameConfig = MapRenameSettings(modRenameConfiguration);
 
         string sourceApkName = Path.GetFileName(modRenameConfiguration.SourcePackagePath);
-        if (sourceApkName.EndsWith(value: ".apk"))
+        if (sourceApkName.EndsWith(".apk"))
         {
             sourceApkName = sourceApkName[..^4];
         }
@@ -116,10 +116,10 @@ public sealed class PackageRenamer
 
             return result;
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException tcex)
         {
             // Handle cancellation
-            _logger.LogWarning("Job canceled.");
+            _logger.LogWarning(tcex, "Job canceled.");
             return new()
             {
                 ResultStatus = "Job canceled.",
@@ -129,7 +129,7 @@ public sealed class PackageRenamer
         }
         catch (Exception ex)
         {
-            FileLogger.LogException(ex);
+            _logger.LogError(ex, "Rename failed.");
             return new()
             {
                 ResultStatus = ex.Message,
@@ -147,6 +147,10 @@ public sealed class PackageRenamer
     {
         _reporter.Report(new(string.Empty, ProgressUpdateType.Reset));
 
+        AutoConfig? automationConfig = modRenameConfig.AdvancedConfig.AutoPackageEnabled
+            ? GetParsedAutoConfigAsync(modRenameConfig.AdvancedConfig.AutoPackageConfig)
+            : null;
+
         PackageEditorContext context = new PackageEditorContext(renameConfig, nameData, modRenameConfig.ToolingPaths, _logger)
             .SetReporter(_reporter);
 
@@ -156,14 +160,11 @@ public sealed class PackageRenamer
         await TimeAsync(async () =>
         {
             await compressor.UnpackPackageAsync(token: token);
-            compressor.GatherPackageMetadata();
+            context.GatherPackageMetadata();
 
             _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameData.OriginalPackageName, nameData.NewPackageName);
         }, nameof(compressor.UnpackPackageAsync));
 
-        AutoConfigModel? automationConfig = modRenameConfig.AdvancedConfig.AutoPackageEnabled
-            ? await GetParsedAutoConfigAsync(modRenameConfig.AdvancedConfig.AutoPackageConfig)
-            : null;
 
         _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameData);
 
@@ -192,6 +193,11 @@ public sealed class PackageRenamer
             await smaliEditor.RunAsync(token: token);
         }, nameof(SmaliEditor));
 
+        /* Pack and Sign */
+
+        await TimeAsync(async () => await compressor.PackPackageAsync(token: token), nameof(compressor.PackPackageAsync));
+        await TimeAsync(async () => await compressor.SignPackageAsync(token: token), nameof(compressor.SignPackageAsync));
+
         /* Assets */
 
         string? outputAssetDirectory = null;
@@ -204,14 +210,9 @@ public sealed class PackageRenamer
 
         _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack, nameData);
 
-        /* Pack and Sign */
-
-        await TimeAsync(async () => await compressor.PackPackageAsync(token: token), nameof(compressor.PackPackageAsync));
-        await TimeAsync(async () => await compressor.SignPackageAsync(token: token), nameof(compressor.SignPackageAsync));
-
         /* Cleanup */
 
-        CleanUpTemporary(renameConfig, nameData);
+        await Task.Run(async () => await CleanUpTempsAsync(renameConfig, nameData, token), token);
 
         /* Finalize and return paths */
 
@@ -233,26 +234,29 @@ public sealed class PackageRenamer
 
         return new()
         {
+            // This will look weird if you're not using a font with ligatures.
+            // Both my IDE and the main log output box use Fira Code, so it looks like an arrow.
+            ReplacementInfoDelimiter = " |> ",
             ClearTempFilesOnRename = settings.UserRenameConfig.ClearTempFilesOnRename,
             RenameRegex = settings.AdvancedConfig.PackageReplaceRegexString,
-            ReplacementInfoDelimiter = " |> ",
             CompressorConfiguration = new()
             {
                 ExtraJavaOptions = settings.AdvancedConfig.JavaFlags.Split().Where(s => !string.IsNullOrWhiteSpace(s))
             },
             DirectoryRenameConfiguration = new()
             {
-                // BaseDirectory = string.Empty
             },
             LibraryRenameConfiguration = new()
             {
                 EnableLibraryFileRenaming = settings.AdvancedConfig.RenameLibs,
                 EnableLibraryRenaming = settings.AdvancedConfig.RenameLibsInternal,
-                ExtraInternalPackagePaths = settings.AdvancedConfig.ExtraInternalPackagePaths
+                ExtraInternalPackagePaths = settings.AdvancedConfig.ExtraInternalPackagePaths,
             },
             SmaliRenameConfiguration = new()
             {
-                ExtraInternalPackagePaths = settings.AdvancedConfig.ExtraInternalPackagePaths
+                ExtraInternalPackagePaths = settings.AdvancedConfig.ExtraInternalPackagePaths,
+                SmaliBufferSize = settings.AdvancedConfig.SmaliBufferSize,
+                MaxSmaliLoadSize = settings.AdvancedConfig.SmaliCutoffLimit,
             },
             AssetRenameConfiguration = new()
             {
@@ -264,7 +268,7 @@ public sealed class PackageRenamer
         };
     }
 
-    private async Task<AutoConfigModel?> GetParsedAutoConfigAsync(string? config)
+    private AutoConfig? GetParsedAutoConfigAsync(string? config)
     {
         if (string.IsNullOrWhiteSpace(config))
         {
@@ -272,17 +276,16 @@ public sealed class PackageRenamer
             return null;
         }
 
-        using MemoryStream configStream = new(Encoding.Default.GetBytes(config));
-        using StreamReader streamReader = new(configStream);
-
         // We all know damn well this is not compiling, but "parsing" didn't sound as cool :p
         _logger.LogInformation("Compiling auto configuration...");
 
-        var parser = new ConfigParser(streamReader);
-        return await parser.BeginParseAsync();
+        return Tools.Time(() =>
+        {
+            return new AutoConfigParser(_logger).ParseDocument(config);
+        });
     }
 
-    private async Task<CommandStageResult?> GetCommandResultAsync(AutoConfigModel? config, CommandStage stage, PackageNameData nameData)
+    private async Task<CommandStageResult?> GetCommandResultAsync(AutoConfig? config, CommandStage stage, PackageNameData nameData)
     {
         if (config is null)
         {
@@ -370,46 +373,44 @@ public sealed class PackageRenamer
 
     private async Task UploadPackageAssetsAsync(RenameOutputLocations locations, AdbDeviceInfo currentDevice, CancellationToken cancellationToken)
     {
+        if (locations.AssetsDirectory is null)
+        {
+            _logger.Log("No assets to upload.");
+            return;
+        }
+
         string[] assets = Directory.GetFiles(locations.AssetsDirectory);
 
         string obbDirectory = $"{AdbManager.ANDROID_OBB}/{locations.NewPackageName}";
-        _logger.Log($"Pushing {assets.Length} OBB asset(s) to {currentDevice.DeviceId}: {obbDirectory}");
+        _logger.Log($"Pushing {assets.Length} asset(s) to {currentDevice.DeviceId}: {obbDirectory}");
 
         _ = await AdbManager.QuickDeviceCommandAsync(@$"shell [ -d ""{obbDirectory}"" ] && rm -r ""{obbDirectory}""; mkdir ""{obbDirectory}""", token: cancellationToken);
 
-        _logger.AddIndent();
+        using IDisposable? scope = _logger.BeginScope("UPLD");
 
-        try
+        int assetIndex = 0;
+        foreach (string file in assets)
         {
-            int assetIndex = 0;
-            foreach (string file in assets)
+            if (cancellationToken.IsCancellationRequested)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                var assetInfo = new FileInfo(file);
-                _logger.Log($"Pushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({GBConverter.FormatSizeFromBytes(assetInfo.Length)})");
-
-                _ = await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
+                break;
             }
-        }
-        finally
-        {
-            _logger.ResetIndent();
+
+            var assetInfo = new FileInfo(file);
+            _logger.Log($"Pushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({GBConverter.FormatSizeFromBytes(assetInfo.Length)})");
+
+            _ = await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
         }
     }
 
-
-    private void CleanUpTemporary(PackageRenameConfiguration renameConfig, PackageNameData nameData)
+    private async Task CleanUpTempsAsync(PackageRenameConfiguration renameConfig, PackageNameData nameData, CancellationToken token = default)
     {
         _logger.LogInformation("Cleaning up...");
 
         if (renameConfig.ClearTempFilesOnRename)
         {
             _logger.LogDebug("Cleaning temp directory `{AssemblyDirectory}`", nameData.ApkAssemblyDirectory);
-            Directory.Delete(nameData.ApkAssemblyDirectory, true);
+            await DirectoryManager.DeleteDirectoryAsync(nameData.ApkAssemblyDirectory, token);
         }
 
         if (renameConfig.AssetRenameConfiguration?.CopyAssets is false)
@@ -423,7 +424,7 @@ public sealed class PackageRenamer
                 string obbDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath)
                     ?? throw new RenameFailedException("Failed to clean OBB directory ");
 
-                Directory.Delete(obbDirectory);
+                await DirectoryManager.DeleteDirectoryAsync(obbDirectory);
             }
             catch (Exception ex)
             {
@@ -440,6 +441,7 @@ public sealed class PackageRenamer
         {
             FileLogger.Log($"--- {tag}: Start");
             await action();
+            sw.Stop();
         }
         finally
         {
