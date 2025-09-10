@@ -18,10 +18,11 @@ namespace APKognito.ViewModels.Pages;
 public partial class SettingsViewModel : ViewModel, IViewable
 {
     private readonly IContentDialogService _contentDialogService;
-
     private readonly ConfigurationFactory _configFactory;
     private readonly UpdateConfig _updateConfig;
     private readonly UserRenameConfiguration _kognitoConfig;
+    private readonly UserThemeConfig _userThemeConfig;
+    private readonly CacheStorage _cacheStorage;
 
     private bool _isInitialized = false;
 
@@ -33,23 +34,75 @@ public partial class SettingsViewModel : ViewModel, IViewable
     [ObservableProperty]
     public partial string AppVersion { get; set; } = string.Empty;
 
-    [ObservableProperty]
-    public partial ApplicationTheme CurrentTheme { get; set; } = ApplicationTheme.Unknown;
+    public ApplicationTheme CurrentTheme
+    {
+        get => _userThemeConfig.AppTheme;
+        set
+        {
+            if (_userThemeConfig.AppTheme == value)
+            {
+                return;
+            }
+
+            _userThemeConfig.AppTheme = value;
+            ApplicationThemeManager.Apply(value);
+            OnPropertyChanged(nameof(CurrentTheme));
+        }
+    }
+
+    public bool UseAccent
+    {
+        get => _userThemeConfig.UseSystemAccent;
+        set
+        {
+            if (_userThemeConfig.UseSystemAccent == value)
+            {
+                return;
+            }
+
+            _userThemeConfig.UseSystemAccent = value;
+            ApplicationAccentColorManager.ApplySystemAccent();
+            OnPropertyChanged(nameof(UseAccent));
+        }
+    }
 
     [ObservableProperty]
     public partial string ClearedSize { get; set; } = string.Empty;
 
-    [ObservableProperty]
-    public partial string AppDataPath { get; set; } = string.Empty;
+    [CalledByGenerated]
+    public string AppDataPath => App.AppDataDirectory.FullName
+#if DEBUG
+        .Redact("user")
+#endif
+        ;
 
     public bool ClearTempFilesOnRename
     {
         get => _kognitoConfig.ClearTempFilesOnRename;
         set
         {
-            OnPropertyChanging(nameof(ClearTempFilesOnRename));
             _kognitoConfig.ClearTempFilesOnRename = value;
             OnPropertyChanged(nameof(ClearTempFilesOnRename));
+        }
+    }
+
+    public LogLevel MinimumLogLevel
+    {
+        get => _cacheStorage.MinimumLogLevel;
+        set
+        {
+            _cacheStorage.MinimumLogLevel = value;
+            OnPropertyChanged(nameof(MinimumLogLevel));
+        }
+    }
+
+    public bool LogExceptionsToView
+    {
+        get => _cacheStorage.LogExceptionsToView;
+        set
+        {
+            _cacheStorage.LogExceptionsToView = value;
+            OnPropertyChanged(nameof(LogExceptionsToView));
         }
     }
 
@@ -60,7 +113,6 @@ public partial class SettingsViewModel : ViewModel, IViewable
         get => _updateConfig.CheckForUpdates;
         set
         {
-            OnPropertyChanging(nameof(AutomaticUpdatesEnabled));
             _updateConfig.CheckForUpdates = value;
             OnPropertyChanged(nameof(AutomaticUpdatesEnabled));
         }
@@ -71,7 +123,6 @@ public partial class SettingsViewModel : ViewModel, IViewable
         get => _updateConfig.CheckDelay;
         set
         {
-            OnPropertyChanging(nameof(UpdateDelay));
             _updateConfig.CheckDelay = value;
             OnPropertyChanged(nameof(UpdateDelay));
         }
@@ -86,8 +137,8 @@ public partial class SettingsViewModel : ViewModel, IViewable
         _configFactory = configFactory;
         _updateConfig = configFactory.GetConfig<UpdateConfig>();
         _kognitoConfig = configFactory.GetConfig<UserRenameConfiguration>();
-
-        AppDataPath = App.AppDataDirectory.FullName;
+        _userThemeConfig = configFactory.GetConfig<UserThemeConfig>();
+        _cacheStorage = configFactory.GetConfig<CacheStorage>();
     }
 
     public SettingsViewModel()
@@ -96,9 +147,11 @@ public partial class SettingsViewModel : ViewModel, IViewable
         _updateConfig = null!;
         _kognitoConfig = null!;
         _contentDialogService = null!;
+        _userThemeConfig = null!;
+        _cacheStorage = null!;
 
         // For designer
-        OnNavigatedTo();
+        // OnNavigatedTo();
     }
 
     #region Commands
@@ -170,24 +223,18 @@ public partial class SettingsViewModel : ViewModel, IViewable
 
     private void InitializeViewModel()
     {
-        CurrentTheme = ApplicationThemeManager.GetAppTheme();
-
         Assembly assembly = Assembly.GetExecutingAssembly();
         AssemblyName assemblyName = assembly.GetName();
 
         string appVersion = App.Version.GetFullVersion(assembly);
 
         string appName = assemblyName.Name ?? "[Unknown]";
-        string fullAppVersion = $"{appVersion} - {assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "[Unknown]"}";
+        string informationVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "[Unknown]";
+        string fullAppVersion = $"{appVersion} - {informationVersion}";
         FullAppVersion = $"{appName} - {fullAppVersion}";
         AppVersion = appVersion;
 
         _isInitialized = true;
-    }
-
-    partial void OnCurrentThemeChanged(ApplicationTheme oldValue, ApplicationTheme newValue)
-    {
-        ApplicationThemeManager.Apply(newValue);
     }
 
     public static async Task<string?> CreateLogPackAsync(IContentDialogService dialogService)

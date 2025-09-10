@@ -7,6 +7,7 @@
     xmlns:local="clr-namespace:APKognito.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:utils="clr-namespace:APKognito.Utilities"
     Title="SettingsPage"
     d:DataContext="{d:DesignInstance local:SettingsPage,
                                      IsDesignTimeCreatable=True}"
@@ -20,6 +21,7 @@
     <Page.Resources>
         <ResourceDictionary>
             <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+            <helpers:EnumValueConverter x:Key="EnumValueConverter" />
             <helpers:ThemeToIndexConverter x:Key="ThemeToIndexConverter" />
 
             <StackPanel x:Key="UninstallContent">
@@ -34,13 +36,19 @@
 
         <TextBlock FontWeight="Medium" Text="Personalization" />
 
-        <ui:CardControl Margin="0,12,0,0" Icon="{ui:SymbolIcon Color24}">
-            <ui:CardControl.Header>
+        <ui:CardExpander Margin="0,12,0,0" Icon="{ui:SymbolIcon Color24}">
+            <ui:CardExpander.Header>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="auto" />
+                    </Grid.ColumnDefinitions>
+
                     <ui:TextBlock
                         Grid.Row="0"
                         FontTypography="Body"
@@ -49,17 +57,52 @@
                         Grid.Row="1"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
                         Text="Select which app theme to display" />
+
+                    <ComboBox
+                        Grid.RowSpan="2"
+                        Grid.Column="1"
+                        MinWidth="200"
+                        Margin="0,0,10,0"
+                        SelectedIndex="{Binding ViewModel.CurrentTheme, Converter={StaticResource ThemeToIndexConverter}, Mode=TwoWay}">
+                        <ComboBoxItem Content="Light" />
+                        <ComboBoxItem Content="Dark" />
+                        <ComboBoxItem Content="High Contrast" />
+                    </ComboBox>
                 </Grid>
-            </ui:CardControl.Header>
-            <ComboBox
-                Grid.Column="1"
-                MinWidth="200"
-                SelectedIndex="{Binding ViewModel.CurrentTheme, Converter={StaticResource ThemeToIndexConverter}, Mode=TwoWay}">
-                <ComboBoxItem Content="Light" />
-                <ComboBoxItem Content="Dark" />
-                <ComboBoxItem Content="High Contrast" />
-            </ComboBox>
-        </ui:CardControl>
+            </ui:CardExpander.Header>
+
+            <ui:Card>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="App accent" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Select which app theme to display" />
+
+                    <ui:ToggleSwitch
+                        Grid.RowSpan="2"
+                        Grid.Column="1"
+                        MinWidth="200"
+                        Margin="0,0,10,0"
+                        OffContent="Disabled"
+                        OnContent="Disabled" />
+                </Grid>
+            </ui:Card>
+
+        </ui:CardExpander>
 
         <!--  Auto Update Card  -->
 
@@ -207,7 +250,7 @@
                             Grid.Row="1"
                             FontSize="12"
                             Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                            Text="{Binding ViewModel.AppDataPath}" />
+                            Text="{Binding ViewModel.AppDataPath, Mode=OneTime}" />
                     </Grid>
 
                     <ui:Button
@@ -231,6 +274,38 @@
                         IsChecked="{Binding ViewModel.ClearTempFilesOnRename}"
                         OffContent="No"
                         OnContent="Yes" />
+                </Grid>
+                <Separator />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock Text="Minimum log level" />
+
+                    <ComboBox
+                        Grid.Column="1"
+                        MinWidth="120"
+                        HorizontalAlignment="Right"
+                        ItemsSource="{helpers:EnumCollection EnumType=utils:LogLevel}"
+                        SelectedItem="{Binding ViewModel.MinimumLogLevel}" />
+                </Grid>
+                <Separator />
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock Text="Log exceptions to view" />
+
+                    <ui:ToggleSwitch
+                        Grid.Column="1"
+                        HorizontalAlignment="Right"
+                        IsChecked="{Binding ViewModel.LogExceptionsToView}"
+                        OffContent="No log"
+                        OnContent="Log" />
                 </Grid>
                 <Separator />
                 <ui:CardAction
