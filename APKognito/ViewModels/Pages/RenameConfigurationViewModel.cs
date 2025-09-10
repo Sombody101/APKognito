@@ -135,6 +135,22 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         }
     }
 
+    [ObservableProperty]
+    public partial string RenameObbsInternalExtras { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial ObservableCollection<ExtraPackageFileViewModel> ExtraPackageItems { get; set; } = [];
+
+    public string JavaFlags
+    {
+        get => _advancedSettings.JavaFlags;
+        set
+        {
+            _advancedSettings.JavaFlags = value;
+            OnPropertyChanged(nameof(JavaFlags));
+        }
+    }
+
     public bool AutoPackageEnabled
     {
         get => _advancedSettings.AutoPackageEnabled;
@@ -155,25 +171,56 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         }
     }
 
-    public string JavaFlags
+    public int SmaliCutoffLimit
     {
-        get => _advancedSettings.JavaFlags;
+        get => _advancedSettings.SmaliCutoffLimit / 1024;
         set
         {
-            _advancedSettings.JavaFlags = value;
-            OnPropertyChanged(nameof(JavaFlags));
+            value *= 1024;
+            if (value == _advancedSettings.SmaliCutoffLimit)
+            {
+                return;
+            }
+
+            _advancedSettings.SmaliCutoffLimit = value;
+            OnPropertyChanged(nameof(SmaliCutoffLimit));
         }
     }
 
-    public bool AdbConfigured => !string.IsNullOrEmpty(_adbConfig.PlatformToolsPath);
+    public int SmaliBufferSize
+    {
+        get => _advancedSettings.SmaliBufferSize / 1024;
+        set
+        {
+            value *= 1024;
+            if (value == _advancedSettings.SmaliBufferSize)
+            {
+                return;
+            }
 
-    [ObservableProperty]
-    public partial string RenameObbsInternalExtras { get; set; } = string.Empty;
+            _advancedSettings.SmaliBufferSize = value;
+            OnPropertyChanged(nameof(SmaliBufferSize));
+        }
+    }
 
-    [ObservableProperty]
-    public partial ObservableCollection<ExtraPackageFileViewModel> ExtraPackageItems { get; set; } = [];
+    public bool ScanFileBeforeRename
+    {
+        get => _advancedSettings.ScanFileBeforeRename;
+        set
+        {
+            if (value == _advancedSettings.ScanFileBeforeRename)
+            {
+                return;
+            }
+
+            _advancedSettings.ScanFileBeforeRename = value;
+            OnPropertyChanged(nameof(ScanFileBeforeRename));
+        }
+    }
 
     public string Error => null!;
+
+    public bool AdbConfigured => !string.IsNullOrEmpty(_adbConfig.PlatformToolsPath);
 
     public string this[string columnName]
     {
@@ -205,11 +252,11 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     }
 
     public RenameConfigurationViewModel(
-        ISnackbarService snackService,
         ConfigurationFactory configFactory,
         SharedViewModel sharedViewModel,
-        JavaVersionCollector javaCollector
-    )
+        JavaVersionCollector javaCollector,
+        ISnackbarService snackService
+    ) : base(configFactory)
     {
         _renameConfig = configFactory.GetConfig<UserRenameConfiguration>();
         _kognitoCache = configFactory.GetConfig<CacheStorage>();

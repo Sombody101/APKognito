@@ -15,7 +15,7 @@
     Title="AdvancedRenameConfigurationPage"
     d:DataContext="{d:DesignInstance local:RenameConfigurationPage,
                                      IsDesignTimeCreatable=True}"
-    d:DesignHeight="2500"
+    d:DesignHeight="3000"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -707,10 +707,13 @@
 
                 <StackPanel IsEnabled="{Binding ViewModel.AutoPackageEnabled}">
                     <ui:TextBlock Margin="0,0,0,16" Text="Allows for altering what directories or files are renamed, or where they're placed in the package." />
-                    <ui:TextBlock
+                    <ui:InfoBar
+                        Title="Caution!"
                         Margin="0,0,0,16"
-                        Foreground="Red"
-                        Text="This option can pose certain security risks. Only use this if you know what the script does and who created it!" />
+                        IsClosable="False"
+                        IsOpen="True"
+                        Message="This option can pose certain security risks. Only use this if you know what the script does and who created it!"
+                        Severity="Error" />
 
                     <TextBox
                         MinHeight="150"
@@ -724,5 +727,110 @@
             </Grid>
         </ui:Card>
 
+        <ui:TextBlock
+            Margin="0,20,0,0"
+            FontSize="20"
+            FontWeight="Medium"
+            Text="Buffers" />
+
+        <StackPanel Margin="0,16,0,0">
+            <ui:Card Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+
+                    <ui:TextBlock FontWeight="Bold" Text="Smali cutoff limit" />
+                    <ui:NumberBox
+                        Grid.RowSpan="2"
+                        Grid.Column="1"
+                        MinWidth="120"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Value="{Binding ViewModel.SmaliCutoffLimit}" />
+
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Text="The file size limit before a Smali file is streamed rather than fully loaded into memory, in KB."
+                        TextWrapping="WrapWithOverflow" />
+                </Grid>
+            </ui:Card>
+
+            <ui:Card Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+
+                    <ui:TextBlock FontWeight="Bold" Text="Smali buffer size" />
+                    <ui:NumberBox
+                        Grid.RowSpan="2"
+                        Grid.Column="1"
+                        MinWidth="120"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Value="{Binding ViewModel.SmaliBufferSize}" />
+
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Margin="0,5,0,5"
+                        Text="The buffer size for all streamed Smali files, in KB."
+                        TextWrapping="WrapWithOverflow" />
+
+                    <ui:InfoBar
+                        Title="Note"
+                        Grid.Row="3"
+                        Grid.ColumnSpan="3"
+                        IsClosable="False"
+                        IsOpen="True"
+                        Message="This only applies to files larger than the Smali cutoff limit." />
+                </Grid>
+            </ui:Card>
+
+            <ui:Card Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+
+                    <ui:TextBlock FontWeight="Bold" Text="Scan file before rename" />
+                    <ui:ToggleSwitch
+                        Grid.RowSpan="2"
+                        Grid.Column="1"
+                        MinWidth="120"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding ViewModel.ScanFileBeforeRename}"
+                        OffContent="No scan"
+                        OnContent="Scan" />
+
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Margin="0,5,0,5"
+                        Text="Scans each Smali file for an instance of the original package name. If one is not found, the file is skipped."
+                        TextWrapping="WrapWithOverflow" />
+                </Grid>
+            </ui:Card>
+        </StackPanel>
     </StackPanel>
 </Page>
