@@ -56,7 +56,7 @@ public sealed partial class UserRenameConfiguration : ObservableObject, IKognito
         return (new()
         {
             JavaExecutablePath = wantedVersion.JavaPath,
-            ApkSignerJarPath = BaseToolingPaths.ApkToolJarPath,
+            ApkSignerJarPath = BaseToolingPaths.ApkSignerJarPath,
             ApkToolBatPath = BaseToolingPaths.ApkToolBatPath,
             ApkToolJarPath = BaseToolingPaths.ApkToolJarPath
         }, wantedVersion);

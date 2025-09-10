@@ -44,7 +44,7 @@ public class AdvancedApkRenameSettings : IKognitoConfig
     public List<string> RenameObbsInternalExtras { get; set; } = [];
 
     /// <summary>
-    /// Extra files to force rename. These paths must be absolute from the APK root. (i.g., "/AndroidManifest.xml" rather than "C:\...\AndroidManifest.xml")
+    /// Extra files to force rename. These paths must be relative to the unpacked APK root. (i.g., "/AndroidManifest.xml" rather than "C:\...\AndroidManifest.xml")
     /// </summary>
     [JsonProperty("extra_internal_package_paths")]
     public List<ExtraPackageFile> ExtraInternalPackagePaths { get; set; } = [];
@@ -58,11 +58,16 @@ public class AdvancedApkRenameSettings : IKognitoConfig
     [JsonProperty("auto_package_config")]
     public string? AutoPackageConfig { get; set; }
 
-    public class InvalidExtraPathException(string message) : Exception(message)
-    {
-    }
+    /*
+     * Buffers
+     */
 
-    public class UnsafeExtraPathException(string message) : Exception(message)
-    {
-    }
+    [JsonProperty("smali_cutoff_limit")]
+    public int SmaliCutoffLimit { get; set; } = 1024 * 1024;
+
+    [JsonProperty("smali_buffer_size")]
+    public int SmaliBufferSize { get; set; } = 1024 * 64;
+
+    [JsonProperty("scan_smali_before_rename")]
+    public bool ScanFileBeforeRename { get; set; } = false;
 }
