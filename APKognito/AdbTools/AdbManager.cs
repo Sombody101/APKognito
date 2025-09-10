@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Resources;
 using System.Runtime.InteropServices;
+using System.Text;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
@@ -13,7 +14,7 @@ namespace APKognito.AdbTools;
 
 internal sealed class AdbManager : IDisposable
 {
-    private const string APKOGNITO_DIRECTORY = $"{ANDROID_EMULATED}/apkognito";
+    private const string APKOGNITO_DIRECTORY = $"/data/local/tmp/apkognito";
 
     public const string ANDROID_EMULATED = "/storage/emulated/0";
     public const string ANDROID_EMULATED_BASE = $"{ANDROID_EMULATED}/Android";
@@ -37,18 +38,52 @@ internal sealed class AdbManager : IDisposable
         string arguments,
         Action<object?, DataReceivedEventArgs> stdOutRec,
         Action<object?, DataReceivedEventArgs> stdErrRec,
-        Action<object?, EventArgs> appExited,
+        Action<object?, EventArgs>? appExited,
         [Optional] string? overrideAdbPath)
     {
         AdbProcess = CreateAdbProcess(overrideAdbPath, arguments);
 
-        AdbProcess.OutputDataReceived += new DataReceivedEventHandler(stdOutRec);
-        AdbProcess.ErrorDataReceived += new DataReceivedEventHandler(stdErrRec);
-        AdbProcess.Exited += new EventHandler(appExited);
+        var stdOutHandler = new DataReceivedEventHandler(stdOutRec);
+        var stdErrHandler = new DataReceivedEventHandler(stdErrRec);
+
+        // Assign after to please the compiler.
+        EventHandler exitHandler = null!;
+        exitHandler = new EventHandler(HandleAdbExit);
+
+        AdbProcess.OutputDataReceived += stdOutHandler;
+        AdbProcess.ErrorDataReceived += stdErrHandler;
+        AdbProcess.Exited += exitHandler;
+
+        AdbProcess.EnableRaisingEvents = true;
 
         _ = AdbProcess.Start();
         AdbProcess.BeginOutputReadLine();
         AdbProcess.BeginErrorReadLine();
+
+        void HandleAdbExit(object? sender, EventArgs e)
+        {
+            AdbProcess.OutputDataReceived -= stdOutHandler;
+            AdbProcess.ErrorDataReceived -= stdErrHandler;
+            AdbProcess.Exited -= exitHandler;
+
+            if (appExited is not null)
+            {
+                appExited(sender, e);
+            }
+        }
+    }
+
+    public async Task<AdbCommandOutput> RunCommandAsync(string arguments,
+        Action<object?, DataReceivedEventArgs> stdOutRec,
+        Action<object?, DataReceivedEventArgs> stdErrRec,
+        Action<object?, EventArgs>? appExited,
+        [Optional] string? overrideAdbPath,
+        CancellationToken token = default)
+    {
+        RunCommand(arguments, stdOutRec, stdErrRec, appExited, overrideAdbPath);
+
+        await AdbProcess!.WaitForExitAsync(token);
+        return new(string.Empty, string.Empty, AdbProcess.ExitCode);
     }
 
     /// <summary>
@@ -61,13 +96,13 @@ internal sealed class AdbManager : IDisposable
     {
         using Process adbProcess = CreateAdbProcess(null, arguments);
         _ = adbProcess.Start();
-        AdbCommandOutput commandOutput = await AdbCommandOutput.GetCommandOutputAsync(adbProcess);
+        AdbCommandOutput commandOutput = await AdbCommandOutput.ReadCommandOutputAsync(adbProcess, token);
         await adbProcess.WaitForExitAsync(token);
 
         if (!s_noCommandRecurse && commandOutput.StdErr.StartsWith("adb.exe: device unauthorized."))
         {
-            LoggableObservableObject.CurrentLoggableObject?.SnackWarning("Command failed!", "An ADB command failed to execute! Running an ADB server restart... (may take some time).");
-            _ = await QuickCommandAsync("kill-server", token: token);
+            LoggableObservableObject.GlobalFallbackLogger?.SnackWarning("Command failed!", "An ADB command failed to execute! Running an ADB server restart... (may take some time).");
+            await KillAdbServerAsync();
             s_noCommandRecurse = true;
 
             return await QuickCommandAsync(arguments, noThrow, token);
@@ -95,6 +130,65 @@ internal sealed class AdbManager : IDisposable
     {
         deviceId ??= s_adbConfig.CurrentDeviceId;
         return await QuickCommandAsync($"-s {deviceId} {arguments}", noThrow, token);
+    }
+
+    // This sort of reimplements everything to get the separate streams... Bad choices.
+    public static async Task<AdbCommandOutput?> LoggedDeviceCommandAsync(string arguments, IViewLogger logger, string? deviceId = null, bool captureOutput = false, CancellationToken token = default)
+    {
+        deviceId ??= s_adbConfig.CurrentDeviceId;
+
+        StringBuilder? stdOut = null;
+        StringBuilder? stdErr = null;
+        int exitCode = 0;
+
+        if (captureOutput)
+        {
+            stdOut = new();
+            stdErr = new();
+        }
+
+        using AdbManager adbInstance = new();
+        await adbInstance.RunCommandAsync($"-s {deviceId} {arguments}",
+            // StdOut
+            (sender, e) =>
+            {
+                if (e.Data is null)
+                {
+                    return;
+                }
+
+                if (captureOutput)
+                {
+                    stdOut!.AppendLine(e.Data);
+                }
+
+                logger.Log(e.Data);
+            },
+            // StdErr
+            (sender, e) =>
+            {
+                if (e.Data is null)
+                {
+                    return;
+                }
+
+                if (captureOutput)
+                {
+                    stdErr!.AppendLine(e.Data);
+                }
+
+                logger.LogError(e.Data);
+            },
+            // Exit
+            (sender, e) =>
+            {
+                exitCode = ((Process)sender!).ExitCode;
+            },
+            token: token);
+
+        return captureOutput
+            ? new(stdOut!.ToString(), stdErr!.ToString(), exitCode)
+            : null;
     }
 
     /// <summary>
@@ -133,55 +227,57 @@ internal sealed class AdbManager : IDisposable
     /// Gets a formatted list of all available ADB devices.
     /// </summary>
     /// <returns></returns>
-    public static async Task<AdbDeviceInfo[]> GetAllDevicesAsync(bool noThrow = false)
+    public static async Task<IEnumerable<AdbDeviceInfo>> GetLongDeviceListAsync(bool noThrow = false)
     {
         AdbCommandOutput response = await QuickCommandAsync("devices -l", noThrow: noThrow);
 
-        IEnumerable<Task<AdbDeviceInfo>> enumeration = response.StdOut.Split("\r\n")
+        return response.StdOut.Split("\r\n")
             // Trim empty lines
             .Where(str => !string.IsNullOrWhiteSpace(str))
             // Skip ADB list header
             .Skip(1)
-            .Select(async str =>
+            .Select(HandleDeviceEntry);
+
+        static AdbDeviceInfo HandleDeviceEntry(string str)
+        {
+            string[] split = [.. str.Split().Where(str => !string.IsNullOrWhiteSpace(str))];
+            string deviceId = split[0];
+
+            AdbDeviceInfo device = new(deviceId);
+
+            string deviceStatus = split[2];
+            if (deviceStatus is "unauthorized")
             {
-                string[] split = [.. str.Split().Where(str => !string.IsNullOrWhiteSpace(str))];
-                string deviceId = split[0];
-
-                AdbDeviceInfo device = new(deviceId);
-
-                switch (split[2])
+                device.DeviceName = "[ADB Not Enabled]";
+            }
+            else if (deviceStatus is "offline")
+            {
+                device.DeviceName = "[Device Offline]";
+            }
+            else
+            {
+                try
                 {
-                    case "unauthorized":
-                        device.DeviceName = "[ADB Not Enabled]";
-                        break;
+                    string modelSegment = split[3];
 
-                    case "offline":
-                        device.DeviceName = "[Device Offline]";
-                        break;
+                    int splitIndex = modelSegment.IndexOf(':');
 
-                    default:
-                        try
-                        {
-                            AdbCommandOutput output = await QuickCommandAsync($"-s {deviceId} shell getprop ro.product.model");
+                    if (splitIndex is -1)
+                    {
+                        device.DeviceName = "[Unavailable]";
+                    }
 
-                            if (!output.DeviceNotAuthorized)
-                            {
-                                device.DeviceName = output.StdOut.Trim();
-                                device.DeviceAuthorized = true;
-                                break;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            FileLogger.LogException(ex);
-                        }
-                        goto case "unauthorized";
+                    device.DeviceName = modelSegment[(splitIndex + 1)..].Replace('_', ' ');
+                    device.DeviceAuthorized = true;
                 }
+                catch (Exception ex)
+                {
+                    FileLogger.LogException(ex);
+                }
+            }
 
-                return device;
-            });
-
-        return await Task.WhenAll(enumeration);
+            return device;
+        }
     }
 
     /// <summary>
@@ -229,7 +325,7 @@ internal sealed class AdbManager : IDisposable
     {
         using Process adbRestartProcess = CreateAdbProcess(null, "restart-server");
         _ = adbRestartProcess.Start();
-        AdbCommandOutput output = await AdbCommandOutput.GetCommandOutputAsync(adbRestartProcess);
+        AdbCommandOutput output = await AdbCommandOutput.ReadCommandOutputAsync(adbRestartProcess);
         await adbRestartProcess.WaitForExitAsync();
 
         output.ThrowIfError(noThrow, adbRestartProcess.ExitCode);
@@ -240,7 +336,7 @@ internal sealed class AdbManager : IDisposable
     {
         using Process adbKillProcess = CreateAdbProcess(null, "kill-server");
         _ = adbKillProcess.Start();
-        AdbCommandOutput output = await AdbCommandOutput.GetCommandOutputAsync(adbKillProcess);
+        AdbCommandOutput output = await AdbCommandOutput.ReadCommandOutputAsync(adbKillProcess);
         await adbKillProcess.WaitForExitAsync();
 
         output.ThrowIfError(noThrow, adbKillProcess.ExitCode);
@@ -264,7 +360,7 @@ internal sealed class AdbManager : IDisposable
             return (0, 0, ScriptPushResult.NoAdbDevice);
         }
 
-        ResourceSet? resources = AdbScripts.ResourceManager.GetResourceSet(CultureInfo.CurrentCulture, true, true);
+        ResourceSet? resources = AdbScripts.ResourceManager.GetResourceSet(CultureInfo.InvariantCulture, true, true);
 
         if (resources is null)
         {
@@ -295,9 +391,8 @@ internal sealed class AdbManager : IDisposable
                 FileLogger.Log($"Pushing {tempFile} to {APKOGNITO_DIRECTORY}");
 
                 await File.WriteAllBytesAsync(tempFile, (byte[])entry.Value!);
-                AdbCommandOutput output = await QuickDeviceCommandAsync($"push \"{tempFile}\" \"{APKOGNITO_DIRECTORY}\"", noThrow: true);
+                AdbCommandOutput output = await QuickDeviceCommandAsync($"push \"{tempFile}\" \"{APKOGNITO_DIRECTORY}/{entry.Key}.sh\"", noThrow: true);
 
-                // STDERR and STDOUT are being swapped for some reason.
                 if (!output.StdErr.Contains("1 file pushed"))
                 {
                     output.ThrowIfError();
@@ -347,7 +442,6 @@ internal sealed class AdbManager : IDisposable
         }
 
         // This comment is useless. It's just to keep the formatter from turning this entire method into an ugly ternary statement.
-        // Like something Disney would make.
         return new Process()
         {
             StartInfo =
