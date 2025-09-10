@@ -5,8 +5,7 @@
 #readonly NL=$'\n'
 output="["
 
-#for pkg in $(pm list packages -3 -f | cut -d ':' -f 2); do
-pm list packages -3 -f | cut -c 9- | while read -r pkg; do
+for pkg in $(pm list packages -3 -f | cut -d ':' -f 2); do
     package_name="${pkg##*=}"
     package_path="${pkg%=*}"
 
@@ -26,4 +25,4 @@ done
 
 # Every line *could* be printed as it's created, but the time to make a write call is too long.
 # It's faster to build the string then yeet it. (I saw +~30ms writing each line)
-echo "${output}]"
+echo "$output"]
