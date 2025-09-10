@@ -2,40 +2,47 @@
 
 namespace APKognito.AdbTools;
 
-public readonly struct CommandOutput : ICommandOutput
+public record CommandOutput : ICommandOutput
 {
-    public readonly string StdOut { get; }
+    public string StdOut { get; init; } = string.Empty;
 
-    public readonly string StdErr { get; }
+    public string StdErr { get; init; } = string.Empty;
 
-    public readonly bool Errored => !string.IsNullOrWhiteSpace(StdErr);
+    public int ExitCode { get; init; } = 0;
 
-    public readonly void ThrowIfError(bool noThrow = false, int? exitCode = null)
-    {
-        if (!noThrow && Errored && exitCode is not null && exitCode.Value is not 0)
-        {
-            throw new CommandException(StdErr);
-        }
-    }
+    public bool Errored { get; init; }
 
-    public CommandOutput(string stdout, string stderr)
+    public CommandOutput(string stdout, string stderr, int exitCode = 0)
     {
         StdOut = stdout;
         StdErr = stderr;
+        ExitCode = exitCode;
+
+        Errored = !string.IsNullOrWhiteSpace(StdErr) && exitCode > 0;
+    }
+
+    protected CommandOutput()
+    {
     }
 
     public static async Task<CommandOutput> GetCommandOutputAsync(Process proc)
     {
         return new(
             await proc.StandardOutput.ReadToEndAsync(),
-            await proc.StandardError.ReadToEndAsync()
+            await proc.StandardError.ReadToEndAsync(),
+            proc.ExitCode
         );
     }
 
-    public class CommandException : Exception
+    public virtual void ThrowIfError(bool noThrow = false, int? exitCode = null)
     {
-        public CommandException(string error)
-            : base(error)
-        { }
+        if (!noThrow && Errored)
+        {
+            throw new CommandException(StdErr);
+        }
+    }
+
+    public class CommandException(string error) : Exception(error)
+    {
     }
 }

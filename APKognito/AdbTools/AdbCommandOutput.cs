@@ -1,59 +1,44 @@
 ﻿using System.Diagnostics;
-using System.Text;
 
 namespace APKognito.AdbTools;
 
-/// <summary>
-/// Holds references to the STDOUT and STDERR output of an ADB command.
-/// </summary>
-public readonly struct AdbCommandOutput : ICommandOutput
+public record AdbCommandOutput : CommandOutput
 {
-    /// <summary>
-    /// All text data from STDOUT of an ADB command.
-    /// </summary>
-    public readonly string StdOut { get; }
+    public bool DeviceNotAuthorized { get; }
 
-    /// <summary>
-    /// All text data from STDERR of an ADB command.
-    /// </summary>
-    public readonly string StdErr { get; }
-
-    public readonly bool Errored => !string.IsNullOrWhiteSpace(StdErr);
-
-    public readonly bool DeviceNotAuthorized => StdErr.StartsWith("adb.exe: device unauthorized.");
-
-    public readonly void ThrowIfError(bool noThrow = false, int? exitCode = null)
+    public AdbCommandOutput(string stdout, string stderr, int exitCode = 0)
+        : base(stdout, stderr, exitCode)
     {
-        if (!noThrow && Errored && exitCode is not null && exitCode.Value is not 0)
+        if (Errored)
         {
-            throw new AdbCommandException(StdErr);
+            // Jank, but ADB isn't script friendly.
+            DeviceNotAuthorized = StdErr.StartsWith("adb.exe: device unauthorized.");
         }
     }
 
-    public AdbCommandOutput(string stdout, string stderr)
+    public static async Task<AdbCommandOutput> ReadCommandOutputAsync(Process proc, CancellationToken token = default)
     {
-        StdOut = stdout;
-        StdErr = stderr;
-    }
+        // Google has decided that any kind of "diagnostic" information needs to be written to stderr. They actually fixed this at one point, but
+        // the issue was reintroduced some time in 2024.
+        // This makes it hard to determine if something is due to an actual error, or if it's what they determine as "diagnostic", which includes
+        // knowing how many files were pushed to a device, even if there were no issues.
 
-    public override string ToString()
-    {
-        StringBuilder sb = new();
+        // I don't expect anything great from them considering they don't even write progress updates to stdout or stderr, and decided to write
+        // progress information directly to the console buffer to avoid flickering, as if there aren't easier ways around that.
+        // **cough cough** turn off the fucking cursor **cough cough**
 
-        sb.Append(nameof(StdOut)).Append(": ").AppendLine(StdOut);
-        sb.Append(nameof(StdErr)).Append(": ").AppendLine(StdErr);
-        sb.Append(nameof(Errored)).Append(": ").AppendLine(Errored.ToString());
-        sb.Append(nameof(DeviceNotAuthorized)).Append(": ").AppendLine(DeviceNotAuthorized.ToString());
-
-        return sb.ToString();
-    }
-
-    public static async Task<AdbCommandOutput> GetCommandOutputAsync(Process proc)
-    {
         return new(
-            await proc.StandardOutput.ReadToEndAsync(),
-            await proc.StandardError.ReadToEndAsync()
+            await proc.StandardOutput.ReadToEndAsync(token),
+            await proc.StandardError.ReadToEndAsync(token)
         );
+    }
+
+    public override void ThrowIfError(bool noThrow = false, int? exitCode = null)
+    {
+        if (!noThrow && Errored)
+        {
+            throw new AdbCommandException(StdErr);
+        }
     }
 
     public class AdbCommandException(string error) : Exception(error)
