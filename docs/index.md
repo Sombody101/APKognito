@@ -2,9 +2,6 @@
 title: Home
 ---
 
-<style>
-</style>
-
 <p align="center">
   <img alt="APKognito Logo" src="images/dark-wide.webp#only-dark" width="500" />
   <img alt="APKognito Logo" src="images/light-wide.webp#only-light" width="500" />

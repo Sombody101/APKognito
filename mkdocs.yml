@@ -39,6 +39,7 @@ theme:
 
 extra_css:
     - stylesheets/badges.css
+    - stylesheets/extras.css
 
 markdown_extensions:
     - attr_list

@@ -1,0 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
+
+.fira-code-regular {
+  font-family: "Fira Code", monospace;
+  font-weight: 400;
+}
+
+:root {
+    --md-code-font: "Fira Code", monospace;
+}
+
+.md-content {
+    margin-left: 10px;
+    margin-right: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.md-main__inner,
+.md-header__inner {
+    max-width: 95vw;
+}
