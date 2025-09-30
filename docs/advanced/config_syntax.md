@@ -79,11 +79,15 @@ The supported stages are:
 1. **Directory**: Runs before directories are renamed.
 1. **Library**: Runs before libraries are renamed (even if the user has this option disabled).
 1. **Smali**: Runs before Smali files are renamed.
+1. **Pack**: Runs before the package is repacked.
 1. **Assets**: Runs before assets are copied/moved and renamed.
     - _Note_: This is only a _stage_. It does not allow you to modify or move the asset files. The `include` and `exclude` commands will only work on entries found within valid asset archives.
-1. **Pack**: Runs before the package is repacked.
 
 The stages will occur in the order they're listed in.
+
+??? abstract
+    The Assets stage used to run before the pack stage, meaning assets would be copied or moved and processed _before_ finalizing the package.
+    This wasn't a huge issue, but didn't make sense as assets are almost always the largest part of any game or app and would take the longest to process.
 
 Stages can be defined more than once and will be reorganized while parsing.
 
