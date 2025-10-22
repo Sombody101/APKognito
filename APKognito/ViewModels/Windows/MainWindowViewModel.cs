@@ -44,12 +44,12 @@ public partial class MainWindowViewModel : LoggableObservableObject
             Icon = new SymbolIcon { Symbol = SymbolRegular.HardDrive16 },
             TargetPageType = typeof(DriveUsagePage)
         },
-        new NavigationViewItem()
-        {
-            Content = "Rename History",
-            Icon = new SymbolIcon { Symbol = SymbolRegular.History16 },
-            TargetPageType = typeof(RenamingHistoryPage)
-        },
+        // new NavigationViewItem()
+        // {
+        //     Content = "Rename History",
+        //     Icon = new SymbolIcon { Symbol = SymbolRegular.History16 },
+        //     TargetPageType = typeof(RenamingHistoryPage)
+        // },
         new NavigationViewItem()
         {
             Content = "ADB",
@@ -99,9 +99,10 @@ public partial class MainWindowViewModel : LoggableObservableObject
         _configFactory = null!;
     }
 
-    public MainWindowViewModel(ISnackbarService snack, ConfigurationFactory configFactory)
+    public MainWindowViewModel(ConfigurationFactory configFactory, ISnackbarService snackService)
+        : base(configFactory)
     {
-        SetSnackbarProvider(snack);
+        SetSnackbarProvider(snackService);
         _configFactory = configFactory;
         AddAdbDeviceTray();
     }

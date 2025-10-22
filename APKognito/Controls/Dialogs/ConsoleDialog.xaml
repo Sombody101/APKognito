@@ -7,7 +7,6 @@
     xmlns:local="clr-namespace:APKognito.Controls.Dialogs"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    Title="Utility Installer"
     d:DataContext="{d:DesignInstance local:ConsoleDialog,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="450"

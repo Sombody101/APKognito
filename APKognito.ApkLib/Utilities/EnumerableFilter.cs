@@ -1,4 +1,4 @@
-﻿namespace APKognito.ApkLib.Editors;
+﻿namespace APKognito.ApkLib.Utilities;
 
 internal static class EnumerableFilter
 {

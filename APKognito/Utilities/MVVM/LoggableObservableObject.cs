@@ -1,11 +1,14 @@
-﻿using System.Collections.ObjectModel;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
+using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Exceptions;
 using APKognito.Models;
 using Microsoft.Extensions.Logging;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
+using ElementCollection = System.Collections.ObjectModel.ObservableCollection<object>;
 using LogEntryType = APKognito.Models.LogBoxEntry.LogEntryType;
 
 namespace APKognito.Utilities.MVVM;
@@ -15,13 +18,16 @@ namespace APKognito.Utilities.MVVM;
 /// </summary>
 public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogger
 {
+    [SuppressMessage("Critical Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "It's only unused in debug builds.")]
+    private readonly CacheStorage _cacheStorage;
+
     [ObservableProperty]
-    public partial ObservableCollection<LogBoxEntry> LogBoxEntries { get; set; } = [];
+    public partial ElementCollection LogBoxEntries { get; set; } = [];
 
     /// <summary>
-    /// The current <see cref="LoggableObservableObject"/>.
+    /// A global <see cref="LoggableObservableObject"/>.
     /// </summary>
-    public static LoggableObservableObject CurrentLoggableObject { get; private set; } = null!;
+    public static LoggableObservableObject GlobalFallbackLogger { get; private set; } = null!;
 
     public ISnackbarService? SnackbarService { get; private set; } = null!;
 
@@ -29,50 +35,52 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     protected bool LogIconPrefixes = true;
     protected bool DisableFileLogging = true;
 
-    private string _indent = string.Empty;
+    protected LoggableObservableObject(ConfigurationFactory factory)
+    {
+        _cacheStorage = factory.GetConfig<CacheStorage>();
+    }
+
+    protected LoggableObservableObject()
+    {
+        _cacheStorage = new();
+    }
 
     public void SetCurrentLogger()
     {
-        CurrentLoggableObject = this;
+        GlobalFallbackLogger = this;
     }
 
     public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
+        LogLevel level = FileLogger.MicrosoftLogLevelToLocal(logLevel);
+
 #if RELEASE
-        if (logLevel == Microsoft.Extensions.Logging.LogLevel.Debug)
+        if (level < _cacheStorage.MinimumLogLevel)
         {
             return;
         }
 #endif
 
-        IEnumerable<object> scopes = LogScopeManager.GetCurrentScopeStates();
-
-        LogLevel level = FileLogger.MicrosoftLogLevelToLocal(logLevel);
-        LogEntryType entryType = LogBoxEntry.ConvertLogLevel(level);
-        Brush color = FileLogger.LogLevelToBrush(level);
-
         string message = formatter(state, null);
-
-        string scope = string.Join(' ', scopes);
-
-        if (!string.IsNullOrWhiteSpace(scope))
-        {
-            message = $"{scope}: {message}";
-        }
 
         if (!DisableFileLogging)
         {
             FileLogger.LogGeneric(message, level);
         }
 
+        LogEntryType entryType = LogBoxEntry.ConvertLogLevel(level);
+        Brush color = FileLogger.LogLevelToBrush(level);
+
         WriteGenericLog(message, color, entryType);
 
 #if DEBUG
         if (exception is not null)
+#else
+        if (exception is not null && _cacheStorage.LogExceptionsToView)
+#endif
         {
             LogDebug(exception);
         }
-#endif
     }
 
     public void WriteGenericLog(string text, [Optional] Brush? color, LogEntryType? logType = LogEntryType.None, bool newline = true)
@@ -87,14 +95,11 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
             _ = text.AppendLine();
         }
 
-        if (!string.IsNullOrEmpty(_indent))
-        {
-            _ = text.Insert(0, _indent);
-        }
+        string scopedText = LogScopeManager.PrependScopes(text).ToString();
 
         LogBoxEntry newEntry = new()
         {
-            Text = text.ToString(),
+            Text = scopedText,
             Color = color,
             LogType = logType,
         };
@@ -158,38 +163,28 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     {
         FileLogger.LogDebug(log);
 
-#if DEBUG
-        WriteGenericLogLine(log, FileLogger.LogLevelColors.Debug, logType: LogEntryType.Debug);
+#if RELEASE
+        if (LogLevel.DEBUG < _cacheStorage.MinimumLogLevel)
+        {
+            return;
+        }
 #endif
+
+        WriteGenericLogLine(log, FileLogger.LogLevelColors.Debug, logType: LogEntryType.Debug);
     }
 
     public void LogDebug(Exception ex)
     {
         FileLogger.LogDebug(ex);
 
-#if DEBUG
-        WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", FileLogger.LogLevelColors.Debug, logType: LogEntryType.Debug);
+#if RELEASE
+        if (LogLevel.DEBUG< _cacheStorage.MinimumLogLevel)
+        {
+            return;
+        }
 #endif
-    }
 
-    public void AddIndent(char indenter = '\t')
-    {
-        _indent = $"{_indent}{indenter}";
-    }
-
-    public void AddIndentString(string indenter = "\t")
-    {
-        _indent = $"{_indent}{indenter}";
-    }
-
-    public void RemoveIndent()
-    {
-        _indent = _indent[..^1];
-    }
-
-    public void ResetIndent()
-    {
-        _indent = string.Empty;
+        WriteGenericLog($"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", FileLogger.LogLevelColors.Debug, logType: LogEntryType.Debug);
     }
 
     public void ClearLogs()
@@ -201,7 +196,7 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     {
         if (SnackbarService is null)
         {
-            throw new InvalidOperationException("No Snackpresenter was set.");
+            throw new DeveloperErrorException("No Snackpresenter was set.");
         }
 
         if (body.Length is 0)
@@ -249,6 +244,16 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
         DisplaySnack("Error", body, ControlAppearance.Danger);
     }
 
+    public void WriteImage(WPFUI.Controls.Image image)
+    {
+        LogBoxEntries.Add(image);
+    }
+
+    public void WriteImage(System.Windows.Controls.Image image)
+    {
+        LogBoxEntries.Add(image);
+    }
+
     protected void SetSnackbarProvider(ISnackbarService _snackbarService)
     {
         SnackbarService = _snackbarService;
@@ -266,15 +271,15 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
 
     public static class LogScopeManager
     {
-        private static readonly AsyncLocal<Stack<object>> _scopeStack = new();
+        private static readonly AsyncLocal<Stack<object>> s_scopeStack = new();
 
         internal static void PushScope(object scope)
         {
-            Stack<object>? stack = _scopeStack.Value;
+            Stack<object>? stack = s_scopeStack.Value;
             if (stack is null)
             {
                 stack = new Stack<object>();
-                _scopeStack.Value = stack;
+                s_scopeStack.Value = stack;
             }
 
             stack.Push(scope);
@@ -282,21 +287,47 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
 
         internal static void PopScope()
         {
-            Stack<object>? stack = _scopeStack.Value;
+            Stack<object>? stack = s_scopeStack.Value;
             if (stack is not null && stack.Count > 0)
             {
                 _ = stack.Pop();
 
                 if (stack.Count is 0)
                 {
-                    _scopeStack.Value = null!;
+                    s_scopeStack.Value = null!;
                 }
             }
         }
 
         public static IEnumerable<object> GetCurrentScopeStates()
         {
-            return _scopeStack.Value?.Reverse() ?? [];
+            return s_scopeStack.Value?.Reverse() ?? [];
+        }
+
+        public static string PrependScopes(string log)
+        {
+            IEnumerable<object> scopes = GetCurrentScopeStates();
+            string scope = string.Join(' ', scopes);
+
+            if (!string.IsNullOrWhiteSpace(scope))
+            {
+                log = $"{scope}: {log}";
+            }
+
+            return log;
+        }
+
+        public static StringBuilder PrependScopes(StringBuilder builder)
+        {
+            IEnumerable<object> scopes = GetCurrentScopeStates();
+            string scope = string.Join(": ", scopes);
+
+            if (!string.IsNullOrWhiteSpace(scope))
+            {
+                builder.Insert(0, $"{scope}: ");
+            }
+
+            return builder;
         }
     }
 

@@ -22,6 +22,7 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     WindowBackdropType="Mica"
     WindowCornerPreference="Round"
+    Icon="/Assets/apkognito.ico"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
 

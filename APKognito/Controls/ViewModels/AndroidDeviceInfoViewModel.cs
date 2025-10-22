@@ -1,17 +1,22 @@
-﻿using APKognito.AdbTools;
+﻿using System.Collections.ObjectModel;
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
-using System.Collections.ObjectModel;
-using System.Windows.Threading;
 
 namespace APKognito.Controls.ViewModels;
 
 public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 {
+    private const int UPDATE_DELAY_MS = 10_000;
+    private const int GB_DIVIDER = 1024 * 1024;
+
     private readonly AdbConfig _adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
+
+    private Timer? DeviceUpdateTimer { get; set; }
+    private CancellationTokenSource? Cts { get; set; }
 
     #region Properties
 
@@ -57,11 +62,11 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
         }
         catch
         {
-            LoggableObservableObject.CurrentLoggableObject.SnackError("Device Not Connected", "Device connection test failed. Make sure developer mode is enabled.");
+            LoggableObservableObject.GlobalFallbackLogger.SnackError("Device Not Connected", "Device connection test failed. Make sure developer mode is enabled.");
             return;
         }
 
-        LoggableObservableObject.CurrentLoggableObject.SnackSuccess("Connection Successful", $"{_adbConfig.CurrentDeviceId} is connected.");
+        LoggableObservableObject.GlobalFallbackLogger.SnackSuccess("Connection Successful", $"{_adbConfig.CurrentDeviceId} is connected.");
     }
 
     [RelayCommand]
@@ -76,13 +81,13 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
     {
         try
         {
-            AdbDeviceInfo[] foundDevices = await AdbManager.GetAllDevicesAsync();
+            IEnumerable<AdbDeviceInfo> foundDevices = await AdbManager.GetLongDeviceListAsync();
 
-            if (foundDevices.Length is 0)
+            if (!foundDevices.Any())
             {
                 if (!silent)
                 {
-                    LoggableObservableObject.CurrentLoggableObject?.SnackError(
+                    LoggableObservableObject.GlobalFallbackLogger?.SnackError(
                         "No devices found",
                         "Cannot get any ADB devices (Ensure they're connected and have developer mode enabled)."
                     );
@@ -91,28 +96,19 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
                 return;
             }
 
-            await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
+            DeviceList.Clear();
+
+            ulong currentDeviceHash = _adbConfig.GetCurrentDevice()?.DeviceHashId ?? 0;
+            foreach (AdbDeviceInfo device in foundDevices)
             {
-                DeviceList.Clear();
-
-                if (foundDevices.Length is 1 && foundDevices[0].DeviceAuthorized)
+                // The device previously used is available, so use it
+                if (device.DeviceHashId == currentDeviceHash)
                 {
-                    SelectedDevice = foundDevices[0];
-                    DeviceList.Add(SelectedDevice);
-                    return;
+                    SelectedDevice = device;
                 }
 
-                foreach (AdbDeviceInfo device in foundDevices)
-                {
-                    // The device previously used is available, so use it
-                    if (device.DeviceId == _adbConfig.CurrentDeviceId)
-                    {
-                        SelectedDevice = device;
-                    }
-
-                    DeviceList.Add(device);
-                }
-            });
+                DeviceList.Add(device);
+            }
         }
         catch (Exception ex)
         {
@@ -120,9 +116,61 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 
             if (!silent)
             {
-                LoggableObservableObject.CurrentLoggableObject?.SnackError("Failed to get devices", ex.Message);
+                LoggableObservableObject.GlobalFallbackLogger?.SnackError("Failed to get devices", ex.Message);
             }
         }
+    }
+
+    public void StartDeviceTimer()
+    {
+        if (DeviceUpdateTimer is not null)
+        {
+            ForceTick();
+            return;
+        }
+
+        DeviceUpdateTimer = new Timer(async (sender) =>
+        {
+            if (Cts is not null)
+            {
+                return;
+            }
+
+            Cts = new();
+            Cts.CancelAfter(UPDATE_DELAY_MS - 1000);
+
+            try
+            {
+                AndroidDevice? device = await UpdateDeviceInfoAsync(Cts.Token);
+                AndroidDevice = device ?? AndroidDevice.Empty;
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogException(ex);
+            }
+            finally
+            {
+                Cts?.Dispose();
+                Cts = null;
+            }
+        }, null, 0, UPDATE_DELAY_MS);
+
+        ForceTick();
+    }
+
+    public void ForceTick()
+    {
+        if (DeviceUpdateTimer is null)
+        {
+            return;
+        }
+
+        _ = DeviceUpdateTimer.Change(0, 1);
+        _ = DeviceUpdateTimer.Change(0, UPDATE_DELAY_MS);
     }
 
     partial void OnSelectedDeviceChanged(AdbDeviceInfo? value)
@@ -141,30 +189,102 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
         if (currentDevice is null)
         {
             _adbConfig.AdbDevices.Add(value);
-            LoggableObservableObject.CurrentLoggableObject?.SnackInfo("New device detected!", $"A new ADB device profile has been created for {value.DeviceId}");
+            LoggableObservableObject.GlobalFallbackLogger?.SnackInfo("New device detected!", $"A new ADB device profile has been created for {value.DeviceId}");
         }
     }
 
     partial void OnAndroidDeviceChanged(AndroidDevice value)
     {
-        const int storageElementWidth = 298;
-
         BatteryLabelColor = MapBatteryColor(value.BatteryLevel);
 
         if (value.BatteryLevel < 0)
         {
             FormattedBatteryLevel = "?";
             BatteryLevelWidth = 0;
-        }
-        else
-        {
-            FormattedBatteryLevel = $"{value.BatteryLevel}%";
-            BatteryLevelWidth = value.BatteryLevel;
+            return;
         }
 
-        UsedStoragePercent = value == AndroidDevice.Empty
-            ? 0
-            : (int)(storageElementWidth * (value.UsedSpace / value.TotalSpace));
+        FormattedBatteryLevel = $"{value.BatteryLevel}%";
+        BatteryLevelWidth = value.BatteryLevel;
+    }
+
+    private async Task<AndroidDevice?> UpdateDeviceInfoAsync(CancellationToken token = default)
+    {
+        AdbDeviceInfo? device = _adbConfig.GetCurrentDevice();
+
+        if (device is null)
+        {
+            return null;
+        }
+
+        const string getStorageScript = "df | awk '/^(\\/dev\\/block|rootfs|tmp)/ {print $2, $3, $4}'";
+        const string getBatteryScript = "dumpsys battery | awk -F ':' '/level/ {print $2}'";
+
+        AdbCommandOutput output = await AdbManager.QuickCommandAsync($"shell {getBatteryScript}; {getStorageScript}", token: token, noThrow: true);
+
+        if (output.Errored)
+        {
+            return AndroidDevice.Empty;
+        }
+
+        string[] outputLines = output.StdOut.Split('\n');
+
+        if (outputLines.Length is 0)
+        {
+            // Something is fucky if this happens
+            FileLogger.LogError("Shell script returned no package or storage information.");
+            return AndroidDevice.Empty;
+        }
+
+        if (!int.TryParse(outputLines[0], out int batteryPercentage))
+        {
+            batteryPercentage = -1;
+        }
+
+        (float total, float used, float free) = ParseDeviceStorage(outputLines[1..]);
+
+        return new()
+        {
+            BatteryLevel = batteryPercentage,
+            TotalSpace = total,
+            UsedSpace = used,
+            FreeSpace = free
+        };
+    }
+
+    private static (float Total, float Used, float Free) ParseDeviceStorage(string[] infoLines)
+    {
+        try
+        {
+            long totalSizeGB = 0,
+                usedSizeGB = 0,
+                freeSizeGB = 0;
+
+            foreach (string line in infoLines)
+            {
+                if (string.IsNullOrEmpty(line))
+                {
+                    continue;
+                }
+
+                string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                totalSizeGB += long.Parse(parts[0]);
+                usedSizeGB += long.Parse(parts[1]);
+                freeSizeGB += long.Parse(parts[2]);
+            }
+
+            return (
+                totalSizeGB / GB_DIVIDER,
+                usedSizeGB / GB_DIVIDER,
+                freeSizeGB / GB_DIVIDER
+            );
+        }
+        catch (Exception ex)
+        {
+            FileLogger.LogException(ex);
+            return (0, 0, 0);
+        }
     }
 
     private static async Task PushAdbScriptsAsync()
@@ -175,16 +295,16 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 
             if (result == AdbManager.ScriptPushResult.Success)
             {
-                LoggableObservableObject.CurrentLoggableObject?.SnackSuccess("Scripts pushed!", $"{pushedCount}/{scriptCount} ADB scripts were pushed successfully!");
+                LoggableObservableObject.GlobalFallbackLogger?.SnackSuccess("Scripts pushed!", $"{pushedCount}/{scriptCount} ADB scripts were pushed successfully!");
                 return;
             }
 
-            LoggableObservableObject.CurrentLoggableObject?.SnackError("Script push failed!", $"{pushedCount}/{scriptCount} scripts failed to be pushed to your device!\nError: {result}");
+            LoggableObservableObject.GlobalFallbackLogger?.SnackError("Script push failed!", $"{pushedCount}/{scriptCount} scripts failed to be pushed to your device!\nError: {result}");
         }
         catch (Exception ex)
         {
             FileLogger.LogException(ex);
-            LoggableObservableObject.CurrentLoggableObject?.SnackError("Unexpected error!", $"An unexpected error occurred while pushing ADB scripts: {ex.Message}");
+            LoggableObservableObject.GlobalFallbackLogger?.SnackError("Unexpected error!", $"An unexpected error occurred while pushing ADB scripts: {ex.Message}");
         }
     }
 

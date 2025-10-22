@@ -2,15 +2,16 @@
 // It's setup so that even if left defined will not break release builds.
 // #define EMULATE_RELEASE_ON_DEBUG
 
-using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
-using APKognito.Utilities;
-using APKognito.ViewModels.Pages;
-using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
+using APKognito.ViewModels.Pages;
+using Microsoft.Extensions.Hosting;
 
 namespace APKognito.Services;
 
@@ -18,24 +19,24 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 {
     public static readonly string UpdatesFolder = Path.Combine(App.AppDataDirectory!.FullName, "updates");
 
-    private readonly ConfigurationFactory configFactory;
-    private readonly UpdateConfig config;
-    private readonly CacheStorage cache;
-    private readonly Version currentVersion;
+    private readonly ConfigurationFactory _configFactory;
+    private readonly UpdateConfig _config;
+    private readonly CacheStorage _cache;
+    private readonly Version _currentVersion;
 
     private Timer? _timer = null;
 
-    public AutoUpdaterService(ConfigurationFactory _configFactory)
+    public AutoUpdaterService(ConfigurationFactory configFactory)
     {
-        configFactory = _configFactory;
-        config = configFactory.GetConfig<UpdateConfig>();
-        cache = configFactory.GetConfig<CacheStorage>();
-        currentVersion = Assembly.GetExecutingAssembly().GetName().Version!;
+        _configFactory = configFactory;
+        _config = configFactory.GetConfig<UpdateConfig>();
+        _cache = configFactory.GetConfig<CacheStorage>();
+        _currentVersion = Assembly.GetExecutingAssembly().GetName().Version!;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        FileLogger.Log($"Update service starting. (@{config.CheckDelay}m)");
+        FileLogger.Log($"Update service starting. (@{_config.CheckDelay}m)");
 
         // Update cleanup
         if (MainOverride.RestartedFromUpdate)
@@ -51,18 +52,18 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
                 FileLogger.LogException("Failed to clear update files", ex);
             }
 
-            cache.UpdateSourceLocation = null;
+            _cache.UpdateSourceLocation = null;
         }
 
         _timer = new Timer(
             async _ =>
             {
                 await CheckForUpdatesAsync(cancellationToken);
-                LogNextUpdate(config.CheckDelay);
+                LogNextUpdate(_config.CheckDelay);
             },
             null,
             TimeSpan.Zero,
-            TimeSpan.FromMinutes(config.CheckDelay)
+            TimeSpan.FromMinutes(_config.CheckDelay)
         );
 
         return Task.CompletedTask;
@@ -81,20 +82,20 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
     private async Task CheckForUpdatesAsync(CancellationToken cToken)
     {
-        if (inUpdate)
+        if (_inUpdate)
         {
             // Controlled by ImplementUpdate.
             return;
         }
 
-        if (!config.CheckForUpdates)
+        if (!_config.CheckForUpdates)
         {
             FileLogger.Log("Check for updates disabled. Skipping.");
             return;
         }
 
         // Fetch the download URL and release tag
-        string?[] jsonData = await WebGet.FetchAsync(Constants.GITHUB_API_URL_LATEST, HomeViewModel.Instance, cToken, [
+        string?[] jsonData = await WebGet.FetchAsync(Constants.GITHUB_API_URL_LATEST, GetLogger(), cToken, [
             ["tag_name"],
             ["assets", 0, "browser_download_url"],
         ]);
@@ -151,30 +152,30 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         // A cheap way to encode the update info in a way that the user won't dick around easily (they still can if they try hard enough, but a binary file should scare them away)
-        cache.UpdateSourceLocation = $"{downloadZip}\0{tagName}";
+        _cache.UpdateSourceLocation = $"{downloadZip}\0{tagName}";
         await ImplementUpdateAsync(downloadZip, tagName!);
     }
 
     private async Task<ValidationResult> ValidatePackageVersionAsync(Version newVersion, string?[] jsonData)
     {
         // Already running the newest version
-        if (newVersion == currentVersion)
+        if (newVersion == _currentVersion)
         {
-            FileLogger.Log($"Currently using newest release. ({newVersion} == {currentVersion})");
+            FileLogger.Log($"Currently using newest release. ({newVersion} == {_currentVersion})");
             return ValidationResult.CancelUpdate;
         }
         // New release is older than current (?)
-        else if (newVersion < currentVersion)
+        else if (newVersion < _currentVersion)
         {
-            FileLogger.Log($"Found new release version {jsonData[0]}, but currently using v{currentVersion}. No need to update.");
+            FileLogger.Log($"Found new release version {jsonData[0]}, but currently using v{_currentVersion}. No need to update.");
             return ValidationResult.CancelUpdate;
         }
         // New release has already been downloaded and is ready to install
-        else if (cache.UpdateSourceLocation is not null)
+        else if (_cache.UpdateSourceLocation is not null)
         {
             FileLogger.Log("Comparing fetched release with fetch from previous session.");
 
-            string[] updateInfo = cache.UpdateSourceLocation.Split('\0');
+            string[] updateInfo = _cache.UpdateSourceLocation.Split('\0');
             string updatePath = updateInfo[0];
             string updateVersion = updateInfo[1];
 
@@ -206,18 +207,18 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         _timer?.Dispose();
     }
 
-    private bool inUpdate = false;
+    private bool _inUpdate = false;
     private async Task ImplementUpdateAsync(string updateFilePath, string newVersion)
     {
-        if (inUpdate)
+        if (_inUpdate)
         {
             return;
         }
 
-        inUpdate = true;
+        _inUpdate = true;
 
         // Using 'is true' because RunningJobs is a 'bool?' when using a null conditional
-        while (HomeViewModel.Instance?.RunningJobs is true)
+        while (IsRunningJobs())
         {
             // Wait for any jobs to finish, then prompt
             await Task.Delay(1000);
@@ -230,7 +231,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
             {
                 Title = "Update Ready!",
                 Content = $"An update has been downloaded and is ready to install.\n\n" +
-                          $"Current Version: {App.Version.VersionPrefix}{currentVersion}\n" +
+                          $"Current Version: {App.Version.VersionPrefix}{_currentVersion}\n" +
                           $"New Version:     {newVersion}\n\n" +
                           "Would you like to install it now?\n\n" +
                           "APKognito will restart automatically after the installation " +
@@ -250,8 +251,8 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
 
             case MessageBoxResult.Secondary:
                 // Cancel automatic updates
-                config.CheckForUpdates = false;
-                configFactory.SaveConfig(config);
+                _config.CheckForUpdates = false;
+                _configFactory.SaveConfig(_config);
                 return;
 
             default:
@@ -279,7 +280,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         Environment.Exit(0);
 
     ContinueApp:
-        inUpdate = false;
+        _inUpdate = false;
     }
 
     private static void LogNextUpdate(int minuteCount)
@@ -295,7 +296,17 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         }
 
         _ = _timer.Change(0, 1);
-        _ = _timer.Change(0, config.CheckDelay);
+        _ = _timer.Change(0, _config.CheckDelay);
+    }
+
+    private static bool IsRunningJobs()
+    {
+        return App.GetService<HomeViewModel>()?.RunningJobs ?? false;
+    }
+
+    private static IViewLogger GetLogger()
+    {
+        return LoggableObservableObject.GlobalFallbackLogger;
     }
 
     private enum ValidationResult

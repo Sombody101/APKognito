@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using APKognito.Utilities;
+﻿using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
 using APKognito.ViewModels.Windows;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
@@ -17,14 +17,22 @@ public partial class MainWindow : INavigationWindow
         ISnackbarService navigationViewPageProvider,
         INavigationViewPageProvider pageService,
         INavigationService navigationService,
-        IContentDialogService contentDialogService
+        IContentDialogService contentDialogService,
+        ConfigurationFactory configFactory
     )
     {
         ViewModel = viewModel;
         DataContext = this;
 
         SystemThemeWatcher.Watch(this);
-        ApplicationAccentColorManager.ApplySystemAccent();
+
+        UserThemeConfig themeManager = configFactory.GetConfig<UserThemeConfig>();
+        ApplicationThemeManager.Apply(themeManager.AppTheme, WindowBackdropType.None, false);
+
+        if (themeManager.UseSystemAccent)
+        {
+            ApplicationAccentColorManager.ApplySystemAccent();
+        }
 
         InitializeComponent();
         SetPageService(pageService);
@@ -37,8 +45,8 @@ public partial class MainWindow : INavigationWindow
         {
             Loaded += async (sender, e) =>
             {
-                // Give the window roughly a millisecond to render
-                await Task.Delay(1);
+                // Give the window a quick sec to render.
+                await Task.Delay(50);
 
                 MessageBoxResult result = await new MessageBox()
                 {
@@ -91,6 +99,11 @@ public partial class MainWindow : INavigationWindow
         Close();
     }
 
+    public void SetServiceProvider(IServiceProvider serviceProvider)
+    {
+        throw new NotImplementedException();
+    }
+
     #endregion INavigationWindow methods
 
     /// <summary>
@@ -105,11 +118,6 @@ public partial class MainWindow : INavigationWindow
     }
 
     INavigationView INavigationWindow.GetNavigation()
-    {
-        throw new NotImplementedException();
-    }
-
-    public void SetServiceProvider(IServiceProvider serviceProvider)
     {
         throw new NotImplementedException();
     }

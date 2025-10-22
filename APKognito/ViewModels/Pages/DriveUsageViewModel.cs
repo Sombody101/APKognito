@@ -241,7 +241,7 @@ public partial class DriveUsageViewModel : ViewModel, IViewable
                 if (attributes.HasFlag(FileAttributes.Directory))
                 {
                     DirectoryInfo di = new(folderName);
-                    ulong size = await DirectoryManager.DirSizeAsync(di, cancellation);
+                    ulong size = await DirectoryManager.GetDirectorySizeAsync(di, cancellation);
                     return new FootprintInfo(di, size);
                 }
                 else

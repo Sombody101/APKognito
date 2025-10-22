@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
@@ -11,21 +12,16 @@ namespace APKognito.Views.Pages;
 
 public partial class HomePage : INavigableView<HomeViewModel>, IViewable
 {
-    [MemberNotNull]
-    public static HomePage? Instance { get; private set; }
-
     public HomeViewModel ViewModel { get; }
 
     public HomePage()
     {
         // For Designer
-        ViewModel = new(default!, new(), default!, new(), new());
+        ViewModel = new(default!, new(), default!, new());
     }
 
     public HomePage(HomeViewModel viewModel)
     {
-        Instance = this;
-
         ViewModel = viewModel;
         DataContext = this;
 
@@ -42,8 +38,6 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
             viewModel.ApkName = Path.GetFileName(viewModel.FilePath);
             viewModel.UpdateCanStart();
         }
-
-        Loaded += async (sender, e) => await ViewModel.InitializeAsync();
     }
 
     private void UpdateLogs(object sender, TextChangedEventArgs e)
@@ -67,12 +61,14 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
         App.ForwardKeystrokeToBinding(sender);
     }
 
+    private bool _dragOverDebounce = false;
     private void Card_PreviewDragOver(object sender, DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        if (!_dragOverDebounce || e.Data.GetDataPresent(DataFormats.FileDrop))
         {
+            Debug.WriteLine("Drag enter");
             DragDropPresenter.Visibility = Visibility.Visible;
-            e.Handled = true;
+            _dragOverDebounce = e.Handled = true;
         }
     }
 
@@ -88,6 +84,8 @@ public partial class HomePage : INavigableView<HomeViewModel>, IViewable
 
     private void DragDropPresenter_PreviewDragLeave(object sender, DragEventArgs e)
     {
+        Debug.WriteLine("Drag leave");
         DragDropPresenter.Visibility = Visibility.Collapsed;
+        _dragOverDebounce = false;
     }
 }

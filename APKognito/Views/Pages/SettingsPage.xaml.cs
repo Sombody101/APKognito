@@ -1,4 +1,5 @@
-﻿using APKognito.Utilities.MVVM;
+﻿using APKognito.Utilities;
+using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using Wpf.Ui.Abstractions.Controls;
 
@@ -22,6 +23,7 @@ public partial class SettingsPage : INavigableView<SettingsViewModel>, IViewable
         ViewModel = new();
     }
 
+    [CalledByGenerated]
     private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
     {
         App.OpenHyperlink(sender, e);

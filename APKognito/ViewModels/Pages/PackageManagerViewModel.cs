@@ -2,6 +2,8 @@
 using System.IO;
 using System.Windows.Threading;
 using APKognito.AdbTools;
+using APKognito.ApkLib;
+using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;
@@ -9,19 +11,17 @@ using APKognito.Controls.ViewModels;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
-using Ionic.Zip;
+using Newtonsoft.Json;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
 
 public partial class PackageManagerViewModel : LoggableObservableObject
 {
-    private readonly ConfigurationFactory configFactory;
-    private readonly AdbConfig adbConfig;
-
-    private readonly IContentDialogService dialogService;
-
-    private readonly List<PackageEntry> cachedPackageList = [];
+    private readonly ConfigurationFactory _configFactory;
+    private readonly AdbConfig _adbConfig;
+    private readonly IContentDialogService _dialogService;
+    private readonly List<PackageEntry> _cachedPackageList = [];
 
     #region Properties
 
@@ -61,21 +61,21 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     public PackageManagerViewModel()
     {
         // For designer
-        dialogService = null!;
-        configFactory = null!;
-        adbConfig = null!;
+        _dialogService = null!;
+        _configFactory = null!;
+        _adbConfig = null!;
     }
 
     public PackageManagerViewModel(
-        ISnackbarService snackService,
-        IContentDialogService _dialogService,
-        ConfigurationFactory _configFactory
-    )
+        IContentDialogService dialogService,
+        ConfigurationFactory configFactory,
+        ISnackbarService snackService
+    ) : base(configFactory)
     {
-        configFactory = _configFactory;
-        adbConfig = configFactory.GetConfig<AdbConfig>();
+        _configFactory = configFactory;
+        _adbConfig = _configFactory.GetConfig<AdbConfig>();
 
-        dialogService = _dialogService;
+        _dialogService = dialogService;
         SetSnackbarProvider(snackService);
     }
 
@@ -84,7 +84,14 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     [RelayCommand]
     private async Task OnUpdatePackageListAsync()
     {
-        await UpdatePackageListAsync();
+        try
+        {
+            await UpdatePackageListAsync();
+        }
+        catch (Exception ex)
+        {
+            SnackError("Failed to load packages");
+        }
     }
 
     [RelayCommand]
@@ -134,43 +141,32 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     [RelayCommand]
     private async Task OnPushPackagesAsync()
     {
-        SnackError("Unavailable!", "This option is not available right now!");
-        return;
-
         EnableControls = false;
 
         try
         {
-            string? package = PromptForPackage();
+            string? packagePath = PromptForPackage();
 
-            if (package is null)
+            if (packagePath is null)
             {
                 return;
             }
 
-            ZipEntry? manifest = new ZipFile(package).Entries.FirstOrDefault(e => e.FileName == "AndroidManifest.xml");
+            RenamedPackageMetadata? metadata = GetPackageMetadata(packagePath);
+            string? assetDirectory = Path.Combine(Path.GetDirectoryName(packagePath)!, Path.GetFileNameWithoutExtension(packagePath));
 
-            string packageName = Path.GetFileNameWithoutExtension(package);
-
-            if (manifest is null)
+            // In case the package is pulled from a device, in which case it's going to just be called "base"
+            if (!Directory.Exists(assetDirectory))
             {
-                SnackError("No Manifest!", $"Failed to find a manifest in the package {packageName}");
-                return;
+                assetDirectory = metadata is null
+                    ? DirectorySelector.UserSelectDirectory(null, "Select package assets directory. Click 'Cancel' if this package has no assets.")
+                    : metadata.GetNormalizedAssetPath(packagePath);
             }
 
-            using MemoryStream manifestStream = new();
-            manifest.Extract(manifestStream);
+            var renamer = new PackageRenamer(_configFactory, this, new Progress<ProgressInfo>());
+            await renamer.SideloadPackageAsync(new(packagePath, assetDirectory, Path.GetFileNameWithoutExtension(packagePath)));
 
-            packageName = string.Empty;// ApkEditorContext.GetPackageName(manifestStream);
-
-            await AdbManager.WakeDeviceAsync();
-            await AdbManager.QuickCommandAsync($@"install -g ""{package}""");
-
-            string assetDirectory = Path.Combine(Path.GetDirectoryName(package)!, packageName);
-            if (Directory.Exists(assetDirectory))
-            {
-                await AdbManager.QuickCommandAsync($@"push ""{assetDirectory}"" ""{AdbManager.ANDROID_OBB}/{packageName}""");
-            }
+            SnackSuccess("Upload success!", $"Uploaded {Path.GetFileName(packagePath)} {(assetDirectory is null ? string.Empty : $"and assets directory {Path.GetFileName(assetDirectory)}")}");
         }
         catch (Exception ex)
         {
@@ -221,7 +217,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             return;
         }
 
-        AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? device = _adbConfig.GetCurrentDevice();
 
         if (device is null)
         {
@@ -252,7 +248,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
          *  <package name>|<package path>|<package size>|<assets size>|<package save data size>
          */
 
-        AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? device = _adbConfig.GetCurrentDevice();
         if (device is null)
         {
             if (silent)
@@ -263,7 +259,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
         }
 
-        AdbCommandOutput result = await Tools.TimeAsync(async () =>
+        AdbCommandOutput? result = await Tools.TimeAsync(async () =>
         {
             try
             {
@@ -276,7 +272,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             }
         });
 
-        if (result.Equals(default(AdbCommandOutput)))
+        if (result is null)
         {
             return;
         }
@@ -288,31 +284,28 @@ public partial class PackageManagerViewModel : LoggableObservableObject
                 return;
             }
 
-            if (result.StdErr.Trim().EndsWith("No such file or directory"))
-            {
-                SnackError("No ADB scripts!", "ADB scripts have not been installed on this device. Install them by pressing 'Upload ADB Scripts' at the top.");
-                return;
-            }
-
             SnackError("Unable to get packages!", result.StdErr);
             return;
         }
 
-        string[] rawPackages = [.. result.StdOut.Split('\n').Skip(1).SkipLast(1)];
+        string rawJson = result.StdOut;// Encoding.UTF8.GetString(Convert.FromBase64String(result.StdOut));
 
-        cachedPackageList.Clear();
-        cachedPackageList.AddRange(
-            rawPackages.Select(PackageEntry.ParseEntry)
-        );
+        _cachedPackageList.Clear();
+        List<PackageEntry>? devices = JsonConvert.DeserializeObject<List<PackageEntry>>(rawJson);
 
-        DisplayPackages(cachedPackageList);
+        if (devices is not null)
+        {
+            _cachedPackageList.AddRange(devices);
+        }
+
+        DisplayPackages(_cachedPackageList);
     }
 
     private async Task PullPackagesAsync(ListView list)
     {
         EnableControls = false;
 
-        AdbDeviceInfo? device = adbConfig.GetCurrentDevice();
+        AdbDeviceInfo? device = _adbConfig.GetCurrentDevice();
         if (device is null)
         {
             SnackError("No device!", "No ADB device is set! Select one in from the dropdown!");
@@ -335,7 +328,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             Content = $"This will pull the following {"package".PluralizeIfMany(selected)}:\n  ⚬  {string.Join("\n  ⚬  ", items.Select(item => item.PackageName))}\n\nContinue?",
         };
 
-        DirectoryConfirmationDialog directoryDialog = new(dialogOutput, dialogService.GetDialogHost())
+        DirectoryConfirmationDialog directoryDialog = new(dialogOutput, _dialogService.GetDialogHost())
         {
             IsPrimaryButtonEnabled = true,
             PrimaryButtonText = $"Pull {"App".PluralizeIfMany(selected)}",
@@ -351,7 +344,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         }
 
         string outputDirectory = dialogOutput.OutputDirectory;
-        configFactory.SaveConfig<UserRenameConfiguration>();
+        _configFactory.SaveConfig<UserRenameConfiguration>();
 
         foreach (PackageEntry package in items)
         {
@@ -386,25 +379,17 @@ public partial class PackageManagerViewModel : LoggableObservableObject
     {
         if (string.IsNullOrWhiteSpace(filter))
         {
-            DisplayPackages(cachedPackageList);
+            DisplayPackages(_cachedPackageList);
             return;
         }
 
         string[] filterParts = filter.Split();
 
-        List<PackageEntry> matchingPackages = cachedPackageList.Where(package =>
+        List<PackageEntry> matchingPackages = [.. _cachedPackageList.Where(package =>
         {
             string packageName = package.PackageName;
-            foreach (string filterPart in filterParts)
-            {
-                if (!packageName.Contains(filterPart))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }).ToList();
+            return filterParts.Any(p => packageName.Contains(p));
+        })];
 
         DisplayPackages(matchingPackages);
     }
@@ -478,6 +463,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         OpenFileDialog openFileDialog = new()
         {
             Filter = "APK files (*.apk)|*.apk",
+            Title = "Select Android Package"
         };
 
         bool? result = openFileDialog.ShowDialog();
@@ -498,5 +484,21 @@ public partial class PackageManagerViewModel : LoggableObservableObject
         }
 
         return null;
+    }
+
+    private static RenamedPackageMetadata? GetPackageMetadata(string packagePath)
+    {
+        string? packageDirectory = Path.GetDirectoryName(packagePath);
+
+        if (packageDirectory is null)
+        {
+            return null;
+        }
+
+        string? claimFile = DirectoryManager.GetClaimFile(packageDirectory);
+
+        return claimFile is not null
+            ? MetadataManager.LoadMetadata(claimFile)
+            : null;
     }
 }

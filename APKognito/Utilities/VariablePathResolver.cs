@@ -14,7 +14,7 @@ public static partial class VariablePathResolver
         }
 
         string varName = match.Groups["var_name"].Value;
-        string? envVar = Environment.GetEnvironmentVariable(varName.Trim('%'));
+        string? envVar = Environment.GetEnvironmentVariable(varName);
 
         if (envVar is not null)
         {
@@ -24,6 +24,6 @@ public static partial class VariablePathResolver
         return path;
     }
 
-    [GeneratedRegex("(?<var_name>\\%[a-zA-Z_-]+\\%)")]
+    [GeneratedRegex(@"\%(?<var_name>[a-zA-Z_-]+)\%")]
     private static partial Regex GetPathVariable();
 }

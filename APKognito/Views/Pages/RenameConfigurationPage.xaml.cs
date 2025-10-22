@@ -15,6 +15,7 @@ public sealed partial class RenameConfigurationPage : INavigableView<RenameConfi
     public RenameConfigurationPage()
     {
         // For designer
+        ViewModel = null!;
     }
 
     public RenameConfigurationPage(RenameConfigurationViewModel viewModel)
@@ -35,11 +36,5 @@ public sealed partial class RenameConfigurationPage : INavigableView<RenameConfi
     private async void CheckBox_CheckedAsync(object sender, RoutedEventArgs e)
     {
         await RenameConfigurationViewModel.OnRenameCopyCheckedAsync();
-    }
-
-    [CalledByGenerated]
-    private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-
     }
 }

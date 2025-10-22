@@ -4,7 +4,7 @@ using Wpf.Ui.Controls;
 
 namespace APKognito.Models;
 
-public class AdbFolderInfo
+public class AdbFileEntry
 {
     private const string STAT_TIME_FORMAT_STRING = "yyyy-MM-dd HH:mm:ss.fffffff zzz";
 
@@ -13,15 +13,15 @@ public class AdbFolderInfo
 
     #region Static Instances
 
-    public static AdbFolderInfo EmptyLoading => new($"{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Loading...{STAT_FORMAT_SEPARATOR}");
+    public static AdbFileEntry EmptyLoading => new($"{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Loading...{STAT_FORMAT_SEPARATOR}");
 
-    public static AdbFolderInfo EmptyDirectory => new($"{STAT_FORMAT_SEPARATOR}E{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Empty Directory{STAT_FORMAT_SEPARATOR}");
+    public static AdbFileEntry EmptyDirectory => new($"{STAT_FORMAT_SEPARATOR}E{STAT_FORMAT_SEPARATOR}{STAT_FORMAT_SEPARATOR}/Empty Directory{STAT_FORMAT_SEPARATOR}");
 
 #if DEBUG
-    public static AdbFolderInfo DebugFiller => new($"2008-12-31 17:00:00.000000000 -0700{STAT_FORMAT_SEPARATOR}regular file{STAT_FORMAT_SEPARATOR}69420{STAT_FORMAT_SEPARATOR}/Random File{STAT_FORMAT_SEPARATOR}root");
+    public static AdbFileEntry DebugFiller => new($"2008-12-31 17:00:00.000000000 -0700{STAT_FORMAT_SEPARATOR}regular file{STAT_FORMAT_SEPARATOR}69420{STAT_FORMAT_SEPARATOR}/Random File{STAT_FORMAT_SEPARATOR}root");
 #endif
 
-    public static AdbFolderInfo RootFolder => new($"{STAT_FORMAT_SEPARATOR}directory{STAT_FORMAT_SEPARATOR}0{STAT_FORMAT_SEPARATOR}/{STAT_FORMAT_SEPARATOR}root");
+    public static AdbFileEntry RootFolder => new($"{STAT_FORMAT_SEPARATOR}directory{STAT_FORMAT_SEPARATOR}0{STAT_FORMAT_SEPARATOR}/{STAT_FORMAT_SEPARATOR}root");
 
     #endregion Static Instances
 
@@ -65,11 +65,11 @@ public class AdbFolderInfo
 
     public SymbolRegular Symbol => GetSymbol();
 
-    public AdbFolderInfo()
+    public AdbFileEntry()
     {
     }
 
-    public AdbFolderInfo(string statInfo, string? parentItem = null)
+    public AdbFileEntry(string statInfo, string? parentItem = null)
     {
         /*
          * 'stat' format: %y %F %s %N %U (STAT_FORMAT_STRING)

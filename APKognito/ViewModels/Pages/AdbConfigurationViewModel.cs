@@ -3,6 +3,7 @@ using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls.Dialogs;
+using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using Wpf.Ui;
 
@@ -38,6 +39,17 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
 
     #endregion Properties
 
+    public AdbConfigurationViewModel(
+        ISnackbarService snackbarService,
+        ConfigurationFactory configFactory,
+        IContentDialogService dialogService
+    ) : base(configFactory)
+    {
+        SetSnackbarProvider(snackbarService);
+        _adbConfig = configFactory.GetConfig<AdbConfig>();
+        _contentDialogService = dialogService;
+    }
+
     public AdbConfigurationViewModel()
     {
         // For designer
@@ -45,23 +57,20 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
         _contentDialogService = null!;
     }
 
-    public AdbConfigurationViewModel(
-        ISnackbarService _snackbarService,
-        ConfigurationFactory _configFactory,
-        IContentDialogService dialogService
-    )
-    {
-        SetSnackbarProvider(_snackbarService);
-        _adbConfig = _configFactory.GetConfig<AdbConfig>();
-        _contentDialogService = dialogService;
-    }
-
     #region Commands
 
     [RelayCommand]
     private async Task OnRunCardCommandAsync(string command)
     {
-        await RunDialogCommandAsync(command);
+        try
+        {
+            await RunDialogCommandAsync(command);
+        }
+        catch (Exception ex)
+        {
+            SnackError(ex.Message);
+            FileLogger.LogException(ex);
+        }
     }
 
     #endregion Commands
@@ -101,6 +110,7 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
 
     private async Task RunDialogCommandAsync(string commandPair)
     {
+        // command|Title
         string[] split = commandPair.Split('|', 2);
         string command = split[0];
         string description = split[1];
@@ -110,8 +120,13 @@ public partial class AdbConfigurationViewModel : LoggableObservableObject
             return;
         }
 
-        var consoleDialog = new ConsoleDialog(command, _contentDialogService.GetDialogHost());
-        Wpf.Ui.Controls.ContentDialogResult dialogResult = await consoleDialog.ShowAsync();
+        WPFUI.Controls.ContentDialogResult dialogResult = await ConsoleDialog.RunInternalCommandAsync(
+            command,
+            "Utility Installer",
+            "Cancel Install",
+            "Close Installer",
+            _contentDialogService.GetDialogHost()
+        );
 
         if (dialogResult is Wpf.Ui.Controls.ContentDialogResult.Primary)
         {

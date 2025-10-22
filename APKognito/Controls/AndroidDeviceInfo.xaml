@@ -30,7 +30,7 @@
 
                     <ComboBox
                         Margin="0,0,10,0"
-                        DropDownOpened="ComboBox_DropDownOpened"
+                        DropDownOpened="ComboBox_DropDownOpenedAsync"
                         IsEditable="False"
                         IsReadOnly="True"
                         IsSynchronizedWithCurrentItem="True"
@@ -125,7 +125,7 @@
                     Height="5"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Center"
-                    Foreground="Orange"
+                    Foreground="{DynamicResource ToggleSwitchFillOnPointerOver}"
                     Maximum="{Binding ViewModel.AndroidDevice.TotalSpace}"
                     Value="{Binding ViewModel.AndroidDevice.UsedSpace}" />
             </Grid>

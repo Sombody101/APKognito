@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Media;
+using Microsoft.Extensions.Logging;
 using Wpf.Ui.Controls;
 using static APKognito.Models.LogBoxEntry;
 
@@ -86,28 +86,6 @@ public interface IViewLogger : ILogger
     public void LogDebug(Exception ex);
 
     /// <summary>
-    /// Adds an indent character which is applied to all Log methods.
-    /// </summary>
-    /// <param name="indenter"></param>
-    public void AddIndent(char indenter = '\t');
-
-    /// <summary>
-    /// Adds an indent string which is applied to all Log methods.
-    /// </summary>
-    /// <param name="indenter"></param>
-    public void AddIndentString(string indenter = "\t");
-
-    /// <summary>
-    /// Removes the last character from the log indenter. (Should only be used when the indent was applied via <see cref="AddIndent(char)"/>)
-    /// </summary>
-    public void RemoveIndent();
-
-    /// <summary>
-    /// Clears the log indenter.
-    /// </summary>
-    public void ResetIndent();
-
-    /// <summary>
     /// Clears all logs.
     /// </summary>
     public void ClearLogs();
@@ -175,4 +153,8 @@ public interface IViewLogger : ILogger
     /// </summary>
     /// <param name="body"></param>
     public void SnackError(string body);
+
+    public void WriteImage(WPFUI.Controls.Image image);
+
+    public void WriteImage(System.Windows.Controls.Image image);
 }

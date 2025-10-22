@@ -116,9 +116,12 @@ public partial class DirectorySelector
         selector.DirectoryPath = VariablePathResolver.Resolve(value);
     }
 
-    public static string? UserSelectDirectory(string? defaultDirectory = null)
+    public static string? UserSelectDirectory(string? defaultDirectory = null, string title = "Select directory")
     {
-        OpenFolderDialog openFolderDialog = new();
+        OpenFolderDialog openFolderDialog = new()
+        {
+            Title = title,
+        };
 
         if (defaultDirectory is not null)
         {

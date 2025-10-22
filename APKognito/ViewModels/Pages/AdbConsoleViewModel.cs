@@ -1,5 +1,4 @@
-﻿using System.Printing;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
@@ -30,15 +29,18 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
     #endregion Properties
 
-    public AdbConsoleViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
+    public AdbConsoleViewModel(
+        ConfigurationFactory configFactory,
+        ISnackbarService snackbarService
+    ) : base(configFactory)
     {
-        SetSnackbarProvider(_snackbarService);
+        SetSnackbarProvider(snackbarService);
         LogIconPrefixes = false;
         _adbManager = new();
 
-        this._configFactory = _configFactory;
-        _adbConfig = this._configFactory.GetConfig<AdbConfig>();
-        _adbHistory = this._configFactory.GetConfig<AdbHistory>();
+        _configFactory = configFactory;
+        _adbConfig = _configFactory.GetConfig<AdbConfig>();
+        _adbHistory = _configFactory.GetConfig<AdbHistory>();
 
         _historyIndex = _adbHistory.CommandHistory.Count;
 
@@ -100,6 +102,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
     #endregion Commands
 
+    [SuppressMessage("Major Code Smell", "S6966:Awaitable method should be used", Justification = "They do different things.")]
     public async Task EnterCommandAsync(string? command = null)
     {
         // Allows for the command to be overridden if passed

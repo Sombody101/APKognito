@@ -28,7 +28,7 @@ public static class MetadataManager
         Span<char> loadedMagic = stackalloc char[APKOGNITO_MAGIC.Length];
         _ = reader.Read(loadedMagic);
 
-        if (loadedMagic.ToString() != APKOGNITO_MAGIC)
+        if (loadedMagic is not APKOGNITO_MAGIC)
         {
             return null;
         }

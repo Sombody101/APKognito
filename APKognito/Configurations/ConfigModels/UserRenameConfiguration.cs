@@ -49,9 +49,9 @@ public sealed partial class UserRenameConfiguration : ObservableObject, IKognito
     [JsonIgnore]
     public PackageToolingPaths BaseToolingPaths { get; set; } = new();
 
-    public (PackageToolingPaths, JavaVersionInformation) GetToolingPaths(JavaVersionCollector collector)
+    public (PackageToolingPaths, JavaVersionInformation) GetToolingPaths()
     {
-        JavaVersionInformation wantedVersion = collector.GetVersion(SelectedRawJavaVersion);
+        JavaVersionInformation wantedVersion = JavaVersionCollector.GetVersion(SelectedRawJavaVersion);
 
         return (new()
         {

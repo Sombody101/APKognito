@@ -1,11 +1,11 @@
-﻿using APKognito.AdbTools;
+﻿using System.Collections.ObjectModel;
+using System.IO;
+using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
 using Microsoft.Win32;
-using System.Collections.ObjectModel;
-using System.IO;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
@@ -26,11 +26,14 @@ public partial class FileUploaderViewModel : LoggableObservableObject
 
     #endregion Properties
 
-    public FileUploaderViewModel(ISnackbarService _snackbarService, ConfigurationFactory _configFactory)
+    public FileUploaderViewModel(
+        ConfigurationFactory configFactory,
+        ISnackbarService snackbarService
+    ) : base(configFactory)
     {
-        SetSnackbarProvider(_snackbarService);
+        SetSnackbarProvider(snackbarService);
 
-        adbConfig = _configFactory.GetConfig<AdbConfig>();
+        adbConfig = configFactory.GetConfig<AdbConfig>();
     }
 
     public FileUploaderViewModel()

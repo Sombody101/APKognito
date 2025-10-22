@@ -1,4 +1,6 @@
-﻿using APKognito.Views.Windows;
+﻿using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
+using APKognito.Views.Windows;
 using Microsoft.Extensions.Hosting;
 using Wpf.Ui;
 
@@ -41,8 +43,22 @@ public class ApplicationHostService : IHostedService
     {
         INavigationWindow _navigationWindow;
 
-        if (!Application.Current.Windows.OfType<MainWindow>().Any())
+        WindowCollection loadedWindows = Application.Current.Windows;
+
+// #if DEBUG
+//         if (false && (_serviceProvider.GetService(typeof(ConfigurationFactory)) as ConfigurationFactory)!.GetConfig<CacheStorage>().IsFirstLaunch)
+//         {
+//             _navigationWindow = (_serviceProvider.GetService(typeof(SetupWizardWindow)) as SetupWizardWindow)!;
+//             _navigationWindow!.ShowWindow();
+// 
+//             _ = _navigationWindow.Navigate(typeof(Views.Pages.SetupWizard.ThemeSetupPage));
+//         }
+//         else
+// #endif
+        if (!loadedWindows.OfType<MainWindow>().Any())
         {
+            // Setup wizard, then load main page
+
             _navigationWindow = (_serviceProvider.GetService(typeof(INavigationWindow)) as INavigationWindow)!;
             _navigationWindow!.ShowWindow();
 

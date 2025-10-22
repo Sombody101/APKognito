@@ -1,14 +1,14 @@
-﻿using APKognito.Configurations;
+﻿using System.Collections.ObjectModel;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Models;
 using APKognito.Utilities.MVVM;
-using System.Collections.ObjectModel;
 
 namespace APKognito.ViewModels.Pages;
 
 public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 {
-    private readonly RenameSessionList storedSessions;
+    private readonly RenameSessionList _storedSessions;
 
     #region Properties
 
@@ -35,7 +35,7 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
 
     public RenamingHistoryViewModel(ConfigurationFactory _configFactory)
     {
-        storedSessions = _configFactory.GetConfig<RenameSessionList>();
+        _storedSessions = _configFactory.GetConfig<RenameSessionList>();
     }
 
     #region Commands
@@ -43,7 +43,7 @@ public partial class RenamingHistoryViewModel : ObservableObject, IViewable
     [RelayCommand]
     public async Task RefreshRenameSessionsAsync()
     {
-        List<RenameSession> sessions = new(storedSessions.RenameSessions);
+        List<RenameSession> sessions = [.. _storedSessions.RenameSessions];
         sessions.Reverse();
 
         RenameSessions.Clear();

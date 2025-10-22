@@ -44,12 +44,37 @@
             <RowDefinition Height="*" MinHeight="10" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="2">
+        <Grid
+            Grid.Row="2"
+            AllowDrop="{Binding ViewModel.RunningJobs, Converter={StaticResource BoolInverter}}"
+            PreviewDragOver="Card_PreviewDragOver">
 
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
+
+            <Grid
+                x:Name="DragDropPresenter"
+                Grid.ColumnSpan="10"
+                Panel.ZIndex="100"
+                Visibility="Collapsed">
+                <ui:Card
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    AllowDrop="{Binding ViewModel.RunningJobs, Converter={StaticResource BoolInverter}}"
+                    Background="Gray"
+                    Drop="DragDropPresenter_DropAsync"
+                    Opacity=".75"
+                    PreviewDragLeave="DragDropPresenter_PreviewDragLeave" />
+
+                <ui:SymbolIcon
+                    Drop="DragDropPresenter_DropAsync"
+                    Filled="True"
+                    FontSize="48"
+                    PreviewDragLeave="DragDropPresenter_PreviewDragLeave"
+                    Symbol="Dock24" />
+            </Grid>
 
             <ui:Card
                 Width="250"
@@ -132,9 +157,7 @@
                 Grid.Column="1"
                 VerticalAlignment="Stretch"
                 VerticalContentAlignment="Stretch"
-                AllowDrop="{Binding ViewModel.RunningJobs, Converter={StaticResource BoolInverter}}"
-                CornerRadius="4,0,4,4"
-                PreviewDragOver="Card_PreviewDragOver">
+                CornerRadius="4,0,4,4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -142,29 +165,6 @@
                         <RowDefinition Height="auto" />
                         <RowDefinition Height="auto" />
                     </Grid.RowDefinitions>
-
-                    <Grid
-                        x:Name="DragDropPresenter"
-                        Grid.ColumnSpan="10"
-                        Panel.ZIndex="100"
-                        Visibility="Collapsed">
-                        <ui:Card
-                            Margin="-15,-17,-15,-21"
-                            HorizontalAlignment="Stretch"
-                            VerticalAlignment="Stretch"
-                            AllowDrop="{Binding ViewModel.RunningJobs, Converter={StaticResource BoolInverter}}"
-                            Background="Gray"
-                            Drop="DragDropPresenter_DropAsync"
-                            Opacity=".5"
-                            PreviewDragLeave="DragDropPresenter_PreviewDragLeave" />
-
-                        <ui:SymbolIcon
-                            Drop="DragDropPresenter_DropAsync"
-                            Filled="True"
-                            FontSize="48"
-                            PreviewDragLeave="DragDropPresenter_PreviewDragLeave"
-                            Symbol="Dock24" />
-                    </Grid>
 
                     <ctrls:DataTable
                         Grid.Row="0"

@@ -47,7 +47,7 @@ public static class FileLogger
     public const string TIME_FORMAT_STRING = "hh:mm:ss.fff tt:";
     public const string USER_REPLACEMENT_STRING = "[:USER:]";
 
-    private static readonly object s_lock = new();
+    private static readonly Lock s_lock = new();
     private static readonly string s_logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
     private static readonly string s_exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
 
@@ -125,7 +125,11 @@ public static class FileLogger
             .AppendLine("-- END LOG --")
             .AppendLine();
 
+#if DEBUG
+        LogGenericFinal(log.ToString().EscapeMarkup(), ex);
+#else
         LogGenericFinal(log.ToString(), ex);
+#endif
     }
 
     public static void Log(string log, bool ignore = false)
@@ -264,16 +268,18 @@ public static class FileLogger
 
         // Items that need to be packed manually
         string logBoxPath = Path.Combine(packPath, "logbox.txt");
-        HomePage? hmv = HomePage.Instance;
+        HomePage? homePage = App.GetService<HomePage>();
 
-        if (hmv is null)
+        if (homePage is null)
         {
             await File.WriteAllTextAsync(logBoxPath, "[Null]");
         }
         else
         {
-            IEnumerable<string> lines = ((Paragraph)hmv.APKLogs.Document.Blocks.LastBlock).Inlines
-                .Select(line => line.ContentStart.GetTextInRun(LogicalDirection.Forward));
+            IEnumerable<string> lines = homePage.APKLogs.Document.Blocks
+                .Where(b => b is Paragraph)
+                .SelectMany(p => ((Paragraph)p).Inlines
+                    .Select(line => line.ContentEnd.GetTextInRun(LogicalDirection.Forward)));
 
             await File.WriteAllTextAsync(logBoxPath, string.Join("\r\n", lines));
         }
@@ -346,7 +352,6 @@ public static class FileLogger
             entry = ConsoleAbstraction.RemoveMarkup(entry);
 #endif
 
-
             lock (s_lock)
             {
                 if (ex is null)
@@ -360,8 +365,19 @@ public static class FileLogger
                 }
             }
         }
-        catch
+        catch (Exception fex)
         {
+#if DEBUG
+            AnsiConsole.MarkupLine("[red][[FAILED TO LOG EXCEPTION]][/]");
+            AnsiConsole.WriteException(fex);
+
+            if (ex is not null)
+            {
+                AnsiConsole.WriteLine("Original exception:");
+                AnsiConsole.WriteException(ex);
+            }
+#endif
+
             // Exception
         }
     }
@@ -445,7 +461,7 @@ public static class FileLogger
             {
                 for (int i = 0; i < lineCount; i++)
                 {
-                    if (reader.ReadLine() == null)
+                    if (reader.ReadLine() is null)
                     {
                         Console.WriteLine($"Warning: File has fewer than {lineCount} lines. All lines will be removed.");
                         break;
@@ -453,7 +469,7 @@ public static class FileLogger
                 }
 
                 string? line;
-                while ((line = reader.ReadLine()) != null)
+                while ((line = reader.ReadLine()) is not null)
                 {
                     writer.WriteLine(line);
                 }
@@ -479,9 +495,7 @@ public static class FileLogger
 
     public static class LogLevelColors
     {
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         static LogLevelColors()
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         {
             PopulateColors(ApplicationThemeManager.GetAppTheme() is ApplicationTheme.Dark);
 
@@ -491,12 +505,12 @@ public static class FileLogger
             };
         }
 
-        public static Brush Info { get; private set; }
-        public static Brush Warning { get; private set; }
-        public static Brush Error { get; private set; }
-        public static Brush Fatal { get; private set; }
-        public static Brush Debug { get; private set; }
-        public static Brush Trace { get; private set; }
+        public static Brush Info { get; private set; } = null!;
+        public static Brush Warning { get; private set; } = null!;
+        public static Brush Error { get; private set; } = null!;
+        public static Brush Fatal { get; private set; } = null!;
+        public static Brush Debug { get; private set; } = null!;
+        public static Brush Trace { get; private set; } = null!;
 
         public static SolidColorBrush ToBrush(int color)
         {

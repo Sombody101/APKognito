@@ -2,21 +2,21 @@
 
 namespace APKognito.Utilities.JavaTools;
 
-public sealed class JavaVersionCollector
+public static class JavaVersionCollector
 {
     private const string JDK_HIVE_PATH = "SOFTWARE\\JavaSoft\\JDK";
     private const string JRE_HIVE_PATH = "SOFTWARE\\JavaSoft\\Java Runtime Environment";
 
-    private readonly ICollection<JavaVersionInformation> _knownJavaVersions = [];
+    private static readonly ICollection<JavaVersionInformation> s_knownJavaVersions = [];
 
-    public IReadOnlyCollection<JavaVersionInformation> JavaVersions => (IReadOnlyCollection<JavaVersionInformation>)_knownJavaVersions;
+    public static IReadOnlyCollection<JavaVersionInformation> JavaVersions => (IReadOnlyCollection<JavaVersionInformation>)s_knownJavaVersions;
 
-    public JavaVersionCollector()
+    static JavaVersionCollector()
     {
-        _ = CollectVersions();
+        _ = RefreshJavaVersions();
     }
 
-    public JavaVersionInformation GetVersion(string? wantedRawVersion)
+    public static JavaVersionInformation GetVersion(string? wantedRawVersion)
     {
         IReadOnlyCollection<JavaVersionInformation> javaVersions = JavaVersions;
         if (javaVersions.Count is 0)
@@ -29,15 +29,15 @@ public sealed class JavaVersionCollector
             : javaVersions.First();
     }
 
-    public IReadOnlyCollection<JavaVersionInformation> CollectVersions()
+    public static IReadOnlyCollection<JavaVersionInformation> RefreshJavaVersions()
     {
-        _knownJavaVersions.Clear();
+        s_knownJavaVersions.Clear();
 
         foreach (RegistryKey key in GetJavaKeys())
         {
             try
             {
-                _knownJavaVersions.Add(new JavaVersionInformation(key));
+                s_knownJavaVersions.Add(new JavaVersionInformation(key));
             }
             catch (Exception ex)
             {
@@ -66,7 +66,7 @@ public sealed class JavaVersionCollector
                 return;
             }
 
-            foreach (string subkeyName in parentKey.GetSubKeyNames())
+            foreach (string subkeyName in parentKey.GetSubKeyNames().AsEnumerable().Reverse())
             {
                 RegistryKey subkey = parentKey.OpenSubKey(subkeyName)!;
                 foundKeys.Add(subkey);

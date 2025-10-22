@@ -2,22 +2,14 @@
 //#define DEBUG_WITHOUT_CONSOLE
 #endif
 
-using APKognito.Utilities;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using APKognito.Utilities;
 
 namespace APKognito.Cli;
 
 internal static partial class CliMain
 {
-    [LibraryImport("kernel32", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool AttachConsole(int dwProcessId);
-
-    [LibraryImport("kernel32", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool AllocConsole();
-
     public static bool ConsoleActive { get; private set; }
 
     public static void Main(ParsedArgs args)
@@ -102,4 +94,12 @@ internal static partial class CliMain
     {
         Environment.Exit((int)code);
     }
+
+    [LibraryImport("kernel32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AttachConsole(int dwProcessId);
+
+    [LibraryImport("kernel32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AllocConsole();
 }

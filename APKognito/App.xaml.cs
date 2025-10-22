@@ -1,4 +1,4 @@
-﻿// #define NO_EXCEPTION_HANDLING
+﻿#define NO_EXCEPTION_HANDLING
 
 using System.Diagnostics;
 using System.IO;
@@ -8,6 +8,7 @@ using APKognito.Configurations;
 using APKognito.Services;
 using APKognito.Utilities;
 using APKognito.Utilities.JavaTools;
+using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using APKognito.ViewModels.Pages.Debugging;
 using APKognito.ViewModels.Windows;
@@ -63,8 +64,9 @@ public partial class App
                 .AddSingleton<ITaskBarService, TaskBarService>()
                 .AddSingleton<INavigationService, NavigationService>()
                 .AddSingleton<IContentDialogService, ContentDialogService>()
-                .AddSingleton<INavigationWindow, MainWindow>()
-                .AddTransient<JavaVersionCollector>()
+                .AddTransient<INavigationWindow, MainWindow>()
+                .AddTransient<SetupWizardWindow>()
+                // .AddTransient<JavaVersionCollector>()
                 // Pages
                 .AddSingleton<HomePage>()
                 .AddTransient<AdbConsolePage>()
@@ -74,7 +76,7 @@ public partial class App
                 .AddTransient<FileUploaderPage>()
                 .AddTransient<PackageManagerPage>()
                 .AddTransient<RenameConfigurationPage>()
-                .AddTransient<RenamingHistoryPage>()
+                //.AddTransient<RenamingHistoryPage>()
                 .AddTransient<SettingsPage>()
                 .AddTransient<LogViewerPage>()
                 // Viewmodels
@@ -88,25 +90,23 @@ public partial class App
                 .AddTransient<FileUploaderViewModel>()
                 .AddTransient<PackageManagerViewModel>()
                 .AddTransient<RenameConfigurationViewModel>()
-                .AddTransient<RenamingHistoryViewModel>()
+                // .AddTransient<RenamingHistoryViewModel>()
                 .AddTransient<SettingsViewModel>()
                 .AddTransient<LogViewerViewModel>();
 
             // Wizard
             _ = services
-                .AddSingleton<SetupWizard>()
+                .AddSingleton<SetupWizardWindow>()
                 .AddSingleton<SetupWizardViewModel>();
 
             // Exception window model
             _ = services.AddSingleton<ExceptionWindowViewModel>();
 
-#if DEBUG
-            FileLogger.Log("Update service disabled. Use a Public Debug or full Release to get updates.");
-#else
-            // Auto update service
+#if RELEASE
             _ = services.AddHostedService<AutoUpdaterService>();
 #endif
         }).Build();
+
 
     /// <summary>
     /// Gets registered service.
@@ -116,6 +116,11 @@ public partial class App
     public static T? GetService<T>() where T : class
     {
         return s_host.Services.GetService(typeof(T)) as T;
+    }
+
+    public static T GetRequiredService<T>() where T : class
+    {
+        return s_host.Services.GetRequiredService<T>();
     }
 
     /// <summary>
@@ -148,7 +153,7 @@ public partial class App
             {
                 _ = ExceptionWindow.CreateNewExceptionWindow(
                     e.Exception,
-                    (ExceptionWindowViewModel)s_host.Services.GetService(typeof(ExceptionWindowViewModel))!,
+                    s_host.Services.GetService<ExceptionWindowViewModel>()!,
                     "AppMain [src: Default Dispatcher]");
             });
         };
@@ -156,6 +161,10 @@ public partial class App
 
         Tools.Time(s_host.Start, "Host.Start");
         ApplicationAccentColorManager.ApplySystemAccent();
+
+#if DEBUG
+        FileLogger.Log("Update service disabled. Use a Public Debug or full Release to get updates.");
+#endif
     }
 
     /// <summary>
@@ -164,7 +173,7 @@ public partial class App
     private async void OnExitAsync(object sender, ExitEventArgs e)
     {
         // Likely won't be rendered, but slow PCs might see it ¯\_(ツ)_/¯
-        HomeViewModel.Instance?.Log("Saving all settings...");
+        LoggableObservableObject.GlobalFallbackLogger?.Log("Saving all settings...");
         GetService<ConfigurationFactory>()!.SaveAllConfigs();
 
         await s_host.StopAsync();
@@ -194,12 +203,7 @@ public partial class App
 
     public static void NavigateTo(Type target)
     {
-        GetRequiredService<INavigationService>().Navigate(target);
-    }
-
-    public static T GetRequiredService<T>() where T : class
-    {
-        return s_host.Services.GetRequiredService<T>();
+        _ = GetRequiredService<INavigationService>().Navigate(target);
     }
 
     /// <summary>
@@ -257,7 +261,7 @@ public partial class App
 
     public readonly struct Version
     {
-        public static Assembly Assembly { get => field ??= typeof(Version).Assembly; } = null!;
+        public static Assembly Assembly => field ??= typeof(Version).Assembly;
 
         public static string GetFullVersion(Assembly? assembly = null)
         {

@@ -23,6 +23,8 @@ public partial class RenamedPackageSelector : ContentDialog
     public RenamedPackageSelector()
     {
         InitializeComponent();
+        ViewModel = null!;
+        _configFactory = null!;
     }
 
     public RenamedPackageSelector(ConfigurationFactory configFactory, ContentPresenter? contentPresenter)
@@ -68,7 +70,7 @@ public partial class RenamedPackageSelector : ContentDialog
                 }
 
                 ulong assetsSize = loadedMetadata.RelativeAssetsPath is not null
-                    ? await DirectoryManager.DirSizeAsync(Path.GetFullPath(Path.Combine(directory, loadedMetadata.RelativeAssetsPath)))
+                    ? await DirectoryManager.GetDirectorySizeAsync(Path.GetFullPath(Path.Combine(directory, loadedMetadata.RelativeAssetsPath)))
                     : 0;
 
                 var foundMetadata = new PresentableRenamedPackageMetadata()

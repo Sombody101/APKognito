@@ -1,9 +1,9 @@
-﻿using System.Collections.ObjectModel;
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Windows.Documents;
 using System.Windows.Media;
 using APKognito.Models;
 using Wpf.Ui.Controls;
+using ElementCollection = System.Collections.ObjectModel.ObservableCollection<object>;
 using LogEntryType = APKognito.Models.LogBoxEntry.LogEntryType;
 
 namespace APKognito.Controls;
@@ -13,16 +13,16 @@ public static class RichTextBoxLogBehavior
     public static readonly DependencyProperty LogEntriesProperty =
         DependencyProperty.RegisterAttached(
             "LogEntries",
-            typeof(ObservableCollection<LogBoxEntry>),
+            typeof(ElementCollection),
             typeof(RichTextBoxLogBehavior),
             new PropertyMetadata(null, OnLogEntriesChanged));
 
-    public static ObservableCollection<LogBoxEntry> GetLogEntries(DependencyObject obj)
+    public static ElementCollection GetLogEntries(DependencyObject obj)
     {
-        return (ObservableCollection<LogBoxEntry>)obj.GetValue(LogEntriesProperty);
+        return (ElementCollection)obj.GetValue(LogEntriesProperty);
     }
 
-    public static void SetLogEntries(DependencyObject obj, ObservableCollection<LogBoxEntry> value)
+    public static void SetLogEntries(DependencyObject obj, ElementCollection value)
     {
         obj.SetValue(LogEntriesProperty, value);
     }
@@ -51,12 +51,12 @@ public static class RichTextBoxLogBehavior
             return;
         }
 
-        if (e.OldValue is ObservableCollection<LogBoxEntry> oldCollection)
+        if (e.OldValue is ElementCollection oldCollection)
         {
             oldCollection.CollectionChanged -= TextboxUpdateHandler;
         }
 
-        if (e.NewValue is ObservableCollection<LogBoxEntry> newCollection)
+        if (e.NewValue is ElementCollection newCollection)
         {
             newCollection.CollectionChanged += TextboxUpdateHandler;
 
@@ -78,16 +78,16 @@ public static class RichTextBoxLogBehavior
         }
     }
 
-    private static void PopulateRichTextBox(Paragraph paragraph, ObservableCollection<LogBoxEntry> entries, bool logIconPrefixes)
+    private static void PopulateRichTextBox(Paragraph paragraph, ElementCollection entries, bool logIconPrefixes)
     {
         paragraph.Inlines.Clear();
-        foreach (LogBoxEntry entry in entries)
+        foreach (object entry in entries)
         {
-            AddLogEntryToParagraph(paragraph, entry.Text, entry.Color, entry.LogType, logIconPrefixes);
+            AddToParagraph(paragraph, entry, logIconPrefixes);
         }
     }
 
-    private static void UpdateRichTextBox(RichTextBox textBox, System.Collections.Specialized.NotifyCollectionChangedEventArgs args)
+    private static void UpdateRichTextBox(RichTextBox textBox, NotifyCollectionChangedEventArgs args)
     {
         if (!textBox.Dispatcher.CheckAccess())
         {
@@ -104,20 +104,42 @@ public static class RichTextBoxLogBehavior
 
         switch (args.Action)
         {
-            case System.Collections.Specialized.NotifyCollectionChangedAction.Add:
+            case NotifyCollectionChangedAction.Add:
                 if (args.NewItems is not null)
                 {
-                    foreach (LogBoxEntry newItem in args.NewItems)
+                    foreach (object newItem in args.NewItems)
                     {
-                        AddLogEntryToParagraph(paragraph, newItem.Text, newItem.Color, newItem.LogType, logIconPrefixes);
+                        AddToParagraph(paragraph, newItem, logIconPrefixes);
                     }
 
                     ScrollToEndIfAtBottom(textBox);
                 }
                 break;
 
-            case System.Collections.Specialized.NotifyCollectionChangedAction.Reset:
+            case NotifyCollectionChangedAction.Reset:
                 textBox.Document?.Blocks.Clear();
+                break;
+        }
+    }
+
+    private static void AddToParagraph(Paragraph paragraph, object newItem, bool? logIconPrefixes)
+    {
+        switch (newItem)
+        {
+            case LogBoxEntry logEntry:
+                AddLogEntryToParagraph(paragraph, logEntry.Text, logEntry.Color, logEntry.LogType, logIconPrefixes ?? false);
+                break;
+
+            case UIElement element:
+                AddElementToParagraph(paragraph, element);
+                break;
+
+            case Block block:
+                (paragraph.Parent as FlowDocument)!.Blocks.Add(block);
+                break;
+
+            default:
+                AddUnknownToParagraph(paragraph, newItem);
                 break;
         }
     }
@@ -177,6 +199,16 @@ public static class RichTextBoxLogBehavior
         }
 
         paragraph.Inlines.Add(log);
+    }
+
+    private static void AddElementToParagraph(Paragraph paragraph, UIElement element)
+    {
+        paragraph.Inlines.Add(element);
+    }
+
+    private static void AddUnknownToParagraph(Paragraph paragraph, object obj)
+    {
+        paragraph.Inlines.Add(obj.ToString());
     }
 
     private static void ScrollToEndIfAtBottom(RichTextBox textBox)

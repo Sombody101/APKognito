@@ -254,7 +254,6 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     public RenameConfigurationViewModel(
         ConfigurationFactory configFactory,
         SharedViewModel sharedViewModel,
-        JavaVersionCollector javaCollector,
         ISnackbarService snackService
     ) : base(configFactory)
     {
@@ -268,7 +267,7 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
 
         SetSnackbarProvider(snackService);
 
-        foreach (JavaVersionInformation javaVersion in javaCollector.JavaVersions)
+        foreach (JavaVersionInformation javaVersion in JavaVersionCollector.JavaVersions)
         {
             FoundJavaVersions.Add(javaVersion);
         }

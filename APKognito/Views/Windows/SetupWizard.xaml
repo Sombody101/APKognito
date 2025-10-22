@@ -1,5 +1,5 @@
 ﻿<ui:FluentWindow
-    x:Class="APKognito.Views.Windows.SetupWizard"
+    x:Class="APKognito.Views.Windows.SetupWizardWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -9,7 +9,7 @@
     Title="SetupWizard"
     Width="800"
     Height="450"
-    d:DataContext="{d:DesignInstance local:SetupWizard,
+    d:DataContext="{d:DesignInstance local:SetupWizardWindow,
                                      IsDesignTimeCreatable=True}"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -26,49 +26,59 @@
             Title="APKognito Setup"
             Grid.Row="0"
             Height="50"
-            CloseWindowByDoubleClickOnIcon="True"
             FontFamily="{StaticResource TechSans}">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon
                     Width="25"
                     Height="25"
                     Margin="0,-35"
+                    RenderOptions.BitmapScalingMode="HighQuality"
                     RenderSize="0,0"
                     Source="pack://application:,,,/Assets/apkognito.png" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
-        <Frame
-            x:Name="SetupFrame"
-            Grid.Row="0"
-            Margin="10,0,10,0" />
+        <ui:NavigationView
+            x:Name="RootNavigation"
+            Padding="42,0"
+            FrameMargin="0"
+            IsBackButtonVisible="Visible"
+            IsPaneToggleVisible="True"
+            OpenPaneLength="0"
+            TitleBar="{Binding ElementName=TitleBar, Mode=OneWay}">
+
+            <ui:NavigationView.ContentOverlay>
+                <Grid>
+                    <ui:SnackbarPresenter x:Name="SnackbarPresenter" />
+                </Grid>
+            </ui:NavigationView.ContentOverlay>
+
+        </ui:NavigationView>
 
         <Border
             Grid.Row="1"
             Padding="10"
-            BorderBrush="{DynamicResource ControlStrokeColorSecondary}"
             BorderThickness="0,1,0,0">
             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                 <ui:Button
-                    Margin="0,0,10,0"
-                    Appearance="Secondary"
-                    Command="{Binding BackCommand}"
+                    Command="{Binding ViewModel.BackCommand}"
                     Content="Back"
-                    IsEnabled="{Binding CanGoBack}" />
+                    IsEnabled="{Binding ViewModel.CanGoBack}" />
 
                 <ui:Button
-                    Appearance="Primary"
-                    Command="{Binding NextCommand}"
+                    Margin="5,0,0,0"
+                    Command="{Binding ViewModel.NextCommand}"
                     Content="Next"
-                    IsEnabled="{Binding CanGoNext}"
-                    Visibility="{Binding ShowNextButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    IsEnabled="{Binding ViewModel.CanGoNext}"
+                    Visibility="{Binding ViewModel.ShowNextButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                 <ui:Button
+                    Margin="10,0,0,0"
                     Appearance="Primary"
-                    Command="{Binding FinishCommand}"
+                    Command="{Binding ViewModel.FinishCommand}"
                     Content="Finish"
-                    IsEnabled="{Binding CanFinish}"
-                    Visibility="{Binding ShowFinishButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    IsEnabled="{Binding ViewModel.CanFinish}"
+                    Visibility="{Binding ViewModel.ShowFinishButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
         </Border>
     </Grid>

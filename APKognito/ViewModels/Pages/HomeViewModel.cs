@@ -39,9 +39,7 @@ public partial class HomeViewModel : LoggableObservableObject
     private readonly CacheStorage _kognitoCache;
     private readonly AdbConfig _adbConfig;
 
-    private readonly Progress<ProgressInfo> _renameProgressReporter;
-
-    private readonly JavaVersionCollector _javaVersionCollector;
+    private readonly IProgress<ProgressInfo> _renameProgressReporter;
 
     // Tool paths
     internal DirectoryInfo _tempData;
@@ -51,12 +49,13 @@ public partial class HomeViewModel : LoggableObservableObject
     private CancellationTokenSource? _renameApksCancelationSource;
     private bool _handlingRenameExitDebounce = false;
 
-    [MemberNotNull]
-    public static HomeViewModel? Instance { get; private set; } = null!;
+    private static HomeViewModel Instance { get; set; } = null!;
     public static bool IsRunningRename => Instance!.RunningJobs;
 
     public SharedViewModel SharedViewModel { get; }
     public UserRenameConfiguration UserRenameConfiguration { get; }
+
+    private string OutputDirectory => UserRenameConfiguration.ApkOutputDirectory;
 
     #region Properties
 
@@ -93,8 +92,6 @@ public partial class HomeViewModel : LoggableObservableObject
     [ObservableProperty]
     public partial ulong FootprintSizeBytes { get; set; } = 0;
 
-    private string outputDirectory => UserRenameConfiguration.ApkOutputDirectory;
-
     /// <summary>
     /// A string of all APK paths separated by <see cref="PATH_SEPARATOR"/>
     /// </summary>
@@ -121,9 +118,8 @@ public partial class HomeViewModel : LoggableObservableObject
         ISnackbarService snackbarService,
         ConfigurationFactory configFactory,
         IContentDialogService dialogService,
-        SharedViewModel sharedViewModel,
-        JavaVersionCollector javaVersionCollector
-    )
+        SharedViewModel sharedViewModel
+    ) : base(configFactory)
     {
         Instance = this;
         SharedViewModel = sharedViewModel;
@@ -134,7 +130,6 @@ public partial class HomeViewModel : LoggableObservableObject
         _configFactory = configFactory;
         _kognitoCache = configFactory.GetConfig<CacheStorage>();
         _adbConfig = configFactory.GetConfig<AdbConfig>();
-        _javaVersionCollector = javaVersionCollector;
 
         try
         {
@@ -156,7 +151,7 @@ public partial class HomeViewModel : LoggableObservableObject
         SetSnackbarProvider(snackbarService);
         SetCurrentLogger();
 
-        _renameProgressReporter = new((args) =>
+        _renameProgressReporter = new Progress<ProgressInfo>((args) =>
         {
             switch (args.UpdateType)
             {
@@ -176,11 +171,13 @@ public partial class HomeViewModel : LoggableObservableObject
         });
     }
 
-    public async Task InitializeAsync()
+    private bool _loaded = false;
+    public override async Task OnNavigatedToAsync()
     {
-        if (FilePath.Length is not 0)
+        if (!_loaded && FilePath.Length is not 0)
         {
             await UpdateFootprintInfoAsync();
+            _loaded = true;
         }
     }
 
@@ -241,7 +238,7 @@ public partial class HomeViewModel : LoggableObservableObject
     [RelayCommand]
     private void OnShowOutputFolder()
     {
-        string directory = outputDirectory;
+        string directory = OutputDirectory;
         if (!Directory.Exists(directory))
         {
             LogError($"The directory '{directory}' does not exist. Check the path and try again.");
@@ -303,7 +300,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 return;
             }
 
-            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths(_javaVersionCollector).Item1, new()
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, new()
             {
                 NewCompanyName = string.Empty,
                 ApkAssemblyDirectory = string.Empty,
@@ -312,14 +309,14 @@ public partial class HomeViewModel : LoggableObservableObject
                 FullSourceApkFileName = Path.GetFileName(filePath),
             });
 
-            string outputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
+            string unpackOutputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
             string apkFileName = Path.GetFileName(filePath);
 
             Log($"Unpacking {apkFileName}");
 
-            await compressor.UnpackPackageAsync(outputDirectory: outputDirectory);
+            await compressor.UnpackPackageAsync(outputDirectory: unpackOutputDirectory);
 
-            Log($"Unpacked {Path.GetFileName(filePath)} into {outputDirectory}");
+            Log($"Unpacked {Path.GetFileName(filePath)} into {unpackOutputDirectory}");
         }
         catch (Exception ex)
         {
@@ -346,7 +343,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Packing {sourceDirectory}");
 
-            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths(_javaVersionCollector).Item1, PackageNameData.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageNameData.Empty, this);
             _ = await compressor.PackPackageAsync(sourceDirectory, outputFile);
 
             Log($"Packed {Path.GetFileName(sourceDirectory)} into {packageFileName}");
@@ -372,7 +369,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Signing {filePath}");
 
-            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths(_javaVersionCollector).Item1, PackageNameData.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageNameData.Empty, this);
             string signedPackagePath = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetDirectoryName(filePath)!);
             await compressor.SignPackageAsync(filePath, signedPackagePath, false);
 
@@ -485,7 +482,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 AdvancedConfig = _configFactory.GetConfig<AdvancedApkRenameSettings>(),
                 ToolingPaths = toolingPaths,
                 SourcePackagePath = sourceApkPath,
-                OutputBaseDirectory = outputDirectory,
+                OutputBaseDirectory = OutputDirectory,
                 TempDirectory = tempRenameDirectory,
                 ReplacementCompanyName = UserRenameConfiguration.ApkNameReplacement
             };
@@ -567,15 +564,15 @@ public partial class HomeViewModel : LoggableObservableObject
 
         Log("Completed all checks.");
 
-        if (!Directory.Exists(outputDirectory))
+        if (!Directory.Exists(OutputDirectory))
         {
             try
             {
-                _ = Directory.CreateDirectory(outputDirectory);
+                _ = Directory.CreateDirectory(OutputDirectory);
             }
             catch (Exception ex)
             {
-                LogError($"Failed to create directory '{outputDirectory}' ({ex.GetType().Name}). Check for formatting or spelling issues and try again.");
+                LogError($"Failed to create directory '{OutputDirectory}' ({ex.GetType().Name}). Check for formatting or spelling issues and try again.");
                 LogDebug(ex);
                 FileLogger.LogException(ex);
                 return null;
@@ -614,7 +611,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
         try
         {
-            (PackageToolingPaths toolingPaths, JavaVersionInformation versionInfo) = UserRenameConfiguration.GetToolingPaths(_javaVersionCollector);
+            (PackageToolingPaths toolingPaths, JavaVersionInformation versionInfo) = UserRenameConfiguration.GetToolingPaths();
 
             if (await VerifyToolInstallationAsync())
             {
@@ -704,7 +701,6 @@ public partial class HomeViewModel : LoggableObservableObject
         if ((bool)result)
         {
             await AddManualFilesAsync(openFileDialog.FileNames);
-            await UpdateFootprintInfoAsync();
         }
         else
         {
@@ -768,12 +764,16 @@ public partial class HomeViewModel : LoggableObservableObject
     {
         FootprintSizeBytes = 0;
 
+        _renameProgressReporter.Report(new("Calculating size", ProgressUpdateType.Title));
+
         foreach (string file in GetFilePaths())
         {
             if (!File.Exists(file))
             {
                 continue;
             }
+
+            _renameProgressReporter.Report(new(Path.GetFileName(file), ProgressUpdateType.Content));
 
             FootprintSizeBytes += (ulong)PackageCompressor.CalculateUnpackedApkSize(file, UserRenameConfiguration.CopyFilesWhenRenaming);
 
@@ -787,7 +787,7 @@ public partial class HomeViewModel : LoggableObservableObject
                     using var cts = new CancellationTokenSource();
                     cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-                    FootprintSizeBytes += await DirectoryManager.DirSizeAsync(obbDirectory, cts.Token);
+                    FootprintSizeBytes += await DirectoryManager.GetDirectorySizeAsync(obbDirectory, cts.Token);
                 }
                 catch (TaskCanceledException ex)
                 {
@@ -801,6 +801,8 @@ public partial class HomeViewModel : LoggableObservableObject
                 }
             }
         }
+
+        _renameProgressReporter.Report(new(string.Empty, ProgressUpdateType.Reset));
     }
 
     private async Task<bool> VerifyAdbDeviceAsync()
@@ -836,9 +838,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             // Remove temp directory
             Log("Cleaning temp directory....");
-            await Task.Factory.StartNew(
-                path => Directory.Delete((string)path!, true),
-                _tempData.FullName, tokenSource.Token);
+            await DirectoryManager.DeleteDirectoryAsync(_tempData.FullName, tokenSource.Token);
 
             Log("Temp files cleaned.");
         }
@@ -867,7 +867,8 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private static string GetFormattedTimeDirectory(string sourceApkName)
     {
-        return $"{sourceApkName}_{DateTime.Now:yyyy-MMMM-dd_h.mm}";
+        // apktool fails if using certain special characters.
+        return $"{sourceApkName}_{DateTime.Now.ToString("yyyy-MMMM-dd_h.mm", new System.Globalization.CultureInfo("en-US"))}";
     }
 
     [GeneratedRegex("[^a-zA-Z0-9]")]

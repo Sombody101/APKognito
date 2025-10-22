@@ -2,16 +2,18 @@
     x:Class="APKognito.Views.Pages.FileExplorerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:Wpf.Ui.Controls;assembly=Wpf.Ui"
     xmlns:ctrls="clr-namespace:APKognito.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helper="clr-namespace:APKognito.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
+    xmlns:pages="clr-namespace:APKognito.Views.Pages"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:utils="clr-namespace:APKognito.Utilities.MVVM"
     x:Name="This"
     Title="FileExplorerPage"
     Margin="-44,0"
-    d:DataContext="{d:DesignInstance pages:FileExplorerViewModel,
+    d:DataContext="{d:DesignInstance pages:FileExplorerPage,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="800"
     d:DesignWidth="800"
@@ -25,6 +27,7 @@
     <Page.Resources>
         <ResourceDictionary>
             <helper:BoolToVisibility x:Key="VisibilityInverter" />
+            <utils:BindingProxy x:Key="BindingProxy" Data="{Binding}" />
 
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="pack://application:,,,/Controls/Overrides/ListViewItem.xaml" />
@@ -35,9 +38,9 @@
     <Page.InputBindings>
         <KeyBinding
             Key="Return"
-            Command="{Binding NavigateToDirectoryCommand}"
+            Command="{Binding ViewModel.NavigateToDirectoryCommand}"
             CommandParameter="{Binding SelectedItem, ElementName=AdbFolderPresenter}" />
-        <KeyBinding Key="Backspace" Command="{Binding NavigateBackwardsCommand}" />
+        <KeyBinding Key="Backspace" Command="{Binding ViewModel.NavigateBackwardsCommand}" />
     </Page.InputBindings>
 
     <Grid Margin="10">
@@ -51,19 +54,43 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto" />
                 <ColumnDefinition />
+                <ColumnDefinition Width="auto" />
             </Grid.ColumnDefinitions>
 
             <Menu Grid.Column="0">
-                <ui:MenuItem Command="{Binding NavigateBackwardsCommand}" Icon="{ui:SymbolIcon Symbol=ArrowLeft48}" />
-                <ui:MenuItem Command="{Binding NavigateForwardsCommand}" Icon="{ui:SymbolIcon Symbol=ArrowRight48}" />
-                <ui:MenuItem Command="{Binding NavigateOutOfDirectoryCommand}" Icon="{ui:SymbolIcon Symbol=ArrowUp48}" />
+                <ui:MenuItem
+                    Command="{Binding ViewModel.NavigateBackwardsCommand}"
+                    Icon="{ui:SymbolIcon Symbol=ArrowLeft48}"
+                    ToolTip="Go back" />
+                <ui:MenuItem
+                    Command="{Binding ViewModel.NavigateForwardsCommand}"
+                    Icon="{ui:SymbolIcon Symbol=ArrowRight48}"
+                    ToolTip="Go forward" />
+                <ui:MenuItem
+                    Command="{Binding ViewModel.NavigateOutOfDirectoryCommand}"
+                    Icon="{ui:SymbolIcon Symbol=ArrowUp48}"
+                    ToolTip="Travel out of directory" />
             </Menu>
 
             <ui:TextBox
+                x:Name="PathInput"
                 Grid.Column="1"
                 VerticalAlignment="Center"
-                IsReadOnly="True"
-                Text="{Binding ItemPath}" />
+                Text="{Binding ViewModel.ItemPath}">
+                <ui:TextBox.InputBindings>
+                    <KeyBinding
+                        Key="Return"
+                        Command="{Binding ViewModel.ManualNavigateCommand}"
+                        CommandParameter="{Binding ElementName=PathInput, Path=Text}" />
+                </ui:TextBox.InputBindings>
+            </ui:TextBox>
+
+            <Menu Grid.Column="2">
+                <ui:MenuItem
+                    Command="{Binding ViewModel.TryRefreshDirectoryCommand}"
+                    Icon="{ui:SymbolIcon Symbol=ArrowSync24}"
+                    ToolTip="Refresh" />
+            </Menu>
         </Grid>
 
         <ui:TextBlock
@@ -71,25 +98,40 @@
             Margin="0,50,0,0"
             HorizontalAlignment="Center"
             Text="This directory is empty."
-            Visibility="{Binding DirectoryEmpty, Converter={StaticResource VisibilityInverter}}" />
+            Visibility="{Binding ViewModel.DirectoryEmpty, Converter={StaticResource VisibilityInverter}}" />
 
         <ui:ListView
             x:Name="AdbFolderPresenter"
             Grid.Row="5"
             AlternationCount="2"
             BorderBrush="Transparent"
-            ItemsSource="{Binding AdbItems}"
+            ItemsSource="{Binding ViewModel.AdbItems}"
             ScrollViewer.CanContentScroll="True"
             VirtualizingPanel.ScrollUnit="Pixel">
 
             <ui:ListView.Resources>
                 <helper:AdbGBConverter x:Key="AdbGBConverter" />
                 <helper:BoolToVisibility x:Key="BoolToVisibility" />
+                <utils:BindingProxy x:Key="ListBindingProxy" Data="{Binding ElementName=AdbFolderPresenter}" />
             </ui:ListView.Resources>
 
             <ui:ListView.ItemContainerStyle>
                 <Style BasedOn="{StaticResource ListViewItemStyle}" TargetType="{x:Type ui:ListViewItem}">
                     <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClickAsync" />
+                    <Setter Property="ContextMenu">
+                        <Setter.Value>
+                            <ContextMenu>
+                                <ui:MenuItem
+                                    Command="{Binding Source={StaticResource BindingProxy}, Path=Data.ViewModel.PullItemsCommand}"
+                                    CommandParameter="{Binding Source={StaticResource ListBindingProxy}, Path=Data.SelectedItems}"
+                                    Header="Pull"
+                                    Icon="{ui:SymbolIcon Symbol=ArrowDownload24}" />
+                                <Separator />
+                                <ui:MenuItem Header="Delete" Icon="{ui:SymbolIcon Symbol=Delete24}" />
+                                <ui:MenuItem Header="Rename" Icon="{ui:SymbolIcon Symbol=Rename24}" />
+                            </ContextMenu>
+                        </Setter.Value>
+                    </Setter>
                 </Style>
             </ui:ListView.ItemContainerStyle>
 
@@ -112,10 +154,12 @@
                         <ui:GridViewColumn Width="200" Header="Name">
                             <ui:GridViewColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ui:TextBlock
-                                        FontSize="13"
-                                        Text="{Binding FileName}"
-                                        TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:TextBlock
+                                            FontSize="13"
+                                            Text="{Binding FileName}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
                                 </DataTemplate>
                             </ui:GridViewColumn.CellTemplate>
                         </ui:GridViewColumn>
@@ -146,7 +190,6 @@
                             <ui:GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
-
                                         <ui:SymbolIcon
                                             Margin="0,0,5,0"
                                             Filled="True"

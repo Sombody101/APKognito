@@ -9,7 +9,7 @@ readonly version="$(cat ./version)"
 
 commit_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "nogit")
 build_date=$(date +%Y%m%d)
-informational_version="${version}+%CONFIG%.${build_date}.${commit_hash}"
+informational_version="${version}+{CONFIG}.${build_date}.${commit_hash}"
 
 echo "Building AssemblyInfo.Version.cs file for configuration $configuration"
 
@@ -26,10 +26,10 @@ echo "Building AssemblyInfo.Version.cs file for configuration $configuration"
     echo "[assembly: AssemblyFileVersion(\"1.0.0\")]"
     echo "#else"
     echo "#if DEBUG_RELEASE"
-    echo "[assembly: AssemblyInformationalVersion(\"${informational_version//\%CONFIG\%/PublicDebug}\")]"
+    echo "[assembly: AssemblyInformationalVersion(\"${informational_version//\{CONFIG\}/PublicDebug}\")]"
     echo "[assembly: AssemblyConfiguration(\"PublicDebug\")]"
     echo "#else"
-    echo "[assembly: AssemblyInformationalVersion(\"${informational_version//\%CONFIG\%/Release}\")]"
+    echo "[assembly: AssemblyInformationalVersion(\"${informational_version//\{CONFIG\}/Release}\")]"
     echo "[assembly: AssemblyConfiguration(\"Release\")]"
     echo "#endif"
     echo "[assembly: AssemblyVersion(\"$version\")]"

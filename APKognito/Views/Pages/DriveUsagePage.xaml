@@ -6,9 +6,11 @@
     xmlns:helpers="clr-namespace:APKognito.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:APKognito.Models"
+    xmlns:overrides="clr-namespace:APKognito.Controls.Overrides"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="DriveUsage"
+    Margin="-42,0"
     d:DataContext="{d:DesignInstance pages:DriveUsageViewModel,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="800"
@@ -27,16 +29,17 @@
         <helpers:BoolToVisibility x:Key="BoolToVisibility" />
     </Page.Resources>
 
-    <Grid Margin="0,30">
+    <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width=".45*" MinWidth="350" />
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
 
-        <ui:Card
+        <overrides:Card
             Grid.Column="0"
             VerticalAlignment="Stretch"
-            VerticalContentAlignment="Stretch">
+            VerticalContentAlignment="Stretch"
+            CornerRadius="4,4,4,0">
             <StackPanel>
                 <StackPanel Margin="0,0,0,5">
                     <TextBlock
@@ -165,7 +168,7 @@
                     Text="{Binding CurrentlyDeletingLow}"
                     TextTrimming="WordEllipsis" />
             </StackPanel>
-        </ui:Card>
+        </overrides:Card>
 
         <ui:Card
             Grid.Column="2"

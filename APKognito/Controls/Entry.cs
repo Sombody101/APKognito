@@ -19,14 +19,14 @@ public class Entry : Control
 
     public object Header
     {
-        get { return GetValue(HeaderProperty); }
-        set { SetValue(HeaderProperty, value); }
+        get => GetValue(HeaderProperty);
+        set => SetValue(HeaderProperty, value);
     }
 
     public object Body
     {
-        get { return GetValue(BodyProperty); }
-        set { SetValue(BodyProperty, value); }
+        get => GetValue(BodyProperty);
+        set => SetValue(BodyProperty, value);
     }
 
     static Entry()

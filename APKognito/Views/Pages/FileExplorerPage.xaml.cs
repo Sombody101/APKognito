@@ -16,13 +16,23 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
     public FileExplorerPage(FileExplorerViewModel viewModel)
     {
         InitializeComponent();
-        DataContext = ViewModel = viewModel;
+        DataContext = this;
+        ViewModel = viewModel;
 
         Loaded += async (sender, e) =>
         {
-            await viewModel.NavigateToDirectoryCommand.ExecuteAsync(AdbFolderInfo.RootFolder);
+            await viewModel.NavigateToDirectoryCommand.ExecuteAsync(AdbFileEntry.RootFolder);
         };
     }
+
+#if DEBUG
+    public FileExplorerPage()
+    {
+        DataContext = this;
+        ViewModel = new();
+        // For designer
+    }
+#endif
 
     private async void ListViewItem_MouseDoubleClickAsync(object sender, MouseButtonEventArgs e)
     {
@@ -31,14 +41,14 @@ public partial class FileExplorerPage : INavigableView<FileExplorerViewModel>, I
             return;
         }
 
-        AdbFolderInfo info;
+        AdbFileEntry info;
 
         if (sender is not ListViewItem item)
         {
             return;
         }
 
-        info = (AdbFolderInfo)item.Content;
+        info = (AdbFileEntry)item.Content;
         if (info.ItemType is not (AdbFolderType.Directory or AdbFolderType.SymbolicLink))
         {
             return;

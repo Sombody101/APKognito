@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib;
 
@@ -27,19 +28,20 @@ internal sealed class MockLogger : ILogger
 
     public static ILogger MockIfNull(ILogger? logger)
     {
-        return logger ?? new MockLogger();
-    }
-}
-
-internal sealed class NullDisposable : IDisposable
-{
-    public static readonly NullDisposable Instance = new();
-
-    private NullDisposable()
-    {
+        return logger ?? Instance;
     }
 
-    public void Dispose()
+    internal sealed class NullDisposable : IDisposable
     {
+        [SuppressMessage("Critical Code Smell", "S3218:Inner class members should not shadow outer class \"static\" or type members", Justification = "Parent 'Instance' is unused.")]
+        public static readonly NullDisposable Instance = new();
+
+        private NullDisposable()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }

@@ -1,22 +1,22 @@
-﻿using APKognito.Configurations;
+﻿using System.Collections.ObjectModel;
+using System.IO;
+using System.IO.Compression;
+using System.Text;
+using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Helpers;
 using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.IO.Compression;
-using System.Text;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages.Debugging;
 
 public partial class LogViewerViewModel : LoggableObservableObject
 {
-    private readonly ConfigurationFactory configFactory;
+    private readonly ConfigurationFactory _configFactory;
     private readonly LogViewerConfig viewerConfig;
-    private readonly IContentDialogService dialogService;
+    private readonly IContentDialogService _dialogService;
 
     // These aren't really being "cached", but it sounds weirder to say "realLogs"
     private readonly List<LogViewerLine> _cachedLogs = [];
@@ -69,22 +69,24 @@ public partial class LogViewerViewModel : LoggableObservableObject
         ];
 
         viewerConfig = null!;
-        configFactory = null!;
+        _configFactory = null!;
+        _dialogService = null!;
 
         RefreshRecents();
     }
 
     public LogViewerViewModel(
-        ISnackbarService _snackbarService, 
-        IContentDialogService _dialogService, 
-        ConfigurationFactory _configFactory)
+        ISnackbarService snackbarService,
+        IContentDialogService dialogService,
+        ConfigurationFactory configFactory
+    ) : base(configFactory)
     {
         DisableFileLogging = true;
-        SetSnackbarProvider(_snackbarService);
+        SetSnackbarProvider(snackbarService);
 
-        dialogService = _dialogService;
-        configFactory = _configFactory;
         viewerConfig = configFactory.GetConfig<LogViewerConfig>();
+        _dialogService = dialogService;
+        _configFactory = configFactory;
 
         Log($"Loading recent logs ({viewerConfig.RecentPacks.Count})");
         RefreshRecents();
@@ -118,12 +120,11 @@ public partial class LogViewerViewModel : LoggableObservableObject
 
         try
         {
-            await OpenAndDeployLogpackAsync(LogpackPath);
-
+            await LoadLogpackAsync(LogpackPath);
             AddOrMoveRecent(LogpackPath);
 
             RefreshRecents();
-            configFactory.SaveConfig(viewerConfig);
+            _configFactory.SaveConfig(viewerConfig);
         }
         catch (Exception ex)
         {
@@ -147,7 +148,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
     [RelayCommand]
     private async Task OnCreateLogpackAsync()
     {
-        await SettingsViewModel.CreateLogPackAsync(dialogService);
+        await SettingsViewModel.CreateLogPackAsync(_dialogService);
     }
 
     [RelayCommand]
@@ -182,7 +183,7 @@ public partial class LogViewerViewModel : LoggableObservableObject
     {
         try
         {
-            await OpenAndDeployLogpackAsync(packPath);
+            await LoadLogpackAsync(packPath);
             AddOrMoveRecent(packPath);
         }
         catch (Exception ex)
@@ -191,6 +192,15 @@ public partial class LogViewerViewModel : LoggableObservableObject
             SnackError("Failed to open logpack", ex.Message);
             LogError(ex);
         }
+    }
+
+    private async Task LoadLogpackAsync(string packPath)
+    {
+        LogpackInfo packInfo = await LogpackInfo.FromFileAsync(packPath, this);
+
+        _cachedLogs.Clear();
+        _cachedLogs.AddRange(packInfo.LogLines);
+        MoveCacheLogsToView(SearchFilterText);
     }
 
     private void MoveCacheLogsToView(string filter)
@@ -215,25 +225,112 @@ public partial class LogViewerViewModel : LoggableObservableObject
         }
     }
 
-    private async Task OpenAndDeployLogpackAsync(string packPath)
+    private void RefreshRecents()
     {
-        if (packPath is null)
+        List<string> recents = [.. viewerConfig.RecentPacks];
+        recents.Reverse();
+
+        RecentPacks.Clear();
+        foreach (string pack in recents.Where(File.Exists))
         {
-            LogError("Logpack path is null.");
+            RecentPacks.Add(pack);
+        }
+    }
+
+    private void AddOrMoveRecent(string path)
+    {
+        int index = RecentPacks.Select((value, idx) => new { value, idx })
+            .FirstOrDefault(x => x.value == path)?.idx ?? -1;
+
+        if (index is 0)
+        {
             return;
         }
 
-        Log($"Opening pack {packPath}");
-
-        using FileStream zipStream = File.OpenRead(packPath);
-        using ZipArchive zip = new(zipStream);
-
-        ZipArchiveEntry? appLogs = null, exLogs = null;
-
-        WriteGenericLogLine($"Processing archive files ({GBConverter.FormatSizeFromBytes(zipStream.Length)}):");
-        foreach (ZipArchiveEntry entry in zip.Entries)
+        if (index is not -1)
         {
-            WriteGenericLogLine($"\t{entry.Name} ({GBConverter.FormatSizeFromBytes(entry.Length)})");
+            RecentPacks.Move(index, 0);
+        }
+        else
+        {
+            viewerConfig.RecentPacks.Insert(0, path);
+        }
+
+        viewerConfig.RecentPacks = [.. viewerConfig.RecentPacks.Distinct()];
+    }
+}
+
+public sealed record LogpackInfo : LogpackInfo.ILogpackInfo
+{
+    public string Name => Path.GetFileName(FullName);
+
+    public string FullName { get; init; } = string.Empty;
+
+    public string CreatorVersion { get; init; } = string.Empty;
+
+    public List<LogViewerLine> LogLines { get; init; } = [];
+
+    public static async Task<LogpackInfo> FromFileAsync(string logpackPath, IViewLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(logpackPath);
+
+        if (!File.Exists(logpackPath))
+        {
+            throw new IOException($"Failed to find '{logpackPath}'");
+        }
+
+        logger?.Log($"Opening pack {logpackPath}");
+
+        using FileStream zipStream = File.OpenRead(logpackPath);
+        using ZipArchive archive = new(zipStream);
+
+        logger?.Log($"Processing archive files ({GBConverter.FormatSizeFromBytes(zipStream.Length)}):");
+
+        ZipArchiveEntry? appLogs;
+        ZipArchiveEntry? exLogs;
+        string creatorVersion;
+
+        using (IDisposable? scope = logger?.BeginScope("Unpack"))
+        {
+            (appLogs, exLogs, creatorVersion) = ExtractFiles(archive, logger);
+        }
+
+        LogpackInfoBuilder builder = new()
+        {
+            FullName = logpackPath,
+            CreatorVersion = creatorVersion,
+        };
+
+        logger?.Log($"Logpack created by APKognito {creatorVersion}");
+
+        if (appLogs is null)
+        {
+            throw new FormatException("Failed to find application logs file!");
+        }
+
+        if (exLogs is null)
+        {
+            logger?.Log("No exceptions log file found in logpack. Proceeding with app logs.");
+        }
+
+        List<LogViewerLine> logLines = [];
+        builder.LogLines = logLines;
+
+        await ParseOutLogFilesAsync(appLogs, exLogs, logLines);
+
+        return builder.Build();
+    }
+
+    private static (ZipArchiveEntry? appLogs,
+             ZipArchiveEntry? exLogs,
+             string creatorVersion) ExtractFiles(ZipArchive archive, IViewLogger? logger)
+    {
+        ZipArchiveEntry? appLogs = null, exLogs = null;
+        string creatorVersion = string.Empty;
+
+        foreach (ZipArchiveEntry entry in archive.Entries)
+        {
+            logger?.Log($"\t{entry.Name} ({GBConverter.FormatSizeFromBytes(entry.Length)})");
 
             switch (entry.Name)
             {
@@ -246,46 +343,27 @@ public partial class LogViewerViewModel : LoggableObservableObject
                     // Not needed (yet?)
                     break;
 
-                default: LogpackCreatorVersion = entry.Name; break;
+                default: creatorVersion = entry.Name; break;
             }
         }
 
-        Log($"Logpack created by APKognito {LogpackCreatorVersion}");
-
-        if (appLogs is null)
-        {
-            throw new FormatException("Failed to find application logs file!");
-        }
-
-        if (exLogs is null)
-        {
-            Log("No exceptions log file found in logpack. Proceeding with app logs.");
-        }
-
-        await ParseOutLogFilesAsync(appLogs, exLogs);
+        return (appLogs, exLogs, creatorVersion);
     }
 
-    private async Task ParseOutLogFilesAsync(ZipArchiveEntry logs, ZipArchiveEntry? exLogs)
+    private static async Task ParseOutLogFilesAsync(ZipArchiveEntry appLogs, ZipArchiveEntry? exLogs, List<LogViewerLine> logList)
     {
-        _cachedLogs.Clear();
-
-        if (logs.Length is 0)
+        if (appLogs.Length is 0)
         {
             return;
         }
 
-        using Stream logStream = logs.Open();
+        using Stream logStream = appLogs.Open();
         using StreamReader logStreamReader = new(logStream);
 
         bool exceptionLogsAvailable = exLogs is not null && exLogs.Length > 0;
-        Stream? exLogStream = null;
-        StreamReader? exLogReader = null;
 
-        if (exceptionLogsAvailable)
-        {
-            exLogStream = exLogs!.Open();
-            exLogReader = new(exLogStream);
-        }
+        using Stream? exLogStream = exceptionLogsAvailable ? exLogs!.Open() : null;
+        using StreamReader? exLogReader = exceptionLogsAvailable ? new(exLogStream!) : null;
 
         StringBuilder logBuilder = new();
         string? line = string.Empty;
@@ -323,13 +401,11 @@ public partial class LogViewerViewModel : LoggableObservableObject
         {
             string log = logBuilder.ToString().TrimEnd();
             LogViewerLine newLine = new(log, isException);
-            _cachedLogs.Add(newLine);
+            logList.Add(newLine);
 
             _ = logBuilder.Clear();
             isException = false;
         }
-
-        MoveCacheLogsToView(SearchFilterText);
     }
 
     private static async Task<string?> GetNextExceptionAsync(StreamReader? exReader)
@@ -355,37 +431,35 @@ public partial class LogViewerViewModel : LoggableObservableObject
         return sb.ToString();
     }
 
-    private void RefreshRecents()
+    private sealed record LogpackInfoBuilder : ILogpackInfo
     {
-        List<string> recents = [.. viewerConfig.RecentPacks];
-        recents.Reverse();
+        public string Name { get; set; }
 
-        RecentPacks.Clear();
-        foreach (string pack in recents.Where(File.Exists))
+        public string FullName { get; set; }
+
+        public string CreatorVersion { get; set; }
+
+        public List<LogViewerLine> LogLines { get; set; }
+
+        public LogpackInfo Build()
         {
-            RecentPacks.Add(pack);
+            return new()
+            {
+                FullName = FullName,
+                CreatorVersion = CreatorVersion,
+                LogLines = LogLines,
+            };
         }
     }
 
-    private void AddOrMoveRecent(string path)
+    public interface ILogpackInfo
     {
-        int index = RecentPacks.Select((value, idx) => new { value, idx })
-            .FirstOrDefault(x => x.value == path)?.idx ?? -1;
+        public string Name { get; }
 
-        if (index is 0)
-        {
-            return;
-        }
+        public string FullName { get; }
 
-        if (index is not -1)
-        {
-            RecentPacks.Move(index, 0);
-        }
-        else
-        {
-            viewerConfig.RecentPacks.Insert(0, path);
-        }
+        public string CreatorVersion { get; }
 
-        viewerConfig.RecentPacks = [.. viewerConfig.RecentPacks.Distinct()];
+        public List<LogViewerLine> LogLines { get; }
     }
 }

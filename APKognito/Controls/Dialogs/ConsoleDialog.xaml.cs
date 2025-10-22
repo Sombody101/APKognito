@@ -1,4 +1,5 @@
-﻿using APKognito.Utilities.MVVM;
+﻿using APKognito.AdbTools;
+using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using Wpf.Ui.Controls;
 
@@ -8,19 +9,45 @@ public sealed partial class ConsoleDialog
 {
     public ConsoleDialogViewModel ViewModel { get; }
 
-    public ConsoleDialog(string command, ContentPresenter? contentPresenter)
+    public ConsoleDialog(ContentPresenter? contentPresenter, string title = "Console", string initialCloseText = "Cancel")
         : base(contentPresenter)
     {
-        ViewModel = new ConsoleDialogViewModel(command);
+        Title = title;
+
         DataContext = this;
+        ViewModel = new(initialCloseText);
 
         InitializeComponent();
     }
 
-    protected override void OnLoaded()
+    public async Task RunInternalCommandAsync(string command)
     {
-        _ = ViewModel.StartCommandAsync();
-        base.OnLoaded();
+        await ViewModel.RunInternalAsync(command);
+    }
+
+    public async Task<AdbCommandOutput> RunAdbCommandAsync(string command)
+    {
+        return await ViewModel.RunAdbAsync(command);
+    }
+
+    public void Finished(string finishedText = "Close")
+    {
+        ViewModel.Finished(finishedText);
+    }
+
+    public static async Task<ContentDialogResult> RunInternalCommandAsync(
+        string command,
+        string title,
+        string initialCloseText,
+        string closeButtonText,
+        ContentPresenter? presenter)
+    {
+        ConsoleDialog dialog = new(presenter, title, initialCloseText);
+        Task<ContentDialogResult> showTask = dialog.ShowAsync();
+        await dialog.RunInternalCommandAsync(command);
+        dialog.Finished(closeButtonText);
+
+        return await showTask;
     }
 
     private async void ContentDialog_ClosedAsync(ContentDialog sender, ContentDialogClosedEventArgs args)
@@ -31,27 +58,32 @@ public sealed partial class ConsoleDialog
 
     public sealed partial class ConsoleDialogViewModel : LoggableObservableObject, IDisposable
     {
-        private readonly string _command;
-
         private readonly CancellationTokenSource _cancellationTokenSource;
 
         [ObservableProperty]
-        public partial string InteractionButtonText { get; set; } = "Cancel install";
+        public partial string InteractionButtonText { get; set; }
 
-        public ConsoleDialogViewModel(string command)
+        public ConsoleDialogViewModel(string initialCloseText)
         {
-            _command = command;
+            InteractionButtonText = initialCloseText;
             _cancellationTokenSource = new CancellationTokenSource();
         }
 
-        public async Task StartCommandAsync()
+        public async Task RunInternalAsync(string command)
         {
             CancellationToken token = _cancellationTokenSource.Token;
-            await Task.Run(async () =>
-            await AdbConsoleViewModel.RunBuiltinCommandAsync(_command, this, token), token);
+            await AdbConsoleViewModel.RunBuiltinCommandAsync(command, this, token);
+        }
 
-            InteractionButtonText = "Close";
+        public async Task<AdbCommandOutput> RunAdbAsync(string command)
+        {
+            CancellationToken token = _cancellationTokenSource.Token;
+            return (await AdbManager.LoggedDeviceCommandAsync(command, this, null, true, token))!;
+        }
 
+        public void Finished(string finishedText)
+        {
+            InteractionButtonText = finishedText;
             WriteGenericLogLine();
             Log("You may now close this dialog.");
         }

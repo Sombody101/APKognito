@@ -57,13 +57,17 @@ scb() {
     }
 }
 
-publish_profile="ReleaseProfile.pubxml"
+ignore() {
+    [[ $1 =~ ^(\.|-)$ ]]
+}
+
+publish_profile="ReleaseProfile"
 
 case "$3" in
 
 "pre")
     echo "Building pre-release."
-    publish_profile="PreReleaseProfile.pubxml"
+    publish_profile="PreReleaseProfile"
     readonly release_type="Prerelease"
     readonly release_tag_prefix="pd"
     readonly extra_args="--prerelease"
@@ -71,7 +75,7 @@ case "$3" in
 
 "deb")
     echo "Building public debug release."
-    publish_profile="PublicDebugProfile.pubxml"
+    publish_profile="PublicDebugProfile"
     readonly release_type="PublicDebug"
     readonly release_tag_prefix="d"
     readonly extra_args="--prerelease"
@@ -85,10 +89,10 @@ esac
 
 ! bash "./generate_version.sh" "$release_type" && exit
 
-readonly build_path="./APKognito/bin/Release/net8.0-windows/win-x64/"
+readonly build_path="./APKognito/bin/Release/net9.0-windows/publish/win-x64/"
 
 echo "Using build profile: $publish_profile"
-! dotnet build "./APKognito/APKognito.csproj" -c Release -p:PublishProfile="./APKognito/Properties/PublishProfiles/$publish_profile" && exit
+! dotnet publish "./APKognito/APKognito.csproj" --property:WarningLevel=0 -c Release -p:PublishProfile="$publish_profile" && exit
 
 appversion="$($build_path/APKognito.exe --version | tr -d '\000-\037\177')"
 appversion="${appversion%.*}"
@@ -98,10 +102,27 @@ readonly release_tag="${release_tag_prefix}${appversion}"
 echo
 echo "Build version |$appversion| (${release_tag})"
 
-[[ "$2" != "-" ]] && {
+! ignore "$2" && {
     echo "Uploading to VirusTotal"
-    permlink="https://www.virustotal.com/gui/file-analysis/$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$build_path/APKognito.dll" | jq -r '.data.id')"
-    readonly permlink
+
+    if [[ -f $build_path/APKognito.dll ]]; then
+        vt_upload_file="$build_path/APKognito.dll"
+    else
+        vt_upload_file="$build_path/APKognito.exe"
+    fi
+
+    return_id="$(curl -X POST https://www.virustotal.com/api/v3/files -H "x-apikey: $2" --form file=@"$vt_upload_file" | jq -r '.data.id')"
+    
+    [[ "$return_id" == null ]] && {
+        echo "- Failed to upload app to VirusTotal."
+    } || {
+        echo "Using VTID: $return_id"
+
+        permlink="https://www.virustotal.com/gui/file-analysis/$return_id"
+        readonly permlink
+    }
+
+    unset return_id
 }
 
 readonly zip_file="APKognito-${release_tag}.zip"
@@ -143,13 +164,13 @@ release_title="Release $release_tag"
 readonly release_title
 
 echo
-echo
 
-echo "$release_tag"
-echo "$release_title"
+echo "Release tag: $release_tag"
+echo "Release title: $release_title"
+echo "Commit messages:"
 echo "$commit_messages"
 
-[[ "$1" != "-" ]] && {
+! ignore "$1" && {
     ! GITHUB_TOKEN="$1" hub release create -a "$build_path/$zip_file" -m "$release_title" -m "$commit_messages" "$release_tag" "$extra_args" && exit "$?"
 
     echo "Release created with the tag $release_tag"

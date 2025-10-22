@@ -92,7 +92,7 @@
         <Setter Property="Padding" Value="4" />
         <Style.Triggers>
             <Trigger Property="ItemsControl.AlternationIndex" Value="0">
-                <Setter Property="Background" Value="{DynamicResource ControlStrokeColorSecondaryBrush}" />
+                <Setter Property="Background" Value="{DynamicResource SystemFillColorSolidNeutralBackgroundBrush}" />
             </Trigger>
             <DataTrigger Binding="{Binding Path=ViewState, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}" Value="Default">
                 <Setter Property="Template" Value="{DynamicResource NullViewItemTemplate}" />

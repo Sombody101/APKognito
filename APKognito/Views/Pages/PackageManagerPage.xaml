@@ -6,9 +6,11 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:APKognito.Models"
+    xmlns:overrides="clr-namespace:APKognito.Controls.Overrides"
     xmlns:pages="clr-namespace:APKognito.ViewModels.Pages"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="PackageManagerPage"
+    Margin="-42,0"
     d:DataContext="{d:DesignInstance pages:PackageManagerViewModel,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="700"
@@ -19,139 +21,134 @@
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
-    <Grid Margin="0,30">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="auto" />
-            <RowDefinition Height="auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <overrides:Card
+        VerticalAlignment="Top"
+        VerticalContentAlignment="Top"
+        CornerRadius="4,0,0,0"
+        IsEnabled="{Binding EnableControls}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-        <ctrls:AndroidDeviceInfo
-            Grid.ColumnSpan="2"
-            Margin="0,0,0,10"
-            RenderType="Expander" />
+            <Menu Margin="0,-5,0,5" HorizontalAlignment="Stretch">
+                <Menu.Resources>
+                    <Style TargetType="ui:SymbolIcon">
+                        <Setter Property="FontSize" Value="20" />
+                    </Style>
+                </Menu.Resources>
 
-        <ProgressBar
-            Grid.Row="1"
-            Grid.ColumnSpan="2"
-            Margin="0,0,0,10"
-            IsIndeterminate="{Binding EnableProgressBar}" />
+                <ui:MenuItem Command="{Binding UpdatePackageListCommand}" ToolTip="Refresh ADB packages.">
+                    <ui:MenuItem.Header>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
 
-        <ui:Card
-            Grid.Row="2"
-            VerticalAlignment="Stretch"
-            VerticalContentAlignment="Top"
-            IsEnabled="{Binding EnableControls}">
-            <Grid>
+                            <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowCounterclockwise48" />
+                            <ui:TextBlock Grid.Column="1" Text="Refresh" />
+                        </Grid>
+                    </ui:MenuItem.Header>
+                </ui:MenuItem>
+
+                <Separator />
+
+                <ui:MenuItem
+                    Command="{Binding UninstallPackagesCommand}"
+                    CommandParameter="{Binding ElementName=PackagesList}"
+                    ToolTip="Fully uninstall selected packages.">
+                    <ui:MenuItem.Header>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+
+                            <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="Delete48" />
+                            <ui:TextBlock Grid.Column="1" Text="Uninstall" />
+                        </Grid>
+                    </ui:MenuItem.Header>
+                </ui:MenuItem>
+
+                <ui:MenuItem
+                    Command="{Binding SoftUninstallPackagesCommand}"
+                    CommandParameter="{Binding ElementName=PackagesList}"
+                    ToolTip="Soft uninstall selected packages (keeps save data on device).">
+                    <ui:MenuItem.Header>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+
+                            <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="DeleteLines20" />
+                            <ui:TextBlock Grid.Column="1" Text="Soft Uninstall" />
+                        </Grid>
+                    </ui:MenuItem.Header>
+                </ui:MenuItem>
+
+                <Separator />
+
+                <ui:MenuItem
+                    Command="{Binding PullPackagesCommand}"
+                    CommandParameter="{Binding ElementName=PackagesList}"
+                    ToolTip="Pull the selected packages to your PC.">
+                    <ui:MenuItem.Header>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+
+                            <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowDownload48" />
+                            <ui:TextBlock Grid.Column="1" Text="Pull" />
+                        </Grid>
+                    </ui:MenuItem.Header>
+                </ui:MenuItem>
+                <ui:MenuItem
+                    Command="{Binding PushPackagesCommand}"
+                    CommandParameter="{Binding ElementName=PackagesList}"
+                    ToolTip="Push an app to your ADB enabled device.">
+                    <ui:MenuItem.Header>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+
+                            <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowUpload24" />
+                            <ui:TextBlock Grid.Column="1" Text="Push" />
+                        </Grid>
+                    </ui:MenuItem.Header>
+                </ui:MenuItem>
+            </Menu>
+
+            <ui:TextBox
+                Grid.Row="1"
+                Margin="0,0,0,5"
+                PlaceholderText="Filter text"
+                Text="{Binding SearchText}"
+                TextChanged="TextBox_TextChanged" />
+
+            <ProgressBar
+                Grid.Row="2"
+                Grid.ColumnSpan="2"
+                Margin="0,0,0,5"
+                IsIndeterminate="{Binding EnableProgressBar}" />
+
+            <Grid Grid.Row="3">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="auto" />
-                    <RowDefinition Height="auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Menu Margin="0,-5,0,5" HorizontalAlignment="Stretch">
-                    <Menu.Resources>
-                        <Style TargetType="ui:SymbolIcon">
-                            <Setter Property="FontSize" Value="20" />
-                        </Style>
-                    </Menu.Resources>
-
-                    <ui:MenuItem Command="{Binding UpdatePackageListCommand}" ToolTip="Refresh ADB packages.">
-                        <ui:MenuItem.Header>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition />
-                                    <ColumnDefinition />
-                                </Grid.ColumnDefinitions>
-
-                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowCounterclockwise48" />
-                                <ui:TextBlock Grid.Column="1" Text="Refresh" />
-                            </Grid>
-                        </ui:MenuItem.Header>
-                    </ui:MenuItem>
-
-                    <Separator />
-
-                    <ui:MenuItem
-                        Command="{Binding UninstallPackagesCommand}"
-                        CommandParameter="{Binding ElementName=PackagesList}"
-                        ToolTip="Fully uninstall selected packages.">
-                        <ui:MenuItem.Header>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition />
-                                    <ColumnDefinition />
-                                </Grid.ColumnDefinitions>
-
-                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="Delete48" />
-                                <ui:TextBlock Grid.Column="1" Text="Uninstall" />
-                            </Grid>
-                        </ui:MenuItem.Header>
-                    </ui:MenuItem>
-
-                    <ui:MenuItem
-                        Command="{Binding SoftUninstallPackagesCommand}"
-                        CommandParameter="{Binding ElementName=PackagesList}"
-                        ToolTip="Soft uninstall selected packages (keeps save data on device).">
-                        <ui:MenuItem.Header>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition />
-                                    <ColumnDefinition />
-                                </Grid.ColumnDefinitions>
-
-                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="DeleteLines20" />
-                                <ui:TextBlock Grid.Column="1" Text="Soft Uninstall" />
-                            </Grid>
-                        </ui:MenuItem.Header>
-                    </ui:MenuItem>
-
-                    <Separator />
-
-                    <ui:MenuItem
-                        Command="{Binding PullPackagesCommand}"
-                        CommandParameter="{Binding ElementName=PackagesList}"
-                        ToolTip="Pull the selected packages to your PC.">
-                        <ui:MenuItem.Header>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition />
-                                    <ColumnDefinition />
-                                </Grid.ColumnDefinitions>
-
-                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowDownload48" />
-                                <ui:TextBlock Grid.Column="1" Text="Pull" />
-                            </Grid>
-                        </ui:MenuItem.Header>
-                    </ui:MenuItem>
-                    <ui:MenuItem
-                        Command="{Binding PushPackagesCommand}"
-                        CommandParameter="{Binding ElementName=PackagesList}"
-                        ToolTip="Push an app to your ADB enabled device.">
-                        <ui:MenuItem.Header>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition />
-                                    <ColumnDefinition />
-                                </Grid.ColumnDefinitions>
-
-                                <ui:SymbolIcon Margin="0,0,7.5,0" Symbol="ArrowUpload24" />
-                                <ui:TextBlock Grid.Column="1" Text="Push" />
-                            </Grid>
-                        </ui:MenuItem.Header>
-                    </ui:MenuItem>
-                </Menu>
-
-                <ui:TextBox
-                    Grid.Row="1"
-                    Margin="0,0,0,5"
-                    PlaceholderText="Filter text"
-                    Text="{Binding SearchText}"
-                    TextChanged="TextBox_TextChanged" />
-
                 <ui:ListView
                     x:Name="PackagesList"
-                    Grid.Row="2"
+                    Grid.Row="0"
+                    VerticalAlignment="Stretch"
                     ItemsSource="{Binding PackageList}"
                     ScrollViewer.CanContentScroll="True"
                     SelectionMode="Extended"
@@ -159,41 +156,47 @@
 
                     <ui:ListView.ItemTemplate>
                         <DataTemplate DataType="models:PackageEntry">
-                            <ui:Card>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition />
-                                        <RowDefinition />
-                                    </Grid.RowDefinitions>
+                            <Grid Margin="10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition />
+                                    <RowDefinition />
+                                </Grid.RowDefinitions>
 
-                                    <ui:TextBlock FontSize="18" FontWeight="Bold">
-                                        <Run Text="{Binding PackageName, Mode=OneWay}" />
-                                        <Run
-                                            FontSize="12"
-                                            FontWeight="Normal"
-                                            Text="{Binding FormattedTotalSize, Mode=OneWay}" />
+                                <ui:TextBlock FontSize="18" FontWeight="Bold">
+                                    <Run Text="{Binding PackageName, Mode=OneWay}" />
+                                    <Run
+                                        FontSize="12"
+                                        FontWeight="Normal"
+                                        Text="{Binding FormattedTotalSize, Mode=OneWay}" />
+                                </ui:TextBlock>
+
+                                <StackPanel Grid.Row="1">
+                                    <ui:TextBlock>
+                                        <Run FontWeight="DemiBold" Text="Package Size:    " />
+                                        <Run Text="{Binding FormattedPackageSize, Mode=OneWay}" />
                                     </ui:TextBlock>
-
-                                    <StackPanel Grid.Row="1">
-                                        <ui:TextBlock>
-                                            <Run FontWeight="DemiBold" Text="Package Size:    " />
-                                            <Run Text="{Binding FormattedPackageSize, Mode=OneWay}" />
-                                        </ui:TextBlock>
-                                        <ui:TextBlock Grid.Column="1">
-                                            <Run FontWeight="DemiBold" Text="Assets Size:       " />
-                                            <Run Text="{Binding FormattedAssetsSize, Mode=OneWay}" />
-                                        </ui:TextBlock>
-                                        <ui:TextBlock>
-                                            <Run FontWeight="DemiBold" Text="Save Data Size: " />
-                                            <Run Text="{Binding FormattedSaveDataSize, Mode=OneWay}" />
-                                        </ui:TextBlock>
-                                    </StackPanel>
-                                </Grid>
-                            </ui:Card>
+                                    <ui:TextBlock Grid.Column="1">
+                                        <Run FontWeight="DemiBold" Text="Assets Size:       " />
+                                        <Run Text="{Binding FormattedAssetsSize, Mode=OneWay}" />
+                                    </ui:TextBlock>
+                                    <ui:TextBlock>
+                                        <Run FontWeight="DemiBold" Text="Save Data Size: " />
+                                        <Run Text="{Binding FormattedSaveDataSize, Mode=OneWay}" />
+                                    </ui:TextBlock>
+                                </StackPanel>
+                            </Grid>
                         </DataTemplate>
                     </ui:ListView.ItemTemplate>
                 </ui:ListView>
+
+                <ui:Card
+                    Grid.Row="0"
+                    Margin="10"
+                    HorizontalAlignment="Stretch"
+                    VerticalContentAlignment="Center">
+                    <ui:TextBlock HorizontalAlignment="Center" Text="No packages to display!" />
+                </ui:Card>
             </Grid>
-        </ui:Card>
-    </Grid>
+        </Grid>
+    </overrides:Card>
 </Page>

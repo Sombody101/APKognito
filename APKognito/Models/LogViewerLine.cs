@@ -5,7 +5,7 @@ using Brush = System.Windows.Media.Brush;
 
 namespace APKognito.Models;
 
-public partial class LogViewerLine
+public partial record LogViewerLine
 {
     private const string DEFAULT = "[None]";
 
@@ -13,9 +13,13 @@ public partial class LogViewerLine
     public bool HasException { get; }
 
     public string LogTime { get; private set; } = string.Empty;
+
     public string CallSite { get; private set; } = DEFAULT;
+
     public string LogMessage { get; private set; } = DEFAULT;
+
     public LogLevel LogLevel { get; private set; }
+
     public string? ExceptionLog { get; private set; }
 
     public bool IsAdmin { get; private set; }
@@ -111,7 +115,9 @@ public partial class LogViewerLine
 
         prefixTrim += 2;
 
-        return prefixTrim > log.Length ? throw new ArgumentException("Invalid exception format.") : log[prefixTrim..];
+        return prefixTrim > log.Length
+            ? throw new ArgumentException("Invalid exception format.")
+            : log[prefixTrim..];
     }
 
     public override string ToString()

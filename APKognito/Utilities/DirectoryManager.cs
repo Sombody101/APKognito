@@ -45,22 +45,22 @@ internal static class DirectoryManager
             : null;
     }
 
-    public static async Task<ulong> DirSizeAsync(string directory, CancellationToken token = default)
+    public static async Task<ulong> GetDirectorySizeAsync(string directory, CancellationToken token = default)
     {
-        return await DirSizeAsync(new DirectoryInfo(directory), token);
+        return await GetDirectorySizeAsync(new DirectoryInfo(directory), token);
     }
 
-    public static async Task<ulong> DirSizeAsync(DirectoryInfo d, CancellationToken cancellation = default)
+    public static async Task<ulong> GetDirectorySizeAsync(DirectoryInfo directoryInfo, CancellationToken cancellation = default)
     {
         List<Task<ulong>> tasks = [];
-        foreach (FileInfo fi in d.GetFiles())
+        foreach (FileInfo fi in directoryInfo.GetFiles())
         {
             tasks.Add(Task.Run(() => (ulong)fi.Length, cancellation));
         }
 
-        foreach (DirectoryInfo di in d.GetDirectories())
+        foreach (DirectoryInfo directory in directoryInfo.GetDirectories())
         {
-            tasks.Add(DirSizeAsync(di, cancellation));
+            tasks.Add(GetDirectorySizeAsync(directory, cancellation));
         }
 
         ulong[] results = await Task.WhenAll(tasks);
@@ -72,7 +72,47 @@ internal static class DirectoryManager
 
     public static bool TryGetClaimFile(string directory, [NotNullWhen(true)] out string? claimFile, string claimName = CLAIM_FILE_NAME)
     {
-        claimFile = GetClaimFile(directory);
+        claimFile = GetClaimFile(directory, claimName);
         return claimFile is not null;
+    }
+
+    // This method doesn't accept a 'recursive' bool because it's implied when called.
+    // If this is called on a directory that wasn't meant to be recursively removed, that's on you.
+    public static async Task DeleteDirectoryAsync(string directory, CancellationToken token = default)
+    {
+        if (!Directory.Exists(directory))
+        {
+            throw new IOException($"Failed to locate directory: ${directory}");
+        }
+
+        await DeleteDirectoryInternalAsync(directory, token);
+    }
+
+    private static async Task DeleteDirectoryInternalAsync(string directory, CancellationToken token)
+    {
+        foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (File.Exists(entry))
+            {
+                File.Delete(entry);
+            }
+            else
+            {
+                // Let's hope it wasn't already deleted by something else, and that the caller can handle the exception, cause we ain't.
+                await DeleteDirectoryInternalAsync(entry, token);
+            }
+        }
+
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        Directory.Delete(directory);
     }
 }

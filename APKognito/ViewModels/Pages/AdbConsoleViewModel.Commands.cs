@@ -192,7 +192,7 @@ public partial class AdbConsoleViewModel
         switch (option)
         {
             case "get_heap":
-                Log($"GC: {GBConverter.FormatSizeFromBytes(GC.GetTotalMemory(true))}");
+                Log($"GC: {GBConverter.FormatSizeFromBytes(GC.GetTotalMemory(false))}");
                 Log($"Private: {GBConverter.FormatSizeFromBytes(Process.GetCurrentProcess().PrivateMemorySize64)}");
                 return;
 
@@ -347,8 +347,7 @@ public partial class AdbConsoleViewModel
                 logger.LogSuccess("JDK 24 installed successfully! Checking Java executable path...");
             }
 
-            JavaVersionCollector? javaCollector = App.GetService<JavaVersionCollector>();
-            JavaVersionInformation? foundVersion = javaCollector!.CollectVersions().FirstOrDefault(v => v.Version.Major is 24);
+            JavaVersionInformation? foundVersion = JavaVersionCollector.RefreshJavaVersions().FirstOrDefault(v => v.Version.Major is 24);
 
             if (foundVersion is not null)
             {
@@ -439,6 +438,7 @@ public partial class AdbConsoleViewModel
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S3011:Reflection should not be used to increase accessibility of classes, methods, or fields", Justification = "It's okay here.")]
     private static void RegisterCommands()
     {
         if (s_commands.Count > 0)
