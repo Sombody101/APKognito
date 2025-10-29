@@ -6,6 +6,7 @@ using APKognito.ApkLib.Automation;
 using APKognito.ApkLib.Automation.Parser;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
+using APKognito.ApkMod.Bootstrap;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
@@ -161,12 +162,21 @@ public sealed class PackageRenamer
         {
             await compressor.UnpackPackageAsync(token: token);
             context.GatherPackageMetadata();
-
-            _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameData.OriginalPackageName, nameData.NewPackageName);
         }, nameof(compressor.UnpackPackageAsync));
 
+        PackageBootstrapper bootstrapper = new(nameData.ApkAssemblyDirectory, new()
+        {
+            NewPackageName = "io.sombody101.movies",
+        }, _logger);
+
+        await TimeAsync(bootstrapper.RunAsync);
 
         _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameData);
+
+        _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameData.OriginalPackageName, nameData.NewPackageName);
+        goto StartPack;
+
+        /* Directories */
 
         await TimeAsync(async () =>
         {
@@ -192,6 +202,8 @@ public sealed class PackageRenamer
                 .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Smali, nameData));
             await smaliEditor.RunAsync(token: token);
         }, nameof(SmaliEditor));
+
+    StartPack:
 
         /* Pack and Sign */
 

@@ -130,12 +130,21 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>AdbScripts.resx</DependentUpon>
     </Compile>
+    <Compile Update="BootstrapResources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>BootstrapResources.resx</DependentUpon>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Update="AdbScripts.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>AdbScripts.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Update="BootstrapResources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>BootstrapResources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
 

@@ -130,7 +130,9 @@ public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEdi
     {
         _reporter.ReportProgressMessage(Path.GetFileName(assetPath));
 
-        string newAssetName = Path.GetFileName(assetPath).Replace(_nameData.OriginalCompanyName, _nameData.NewCompanyName);
+        string newAssetName = Path.GetFileName(assetPath)
+            .Replace(_nameData.OriginalPackageName, _nameData.NewPackageName);
+            //.Replace(_nameData.OriginalCompanyName, _nameData.NewCompanyName);
 
         _logger.LogInformation("Renaming asset file: {GetFileName}{InternalRenameInfoLogDelimiter}{NewAssetName} (Mode: {Mode})", Path.GetFileName(assetPath), _renameConfiguration.InternalRenameInfoLogDelimiter, newAssetName, mode);
 

@@ -141,6 +141,10 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>
             _nameData.NewPackageName
         ) = PackageCompressor.SplitPackageName(_nameData);
 
+#if DEBUG
+        _nameData.NewPackageName = "io.sombody101.movies";
+#endif
+
         // Also set the output directory as long as a base directory is set and a explicit directory is not.
         if (_nameData.RenamedPackageOutputBaseDirectory is not null)
         {

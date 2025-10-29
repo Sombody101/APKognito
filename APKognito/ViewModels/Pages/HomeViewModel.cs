@@ -326,15 +326,15 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnManualPackPackageAsync()
+    private async Task<string> OnManualPackPackageAsync(string? path = null)
     {
         try
         {
-            string? sourceDirectory = DirectorySelector.UserSelectDirectory();
+            string? sourceDirectory = path ?? DirectorySelector.UserSelectDirectory();
 
             if (sourceDirectory is null)
             {
-                return;
+                return string.Empty;
             }
 
             string packageName = PackageCompressor.GetPackageName(Path.Combine(sourceDirectory, "AndroidManifest.xml"));
@@ -347,20 +347,23 @@ public partial class HomeViewModel : LoggableObservableObject
             _ = await compressor.PackPackageAsync(sourceDirectory, outputFile);
 
             Log($"Packed {Path.GetFileName(sourceDirectory)} into {packageFileName}");
+            return outputFile;
         }
         catch (Exception ex)
         {
             LogError($"Error: {ex.Message}");
             LogDebug(ex.StackTrace ?? "[NoTrace]");
         }
+
+        return string.Empty;
     }
 
     [RelayCommand]
-    private async Task OnManualSignPackageAsync()
+    private async Task OnManualSignPackageAsync(string? path = null)
     {
         try
         {
-            string? filePath = DirectorySelector.UserSelectFile();
+            string? filePath = path ?? DirectorySelector.UserSelectFile();
 
             if (filePath is null)
             {
@@ -380,6 +383,13 @@ public partial class HomeViewModel : LoggableObservableObject
             LogError($"Error: {ex.Message}");
             LogDebug(ex.StackTrace ?? "[NoTrace]");
         }
+    }
+
+    [RelayCommand]
+    private async Task OnManualPackSignPackageAsync()
+    {
+        string package = await OnManualPackPackageAsync(DirectorySelector.UserSelectDirectory());
+        await OnManualSignPackageAsync(package);
     }
 
     [RelayCommand]
@@ -874,6 +884,6 @@ public partial class HomeViewModel : LoggableObservableObject
     [GeneratedRegex("[^a-zA-Z0-9]")]
     private static partial Regex ApkNameFixerRegex();
 
-    [GeneratedRegex("[a-z][a-z0-9_]*")]
+    [GeneratedRegex("[a-zA-Z][a-z0-9_]*")]
     private static partial Regex ApkCompanyCheck();
 }

@@ -33,6 +33,7 @@
         <KeyBinding Command="{Binding ViewModel.ManualUnpackPackageCommand}" Gesture="CTRL+SHIFT+U" />
         <KeyBinding Command="{Binding ViewModel.ManualPackPackageCommand}" Gesture="CTRL+SHIFT+P" />
         <KeyBinding Command="{Binding ViewModel.ManualSignPackageCommand}" Gesture="CTRL+SHIFT+S" />
+        <KeyBinding Command="{Binding ViewModel.ManualPackSignPackageCommand}" Gesture="CTRL+SHIFT+O" />
     </Page.InputBindings>
 
     <Grid>

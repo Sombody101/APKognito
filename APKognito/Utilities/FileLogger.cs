@@ -91,6 +91,8 @@ public static class FileLogger
 #if DEBUG
         StringBuilder builder = new();
 
+        text = text.EscapeMarkup();
+
         builder.Append("[[")
             .Append(DateTime.Now.ToString(TIME_FORMAT_STRING)).Append(' ')
             .Append(LogLevelColors.GetAnsiColor(logLevel)).Append(logLevel.ToString().ToUpper()).Append("[/] ")
