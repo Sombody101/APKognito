@@ -1,7 +1,7 @@
 <!-- Light/dark mode -->
 <p align="center">
-  <img align="center" width="50%" src="./APKognito/Assets/Logos/dark-wide.png#gh-dark-mode-only">
-  <img align="center" width="50%" src="./APKognito/Assets/Logos/light-wide.png#gh-light-mode-only">
+  <img align="center" width="50%" src="./Logos/dark-wide.png#gh-dark-mode-only">
+  <img align="center" width="50%" src="./Logos/light-wide.png#gh-light-mode-only">
 </p>
 
 <p align="center">
