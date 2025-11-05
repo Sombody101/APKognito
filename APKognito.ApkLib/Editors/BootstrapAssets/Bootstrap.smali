@@ -22,13 +22,13 @@
 
     sput-object v0, LBOOTSTRAP/PACKAGE/Bootstrap;->FRIENDLY_NAME:Ljava/lang/String;
 
-    .line 36
-    const-string v0, "true"
+    .line 34
+    const-string v0, "{ENABLE_CRASH_REPORTING}"
 
     sput-object v0, LBOOTSTRAP/PACKAGE/Bootstrap;->REPORT_CRASHES:Ljava/lang/String;
 
-    .line 37
-    const-string v0, "cn.vr4p.oculus4xvrplayerov.Main4XActivity"
+    .line 35
+    const-string v0, "{BOOTSTRAP_TARGET_ACTIVITY}"
 
     sput-object v0, LBOOTSTRAP/PACKAGE/Bootstrap;->TARGET:Ljava/lang/String;
 
@@ -337,7 +337,7 @@
     move-result p1
 
     .line 49
-    if-ltz p1, :cond_5a
+    if-ltz p1, :cond_59
 
     .line 53
     sget-object v1, LBOOTSTRAP/PACKAGE/Bootstrap;->TARGET:Ljava/lang/String;
@@ -346,58 +346,56 @@
 
     invoke-virtual {v1, v2, p1}, Ljava/lang/String;->substring(II)Ljava/lang/String;
 
-    move-result-object p1
-
     .line 55
-    new-instance v1, Landroid/content/Intent;
+    new-instance p1, Landroid/content/Intent;
 
-    invoke-direct {v1}, Landroid/content/Intent;-><init>()V
+    invoke-direct {p1}, Landroid/content/Intent;-><init>()V
 
     .line 58
-    sget-object v2, LBOOTSTRAP/PACKAGE/Bootstrap;->TARGET:Ljava/lang/String;
+    sget-object v1, LBOOTSTRAP/PACKAGE/Bootstrap;->TARGET:Ljava/lang/String;
 
-    invoke-virtual {v1, p1, v2}, Landroid/content/Intent;->setClassName(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+    invoke-virtual {p1, p0, v1}, Landroid/content/Intent;->setClassName(Landroid/content/Context;Ljava/lang/String;)Landroid/content/Intent;
 
     .line 60
     invoke-virtual {p0}, LBOOTSTRAP/PACKAGE/Bootstrap;->getIntent()Landroid/content/Intent;
 
-    move-result-object p1
+    move-result-object v1
 
-    if-eqz p1, :cond_53
+    if-eqz v1, :cond_52
 
     invoke-virtual {p0}, LBOOTSTRAP/PACKAGE/Bootstrap;->getIntent()Landroid/content/Intent;
 
-    move-result-object p1
+    move-result-object v1
 
-    invoke-virtual {p1}, Landroid/content/Intent;->getExtras()Landroid/os/Bundle;
+    invoke-virtual {v1}, Landroid/content/Intent;->getExtras()Landroid/os/Bundle;
 
-    move-result-object p1
+    move-result-object v1
 
-    if-eqz p1, :cond_53
+    if-eqz v1, :cond_52
 
     .line 61
     invoke-virtual {p0}, LBOOTSTRAP/PACKAGE/Bootstrap;->getIntent()Landroid/content/Intent;
 
-    move-result-object p1
+    move-result-object v1
 
-    invoke-virtual {p1}, Landroid/content/Intent;->getExtras()Landroid/os/Bundle;
+    invoke-virtual {v1}, Landroid/content/Intent;->getExtras()Landroid/os/Bundle;
 
-    move-result-object p1
+    move-result-object v1
 
-    invoke-virtual {v1, p1}, Landroid/content/Intent;->putExtras(Landroid/os/Bundle;)Landroid/content/Intent;
+    invoke-virtual {p1, v1}, Landroid/content/Intent;->putExtras(Landroid/os/Bundle;)Landroid/content/Intent;
 
     .line 64
-    :cond_53
-    invoke-virtual {p0, v1}, LBOOTSTRAP/PACKAGE/Bootstrap;->startActivity(Landroid/content/Intent;)V
+    :cond_52
+    invoke-virtual {p0, p1}, LBOOTSTRAP/PACKAGE/Bootstrap;->startActivity(Landroid/content/Intent;)V
 
     .line 65
     invoke-virtual {p0}, LBOOTSTRAP/PACKAGE/Bootstrap;->finish()V
 
     .line 78
-    goto :goto_8f
+    goto :goto_8e
 
     .line 50
-    :cond_5a
+    :cond_59
     new-instance p1, Ljava/lang/IllegalArgumentException;
 
     const-string v1, "TARGET must be full-qualified class name"
@@ -405,11 +403,11 @@
     invoke-direct {p1, v1}, Ljava/lang/IllegalArgumentException;-><init>(Ljava/lang/String;)V
 
     throw p1
-    :try_end_62
-    .catchall {:try_start_1d .. :try_end_62} :catchall_62
+    :try_end_61
+    .catchall {:try_start_1d .. :try_end_61} :catchall_61
 
     .line 66
-    :catchall_62
+    :catchall_61
     move-exception p1
 
     .line 67
@@ -440,26 +438,26 @@
 
     const-string v2, "true"
 
-    if-ne v1, v2, :cond_87
+    if-ne v1, v2, :cond_86
 
     .line 71
-    :try_start_81
+    :try_start_80
     invoke-virtual {p0, p1}, LBOOTSTRAP/PACKAGE/Bootstrap;->createViewComponents(Ljava/lang/Throwable;)V
-    :try_end_84
-    .catchall {:try_start_81 .. :try_end_84} :catchall_85
+    :try_end_83
+    .catchall {:try_start_80 .. :try_end_83} :catchall_84
 
     .line 73
-    :goto_84
-    goto :goto_8f
+    :goto_83
+    goto :goto_8e
 
     .line 72
-    :catchall_85
+    :catchall_84
     move-exception p1
 
-    goto :goto_84
+    goto :goto_83
 
     .line 75
-    :cond_87
+    :cond_86
     const-string p1, "Crash reporting disabled. Exiting."
 
     invoke-static {v0, p1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
@@ -468,6 +466,6 @@
     invoke-virtual {p0}, LBOOTSTRAP/PACKAGE/Bootstrap;->finish()V
 
     .line 79
-    :goto_8f
+    :goto_8e
     return-void
 .end method
