@@ -47,20 +47,14 @@ public record BaseRenameConfiguration
         init => InternalRenameInfoLogDelimiter = value;
     }
 
+    internal PackageRenameConfiguration PackageRenameConfiguration { get; set; }
+
     internal BaseRenameConfiguration()
     {
     }
 
-    /// <summary>
-    /// Compiles the used <see cref="Regex"/> before use. This can help 
-    /// </summary>
-    /// <param name="originalCompanyName"></param>
-    public void PrebuildRegex(string originalCompanyName)
-    {
-        BuildAndCacheRegex(originalCompanyName);
-    }
-
     [DebuggerHidden]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static T Coalesce<T>(T? overrideValue, T? configValue, [CallerArgumentExpression(nameof(configValue))] string? configName = null)
     {
         if (overrideValue is not null)
@@ -74,6 +68,7 @@ public record BaseRenameConfiguration
     }
 
     [DebuggerHidden]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static T Coalesce<T>(T? overrideValue, Func<T> resolveValue, [CallerArgumentExpression(nameof(overrideValue))] string? configName = null)
     {
         if (overrideValue is not null)
@@ -85,6 +80,7 @@ public record BaseRenameConfiguration
     }
 
     [DebuggerHidden]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static T CoalesceConfigurations<T>(T? overrideValue, T? configValue, T defaultValue)
     {
         if (overrideValue is not null)
@@ -98,6 +94,7 @@ public record BaseRenameConfiguration
     }
 
     [DebuggerHidden]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static T CoalesceConfigurations<T>(T? overrideValue, Func<T> resolveValue, T defaultValue)
     {
         if (overrideValue is not null)
@@ -138,11 +135,13 @@ public record BaseRenameConfiguration
         return _builtRegexCache;
     }
 
-    internal void ApplyOverrides(BaseRenameConfiguration global)
+    internal void ApplyOverrides(PackageRenameConfiguration global)
     {
+        PackageRenameConfiguration = global;
         InternalRenameRegexString ??= global.InternalRenameRegexString;
         InternalRenameRegexTimeoutMs ??= global.InternalRenameRegexTimeoutMs;
         InternalRenameInfoLogDelimiter ??= global.InternalRenameInfoLogDelimiter;
+
 
         // This *might* help with reducing regex build count. Only works if
         // building the regex from the global config somewhere in the PackageEditorContext.
