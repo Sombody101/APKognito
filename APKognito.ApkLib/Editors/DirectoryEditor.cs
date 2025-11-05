@@ -6,20 +6,20 @@ using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;
 
-public sealed class DirectoryEditor : Additionals<DirectoryEditor>, IReportable<DirectoryEditor>
+public sealed class DirectoryEditor : Additionals<DirectoryEditor>
 {
-    private readonly ILogger _logger;
     private readonly DirectoryRenameConfiguration _renameConfig;
-    private readonly PackageNameData _nameData;
+    private readonly PackageRenameState _nameData;
 
-    private IProgress<ProgressInfo>? _reporter;
+    private readonly ILogger _logger;
+    private readonly IProgress<ProgressInfo>? _reporter;
 
-    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageNameData nameData)
-        : this(renameConfig, nameData, null)
+    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageRenameState nameData)
+        : this(renameConfig, nameData, null, null)
     {
     }
 
-    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageNameData nameData, ILogger? logger)
+    public DirectoryEditor(DirectoryRenameConfiguration renameConfig, PackageRenameState nameData, ILogger? logger, IProgress<ProgressInfo>? reporter)
     {
         ArgumentNullException.ThrowIfNull(renameConfig);
         ArgumentNullException.ThrowIfNull(nameData);
@@ -27,6 +27,7 @@ public sealed class DirectoryEditor : Additionals<DirectoryEditor>, IReportable<
         _renameConfig = renameConfig;
         _nameData = nameData;
         _logger = MockLogger.MockIfNull(logger);
+        _reporter = reporter;
     }
 
     public void RenameDirectory(string originalDirectory, string newName, string? baseDirectory = null)
@@ -79,7 +80,7 @@ public sealed class DirectoryEditor : Additionals<DirectoryEditor>, IReportable<
                 : newCompanyName;
 
             _reporter.ReportProgressMessage(directoryName);
-            RenameDirectory(directory, adjustedDirectoryName, _nameData.ApkAssemblyDirectory);
+            RenameDirectory(directory, adjustedDirectoryName, _nameData.PackageAssemblyDirectory);
         }
     }
 
@@ -87,17 +88,13 @@ public sealed class DirectoryEditor : Additionals<DirectoryEditor>, IReportable<
     {
         InvalidConfigurationException.ThrowIfNull(_nameData);
 
-        ReplaceAllDirectoryNames(
-            BaseRenameConfiguration.Coalesce(baseDirectory, _nameData.ApkAssemblyDirectory),
-            _nameData.OriginalCompanyName,
-            _nameData.NewCompanyName
-        );
-    }
+        (string oldName, string newName) = _nameData.GetPackageRenamePair(_renameConfig.PackageRenameConfiguration.UseBootstrapClassLoader);
 
-    public DirectoryEditor SetReporter(IProgress<ProgressInfo>? reporter)
-    {
-        _reporter = reporter;
-        return this;
+        ReplaceAllDirectoryNames(
+            BaseRenameConfiguration.Coalesce(baseDirectory, _nameData.PackageAssemblyDirectory),
+            oldName,
+            newName
+        );
     }
 
     public static async Task CopyDirectoryAsync(string sourceDir, string destinationDir, bool recursive = false, IProgress<ProgressInfo>? reporter = null)

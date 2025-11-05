@@ -6,21 +6,20 @@ using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;
 
-public sealed class LibraryEditor : Additionals<LibraryEditor>,
-    IReportable<LibraryEditor>
+public sealed class LibraryEditor : Additionals<LibraryEditor>, IPackageEditor
 {
     private readonly LibraryRenameConfiguration _renameConfiguration;
+    private readonly PackageRenameState _nameData;
+
     private readonly ILogger _logger;
-    private readonly PackageNameData _nameData;
+    private readonly IProgress<ProgressInfo>? _reporter;
 
-    private IProgress<ProgressInfo>? _reporter;
-
-    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageNameData nameData)
-        : this(renameConfiguration, nameData, null)
+    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageRenameState nameData)
+        : this(renameConfiguration, nameData, null, null)
     {
     }
 
-    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageNameData nameData, ILogger? logger)
+    public LibraryEditor(LibraryRenameConfiguration renameConfiguration, PackageRenameState nameData, ILogger? logger, IProgress<ProgressInfo>? reporter)
     {
         ArgumentNullException.ThrowIfNull(renameConfiguration);
         ArgumentNullException.ThrowIfNull(nameData);
@@ -28,19 +27,19 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
         _renameConfiguration = renameConfiguration;
         _nameData = nameData;
         _logger = MockLogger.MockIfNull(logger);
+        _reporter = reporter;
     }
 
-    public LibraryEditor SetReporter(IProgress<ProgressInfo>? reporter)
+    public Task ExecuteAsync(PackageRenameState state, BaseRenameConfiguration config, CancellationToken token = default)
     {
-        _reporter = reporter;
-        return this;
+        throw new NotImplementedException();
     }
 
     public async Task RunAsync(string? libraryDirectory = null, CancellationToken token = default)
     {
         InvalidConfigurationException.ThrowIfNull(_renameConfiguration);
 
-        libraryDirectory ??= Path.Combine(_nameData.ApkAssemblyDirectory, "lib");
+        libraryDirectory ??= Path.Combine(_nameData.PackageAssemblyDirectory, "lib");
 
         if (!_renameConfiguration.EnableLibraryRenaming && !_renameConfiguration.EnableLibraryFileRenaming)
         {
@@ -54,7 +53,7 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
             return;
         }
 
-        if (_nameData.OriginalCompanyName.Length != _nameData.NewCompanyName.Length)
+        if (_nameData.OldCompanyName.Length != _nameData.NewCompanyName.Length)
         {
             throw new InvalidOperationException("The package replacement name cannot be a different length of the original name.");
         }
@@ -87,7 +86,7 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
     public void RenameLibraryFile(string libraryPath)
     {
         string originalName = Path.GetFileName(libraryPath);
-        string newFileName = _renameConfiguration.BuildAndCacheRegex(_nameData.OriginalCompanyName)
+        string newFileName = _renameConfiguration.BuildAndCacheRegex(_nameData.OldCompanyName)
             .Replace(originalName, _nameData.NewCompanyName);
 
         string newFilePath = Path.Combine(Path.GetDirectoryName(libraryPath)!, newFileName);
@@ -110,7 +109,7 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
 
         var binaryReplace = new BinaryReplace(libraryPath, _reporter, _logger);
         await binaryReplace.ModifyElfStringsAsync(
-            _renameConfiguration.BuildAndCacheRegex(_nameData.OriginalCompanyName),
+            _renameConfiguration.BuildAndCacheRegex(_nameData.OldCompanyName),
             _nameData.NewCompanyName,
             token
         );
@@ -121,7 +120,7 @@ public sealed class LibraryEditor : Additionals<LibraryEditor>,
         return Directory.EnumerateFiles(libraryDirectory, "*.so", SearchOption.AllDirectories)
             .Concat(_renameConfiguration.ExtraInternalPackagePaths
                 .Where(p => p.FileType is FileType.Elf)
-                .Select(p => Path.Combine(_nameData.ApkAssemblyDirectory, p.FilePath)))
+                .Select(p => Path.Combine(_nameData.PackageAssemblyDirectory, p.FilePath)))
             .Where(p => !p.EndsWith(".config.so") && !p.Equals("libscript.so")) // These are usually a Json or JS file, not an ELF.
             .FilterByAdditions(Inclusions, Exclusions);
     }
