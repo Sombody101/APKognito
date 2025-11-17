@@ -93,11 +93,10 @@ public static class PackageUtils
 
     internal static string GetFormattedTimeDirectory(string sourceApkName)
     {
-        // Use invariant culture info because different language selections from messing with output directories (apktool doesn't like it for some reason)
-        return $"{sourceApkName}_{DateTime.Now.ToString("yyyy-MMMM-dd_h.mm", CultureInfo.InvariantCulture)}";
+        // Use english culture info because different language selections from messing with output directories (apktool doesn't like it for some reason)
+        // 🦅🦅 MERICA
+        return $"{sourceApkName}_{DateTime.Now.ToString("yyyy-MM-dd_h.mm", CultureInfo.InvariantCulture)}";
     }
 
-    public class ManifestPackageNameMissingException() : Exception("Failed to get package name from AndroidManifest (XML).")
-    {
-    }
+    public class ManifestPackageNameMissingException() : Exception("Failed to get package name from AndroidManifest (XML).");
 }
