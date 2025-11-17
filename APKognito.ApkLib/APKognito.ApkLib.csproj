@@ -32,4 +32,19 @@
     <Folder Include="Automation\ANTLR\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="BootstrapperResources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>BootstrapperResources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="BootstrapperResources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>BootstrapperResources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>
