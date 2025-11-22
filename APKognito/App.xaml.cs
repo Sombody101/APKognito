@@ -7,7 +7,6 @@ using System.Windows.Data;
 using APKognito.Configurations;
 using APKognito.Services;
 using APKognito.Utilities;
-using APKognito.Utilities.JavaTools;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using APKognito.ViewModels.Pages.Debugging;
@@ -33,6 +32,8 @@ namespace APKognito;
 /// </summary>
 public partial class App
 {
+    private static FrameLockDetector? s_frameLockDetector;
+
     public static DirectoryInfo AppDataDirectory { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
 
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
@@ -135,6 +136,8 @@ public partial class App
     {
         FileLogger.Log($"App start. {Version.GetFullVersion()}, {Version.VersionIdentifier}");
 
+        s_frameLockDetector = new(Dispatcher);
+
 #if !NO_EXCEPTION_HANDLING || RELEASE
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
@@ -179,6 +182,7 @@ public partial class App
         await s_host.StopAsync();
 
         s_host.Dispose();
+        s_frameLockDetector?.Dispose();
         FileLogger.Log("App exit.");
     }
 
