@@ -164,7 +164,7 @@ public partial class PackageManagerViewModel : LoggableObservableObject
             }
 
             var renamer = new PackageRenamer(_configFactory, this, new Progress<ProgressInfo>());
-            await renamer.SideloadPackageAsync(new(packagePath, assetDirectory, Path.GetFileNameWithoutExtension(packagePath)));
+            await renamer.SideloadPackageAsync(new(packagePath, assetDirectory, Path.GetFileNameWithoutExtension(packagePath), string.Empty));
 
             SnackSuccess("Upload success!", $"Uploaded {Path.GetFileName(packagePath)} {(assetDirectory is null ? string.Empty : $"and assets directory {Path.GetFileName(assetDirectory)}")}");
         }

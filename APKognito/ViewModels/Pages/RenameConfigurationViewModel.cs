@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using APKognito.ApkLib.Configuration;
+using APKognito.ApkMod;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
@@ -21,6 +22,18 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
     public SharedViewModel SharedViewModel { get; }
 
     #region Properties
+
+    public RenameType PackageRenameType
+    {
+        get => _advancedSettings.RenameType;
+        set
+        {
+            _advancedSettings.RenameType = value;
+            OnPropertyChanged(nameof(PackageRenameType));
+
+            SetBootstrapperOptionVisibility(value);
+        }
+    }
 
     [ObservableProperty]
     public partial ObservableCollection<JavaVersionInformation> FoundJavaVersions { get; set; } = [];
@@ -218,6 +231,35 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         }
     }
 
+    /*
+     * Bootstrapper
+     */
+
+    public string NewBootstrapPackageName
+    {
+        get => _advancedSettings.NewBootstrapPackageName ?? string.Empty;
+        set
+        {
+            _advancedSettings.NewBootstrapPackageName = value;
+            OnPropertyChanged(nameof(NewBootstrapPackageName));
+        }
+    }
+
+
+    public bool EnableBootstrapErrorReporting
+    {
+        get => _advancedSettings.EnableBootstrapErrorReporting;
+        set
+        {
+            _advancedSettings.EnableBootstrapErrorReporting = value;
+            OnPropertyChanged(nameof(EnableBootstrapErrorReporting));
+        }
+    }
+
+    public bool HideNonBootstrapperOptions { get; private set; }
+    public bool ShowBootstrapperOptions { get; private set; }
+
+
     public string Error => null!;
 
     public bool AdbConfigured => !string.IsNullOrEmpty(_adbConfig.PlatformToolsPath);
@@ -266,6 +308,7 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         SharedViewModel = sharedViewModel;
 
         SetSnackbarProvider(snackService);
+        SetBootstrapperOptionVisibility(_advancedSettings.RenameType);
 
         foreach (JavaVersionInformation javaVersion in JavaVersionCollector.JavaVersions)
         {
@@ -379,6 +422,14 @@ public sealed partial class RenameConfigurationViewModel : LoggableObservableObj
         }
 
         _renameConfig.SelectedRawJavaVersion = value.RawVersion;
+    }
+
+    private void SetBootstrapperOptionVisibility(RenameType value)
+    {
+        ShowBootstrapperOptions = value is RenameType.Bootstrapper;
+        HideNonBootstrapperOptions = !ShowBootstrapperOptions;
+        OnPropertyChanged(nameof(ShowBootstrapperOptions));
+        OnPropertyChanged(nameof(HideNonBootstrapperOptions));
     }
 
     public sealed partial class ExtraPackageFileViewModel : ObservableObject
