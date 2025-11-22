@@ -69,11 +69,9 @@ public sealed class AssetEditor : Additionals<AssetEditor>
     {
         InvalidConfigurationException.ThrowIfNullEmptyOrWhitespace(_nameData.PackageOutputDirectory, "No set output renamed package output directory. Remember to run PackageCompressor.GatherPackageMetadata()!");
 
-        (string oldName, string newName) = _nameData.GetPackageRenamePair(_renameConfiguration.PackageRenameConfiguration.UseBootstrapClassLoader);
-
         return await RunInternalAsync(
             BaseRenameConfiguration.Coalesce(assetDirectory, _renameConfiguration.AssetDirectory),
-            outputDirectory ?? Path.Combine(oldName, _nameData.PackageOutputDirectory, newName),
+            outputDirectory ?? Path.Combine(_nameData.PackageOutputDirectory, _nameData.NewPackageName),
             token
         );
     }
