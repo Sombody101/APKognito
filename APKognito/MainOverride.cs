@@ -38,9 +38,9 @@ internal static class MainOverride
         CliMain.CreateConsole();
 #endif
 
-        // Tells AutoUpdateService to cleanup update files
-        if (Array.Exists(args, str => str == Constants.UpdateInstalledArgument))
+        if (Array.Exists(args, str => str is Constants.UPDATE_INSTALLED_ARG))
         {
+            // Tells AutoUpdateService to cleanup update files
             RestartedFromUpdate = true;
         }
         else

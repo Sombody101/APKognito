@@ -11,12 +11,13 @@ using APKognito.AdbTools;
 using APKognito.Cli;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
-using APKognito.ConsoleAbstractions;
 using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Windows;
 using APKognito.Views.Pages;
 using Microsoft.Extensions.Logging;
 using Wpf.Ui.Appearance;
+using APKognito.Utilities.ConsoleAbstractions;
+
 
 #if DEBUG
 using Color = System.Windows.Media.Color;
