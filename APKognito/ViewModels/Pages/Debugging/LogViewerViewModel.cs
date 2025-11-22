@@ -54,9 +54,9 @@ public partial class LogViewerViewModel : LoggableObservableObject
         DisableFileLogging = true;
         LogLines = [
 #if DEBUG
-        new("[10:12:55.999 PM: INFO] \t[App.OnStartup] App start. v1.8.9150.29065, Release", false),
-        new("[10:12:55.999 AM: INFO] \t[AutoUpdaterService.LogNextUpdate] Next update check will be at x/xx/xxxx x:xx:xx FM", false),
-        new("[04:01:36.955 PM: INFO] \t[JavaVersionLocator.CheckLtsDirectory] Checking Java latest directory...\r\n" +
+        LogViewerLine.FromLog("[10:12:55.999 PM: INFO] \t[App.OnStartup] App start. v1.8.9150.29065, Release", false),
+        LogViewerLine.FromLog("[10:12:55.999 AM: INFO] \t[AutoUpdaterService.LogNextUpdate] Next update check will be at x/xx/xxxx x:xx:xx FM", false),
+        LogViewerLine.FromLog("[04:01:36.955 PM: INFO] \t[JavaVersionLocator.CheckLtsDirectory] Checking Java latest directory...\r\n" +
         "[04:01:37.041 PM: ]: EXCEPTION[No log]: DirectoryNotFoundException: Could not find a part of the path 'C:\\Program Files\\Java\\latest'.\r\n" +
         "   at System.IO.Enumeration.FileSystemEnumerator`1.CreateDirectoryHandle(String path, Boolean ignoreNotFound)\r\n" +
         "   at System.IO.Enumeration.FileSystemEnumerator`1.Init()\r\n" +
@@ -272,7 +272,7 @@ public sealed record LogpackInfo : LogpackInfo.ILogpackInfo
 
     public static async Task<LogpackInfo> FromFileAsync(string logpackPath, IViewLogger? logger = null)
     {
-        ArgumentNullException.ThrowIfNullOrWhiteSpace(logpackPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(logpackPath);
 
         if (!File.Exists(logpackPath))
         {
@@ -400,7 +400,7 @@ public sealed record LogpackInfo : LogpackInfo.ILogpackInfo
         void FinalizeLog()
         {
             string log = logBuilder.ToString().TrimEnd();
-            LogViewerLine newLine = new(log, isException);
+            LogViewerLine newLine = LogViewerLine.FromLog(log, isException);
             logList.Add(newLine);
 
             _ = logBuilder.Clear();
