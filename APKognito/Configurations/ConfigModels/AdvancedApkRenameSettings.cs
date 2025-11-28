@@ -1,4 +1,5 @@
 ﻿using APKognito.ApkLib.Configuration;
+using APKognito.ApkMod;
 using Newtonsoft.Json;
 
 namespace APKognito.Configurations.ConfigModels;
@@ -8,6 +9,9 @@ public class AdvancedApkRenameSettings : IKognitoConfig
 {
     public const string DEFAULT_RENAME_REGEX = "(?<=[./_])({value})(?=[./_])";
     public const string DEFAULT_JAVA_ADDED_FLAGS = "--enable-native-access=ALL-UNNAMED ";
+
+    [JsonProperty("package_rename_type")]
+    public RenameType RenameType { get; set; } = RenameType.Classic;
 
     /// <summary>
     /// The regex to be used on a package name to rename it. Use <see cref="BuildRegex(string, int)"/> to get the compiled form.
@@ -70,4 +74,17 @@ public class AdvancedApkRenameSettings : IKognitoConfig
 
     [JsonProperty("scan_smali_before_rename")]
     public bool ScanFileBeforeRename { get; set; } = false;
+
+    /*
+     * Bootstrapper
+     */
+
+    [JsonProperty("bootstrap_package_name")]
+    public string NewBootstrapPackageName { get; set; } = "io.apkognito.{appname}";
+
+    [JsonProperty("bootstrap_friendly_name")]
+    public string? FriendlyBootstrapAppName { get; set; }
+
+    [JsonProperty("bootstrap_enable_error_reporting")]
+    public bool EnableBootstrapErrorReporting { get; set; } = true;
 }

@@ -13,7 +13,6 @@ using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Controls;
 using APKognito.Controls.Dialogs;
-using APKognito.Models;
 using APKognito.Utilities;
 using APKognito.Utilities.JavaTools;
 using APKognito.Utilities.MVVM;
@@ -196,7 +195,6 @@ public partial class HomeViewModel : LoggableObservableObject
         }
         catch (Exception ex)
         {
-            FileLogger.LogException(ex);
             LogError(ex);
         }
 
@@ -303,10 +301,10 @@ public partial class HomeViewModel : LoggableObservableObject
             var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, new()
             {
                 NewCompanyName = string.Empty,
-                ApkAssemblyDirectory = string.Empty,
-                ApkSmaliTempDirectory = _tempData?.FullName ?? Path.GetTempPath(),
-                FullSourceApkPath = filePath,
-                FullSourceApkFileName = Path.GetFileName(filePath),
+                PackageAssemblyDirectory = string.Empty,
+                SmaliAssemblyDirectory = _tempData?.FullName ?? Path.GetTempPath(),
+                SourcePackagePath = filePath,
+                PackageOutputDirectory = string.Empty
             });
 
             string unpackOutputDirectory = Path.Combine(Path.GetDirectoryName(filePath)!, $"unpack_{Path.GetFileNameWithoutExtension(filePath)}");
@@ -326,15 +324,15 @@ public partial class HomeViewModel : LoggableObservableObject
     }
 
     [RelayCommand]
-    private async Task OnManualPackPackageAsync()
+    private async Task<string> OnManualPackPackageAsync(string? path = null)
     {
         try
         {
-            string? sourceDirectory = DirectorySelector.UserSelectDirectory();
+            string? sourceDirectory = path ?? DirectorySelector.UserSelectDirectory();
 
             if (sourceDirectory is null)
             {
-                return;
+                return string.Empty;
             }
 
             string packageName = PackageCompressor.GetPackageName(Path.Combine(sourceDirectory, "AndroidManifest.xml"));
@@ -343,24 +341,27 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Packing {sourceDirectory}");
 
-            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageNameData.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageRenameState.Empty, this);
             _ = await compressor.PackPackageAsync(sourceDirectory, outputFile);
 
             Log($"Packed {Path.GetFileName(sourceDirectory)} into {packageFileName}");
+            return outputFile;
         }
         catch (Exception ex)
         {
             LogError($"Error: {ex.Message}");
             LogDebug(ex.StackTrace ?? "[NoTrace]");
         }
+
+        return string.Empty;
     }
 
     [RelayCommand]
-    private async Task OnManualSignPackageAsync()
+    private async Task OnManualSignPackageAsync(string? path = null)
     {
         try
         {
-            string? filePath = DirectorySelector.UserSelectFile();
+            string? filePath = path ?? DirectorySelector.UserSelectFile();
 
             if (filePath is null)
             {
@@ -369,7 +370,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Signing {filePath}");
 
-            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageNameData.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageRenameState.Empty, this);
             string signedPackagePath = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetDirectoryName(filePath)!);
             await compressor.SignPackageAsync(filePath, signedPackagePath, false);
 
@@ -380,6 +381,13 @@ public partial class HomeViewModel : LoggableObservableObject
             LogError($"Error: {ex.Message}");
             LogDebug(ex.StackTrace ?? "[NoTrace]");
         }
+    }
+
+    [RelayCommand]
+    private async Task OnManualPackSignPackageAsync()
+    {
+        string package = await OnManualPackPackageAsync(DirectorySelector.UserSelectDirectory());
+        await OnManualSignPackageAsync(package);
     }
 
     [RelayCommand]
@@ -433,15 +441,12 @@ public partial class HomeViewModel : LoggableObservableObject
 
     private async Task StartPackageRenamingAsync(CancellationToken token)
     {
-        RunningJobs = true;
-        CanEdit = false;
-
         string[]? files = GetFilePaths();
 
         PackageToolingPaths? toolingPaths = await PrepareForRenamingAsync(files);
         if (toolingPaths is null)
         {
-            goto ChecksFailed;
+            return;
         }
 
         Stopwatch elapsedTime = new();
@@ -455,97 +460,89 @@ public partial class HomeViewModel : LoggableObservableObject
         elapsedTime.Start();
         taskTimer.Start();
 
-        string[] pendingSession = new string[files.Length];
         List<string> failedJobs = new(files.Length);
         int completeJobs = 0;
-
-        StartButtonVisible = false;
-
         int jobIndex = 0;
-        foreach (string sourceApkPath in files)
+
+        try
         {
-            if (token.IsCancellationRequested)
+            StartButtonVisible = false;
+            RunningJobs = true;
+            CanEdit = false;
+
+            foreach (string sourceApkPath in files)
             {
-                Log("Job cancellation requested.");
-                goto Exit;
-            }
+                if (token.IsCancellationRequested)
+                {
+                    Log("Job cancellation requested.");
+                    return;
+                }
 
-            WriteGenericLog($"\n------------------ Job {jobIndex + 1} Start");
+                WriteGenericLog($"\n------------------ Job {jobIndex + 1} Start");
 
-            string fileName = Path.GetFileName(sourceApkPath);
-            JobbedApk = fileName;
+                string fileName = JobbedApk = Path.GetFileName(sourceApkPath);
 
-            string tempRenameDirectory = Path.Combine(_tempData.FullName, GetFormattedTimeDirectory(fileName));
-            ApkMod.RenameConfiguration renameConfig = new()
-            {
-                UserRenameConfig = UserRenameConfiguration,
-                AdvancedConfig = _configFactory.GetConfig<AdvancedApkRenameSettings>(),
-                ToolingPaths = toolingPaths,
-                SourcePackagePath = sourceApkPath,
-                OutputBaseDirectory = OutputDirectory,
-                TempDirectory = tempRenameDirectory,
-                ReplacementCompanyName = UserRenameConfiguration.ApkNameReplacement
-            };
+                string tempRenameDirectory = Path.Combine(_tempData.FullName, GetFormattedTimeDirectory(fileName));
+                UserRenameOptions renameConfig = new()
+                {
+                    UserRenameConfig = UserRenameConfiguration,
+                    AdvancedConfig = _configFactory.GetConfig<AdvancedApkRenameSettings>(),
+                    ToolingPaths = toolingPaths,
+                    SourcePackagePath = sourceApkPath,
+                    OutputBaseDirectory = OutputDirectory,
+                    TempDirectory = tempRenameDirectory,
+                };
 
-            PackageRenamer renamer = new(_configFactory, this, _renameProgressReporter);
-            PackageRenameResult renameResult = await renamer.RenamePackageAsync(renameConfig, UserRenameConfiguration.PushAfterRename, token);
+                PackageRenameResult renameResult = await new PackageRenamer(_configFactory, this, _renameProgressReporter)
+                    .RenamePackageAsync(renameConfig, UserRenameConfiguration.PushAfterRename, token)
+                    .ConfigureAwait(false);
 
-            if (renameResult.Successful)
-            {
-                ++completeJobs;
-            }
-            else
-            {
-                failedJobs.Add($"\t{Path.GetFileName(sourceApkPath)}: {renameResult.ResultStatus}");
-            }
+                if (renameResult.Successful)
+                {
+                    ++completeJobs;
+                }
+                else
+                {
+                    failedJobs.Add($"\t{Path.GetFileName(sourceApkPath)}: {renameResult.ResultStatus}");
+                }
 
-            string finalName = !renameResult.Successful
-                ? "[Rename Failed]"
-                : "[Unknown]";
-
-            pendingSession[jobIndex] = RenameSession.FormatForSerializer(ApkName ?? JobbedApk, finalName, renameResult.Successful);
-            ++jobIndex;
-            WriteGenericLog($"------------------ Job {jobIndex} End\n");
-        }
-
-    Exit:
-        Log($"{completeJobs} of {files.Length} APKs were renamed successfully.");
-        if (completeJobs != files.Length)
-        {
-            LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
-
-            // Don't snack the error if they were all canceled
-            if (!token.IsCancellationRequested)
-            {
-                SnackError(
-                    "Jobs failed!",
-                    $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details."
-                );
+                ++jobIndex;
+                WriteGenericLog($"------------------ Job {jobIndex} End\n");
             }
         }
-
-        if (UserRenameConfiguration.ClearTempFilesOnRename)
+        finally
         {
-            await CleanTempFilesAsync();
+            Log($"{completeJobs} of {files.Length} APKs were renamed successfully.");
+            if (completeJobs != files.Length)
+            {
+                LogError($"The following APKs failed to be renamed with their error reason:\n{string.Join("\n\t", failedJobs)}");
+
+                // Don't snack the error if they were all canceled
+                if (!token.IsCancellationRequested)
+                {
+                    SnackError(
+                        "Jobs failed!",
+                        $"{completeJobs}/{files.Length} APKs were renamed successfully. See the log box for more details."
+                    );
+                }
+            }
+
+            if (UserRenameConfiguration.ClearTempFilesOnRename)
+            {
+                await CleanTempFilesAsync();
+            }
+
+            elapsedTime.Stop();
+            taskTimer.Stop();
+
+            StartButtonVisible = true;
+
+            ResetViewFields();
+            JobbedApk = $"Finished {completeJobs}/{files.Length} APKs";
+
+            RunningJobs = false;
+            CanEdit = true;
         }
-
-        // Finalize session and write it to the history file
-        RenameSession currentSession = new([.. pendingSession], DateTimeOffset.Now.ToUnixTimeSeconds());
-        RenameSessionList renameHistory = _configFactory.GetConfig<RenameSessionList>();
-        renameHistory.RenameSessions.Add(currentSession);
-        _configFactory.SaveConfig(renameHistory);
-
-        elapsedTime.Stop();
-        taskTimer.Stop();
-
-        StartButtonVisible = true;
-
-        ResetViewFields();
-        JobbedApk = $"Finished {completeJobs}/{files.Length} APKs";
-
-    ChecksFailed:
-        RunningJobs = false;
-        CanEdit = true;
     }
 
     private async Task<PackageToolingPaths?> PrepareForRenamingAsync(string[] files)
@@ -874,6 +871,6 @@ public partial class HomeViewModel : LoggableObservableObject
     [GeneratedRegex("[^a-zA-Z0-9]")]
     private static partial Regex ApkNameFixerRegex();
 
-    [GeneratedRegex("[a-z][a-z0-9_]*")]
+    [GeneratedRegex("[a-zA-Z][a-z0-9_]*")]
     private static partial Regex ApkCompanyCheck();
 }

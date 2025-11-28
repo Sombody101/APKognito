@@ -1,64 +1,24 @@
 ﻿namespace APKognito.ApkLib.Configuration;
 
-public record PackageNameData
+public record PackageRenameState
 {
-    /// <summary>
-    /// The replacement package company name. (Passed from caller)
-    /// </summary>
-    public required string NewCompanyName { get; set; } = string.Empty;
+    public required string SourcePackagePath { get; set; }
+    public required string NewCompanyName { get; set; }
+    public string NewPackageName { get; set; }
 
-    /// <summary>
-    /// The full path to the source APK file.
-    /// </summary>
-    public required string FullSourceApkPath { get; set; } = string.Empty;
+    public string? OldPackageName { get; internal set; }
+    public string? OldCompanyName { get; internal set; }
 
-    /// <summary>
-    /// The full name for the source APK file.
-    /// </summary>
-    public required string FullSourceApkFileName { get; set; } = string.Empty;
+    public required string PackageOutputDirectory { get; set; }
+    public required string PackageAssemblyDirectory { get; set; }
+    public required string? SmaliAssemblyDirectory { get; set; }
 
-    /// <summary>
-    /// The temporary directory that the unpacked APK is placed.
-    /// </summary>
-    public required string ApkAssemblyDirectory { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The directory the renamed package will be placed into. If you want ApkLib to create a subdirectory for the output,
-    /// then set <see cref="RenamedPackageOutputBaseDirectory"/> rather than this property.
-    /// </summary>
-    public string? RenamedPackageOutputDirectory { get; set; }
-
-    /// <summary>
-    /// The base directory for a renamed package directory to be placed into. If you want to set the explicit directory that
-    /// a renamed package will be placed into, use <see cref="RenamedPackageOutputDirectory"/>. This property will make ApkLib to create a directory
-    /// inside the given path and place the renamed package into that.
-    /// </summary>
-    public string? RenamedPackageOutputBaseDirectory { get; set; }
-
-    /// <summary>
-    /// The original full package name, fetched from the AndroidManifest.xml of the APK.
-    /// </summary>
-    public string OriginalPackageName { get; internal set; } = string.Empty;
-
-    /// <summary>
-    /// The original company name, extracted from <see cref="OriginalPackageName"/>.
-    /// </summary>
-    public string OriginalCompanyName { get; internal set; } = string.Empty;
-
-    /// <summary>
-    /// The new fully-formatted package name, using <see cref="NewCompanyName"/>.
-    /// </summary>
-    public string NewPackageName { get; internal set; } = string.Empty;
-
-    internal string RenamedOutputDirectoryInternal { get; set; } = string.Empty;
-
-    /// <summary>
-    /// A sub-directory in side of <see cref="ApkAssemblyDirectory"/> for replacing company name instances.
-    /// (Only used when file is larger than <see cref="MAX_SMALI_LOAD_SIZE"/>)
-    /// </summary>
-    public required string ApkSmaliTempDirectory { get; set; } = string.Empty;
-
-    public string FinalOutputDirectory => RenamedOutputDirectoryInternal;
+    public (string oldName, string newName) GetPackageRenamePair(bool useBootstrapper)
+    {
+        return useBootstrapper
+            ? (OldPackageName!, NewPackageName)
+            : (OldCompanyName!, NewCompanyName);
+    }
 
     public static string SubtractPathFrom(string path, string subtractor)
     {
@@ -67,16 +27,12 @@ public record PackageNameData
             : path;
     }
 
-    /// <summary>
-    /// An empty instance of <see cref="PackageNameData"/>. This should only be used when manually using an editor and not as a
-    /// configuration argument for <see cref="PackageEditorContext"/>.
-    /// </summary>
-    public static readonly PackageNameData Empty = new()
+    public static readonly PackageRenameState Empty = new()
     {
-        ApkAssemblyDirectory = string.Empty,
-        ApkSmaliTempDirectory = string.Empty,
-        FullSourceApkFileName = string.Empty,
-        FullSourceApkPath = string.Empty,
-        NewCompanyName = string.Empty
+        PackageAssemblyDirectory = string.Empty,
+        SmaliAssemblyDirectory = string.Empty,
+        SourcePackagePath = string.Empty,
+        NewCompanyName = string.Empty,
+        PackageOutputDirectory = string.Empty,
     };
 }

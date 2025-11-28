@@ -12,34 +12,33 @@ using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;
 
-public sealed class SmaliEditor : Additionals<SmaliEditor>,
-    IReportable<SmaliEditor>
+public sealed class SmaliEditor : Additionals<SmaliEditor>
 {
-    private readonly ILogger _logger;
     private readonly SmaliRenameConfiguration _renameConfiguration;
-    private readonly PackageNameData? _nameData;
+    private readonly PackageRenameState _nameData;
 
-    private IProgress<ProgressInfo>? _reporter;
+    private readonly ILogger _logger;
+    private readonly IProgress<ProgressInfo>? _reporter;
 
-
-    public SmaliEditor(SmaliRenameConfiguration renameConfig, PackageNameData? nameData)
-        : this(renameConfig, nameData, null)
+    public SmaliEditor(SmaliRenameConfiguration renameConfig, PackageRenameState nameData)
+        : this(renameConfig, nameData, null, null)
     {
     }
 
-    public SmaliEditor(SmaliRenameConfiguration renameConfig, PackageNameData? nameData, ILogger? logger)
+    public SmaliEditor(SmaliRenameConfiguration renameConfig, PackageRenameState nameData, ILogger? logger, IProgress<ProgressInfo>? reporter)
     {
         ArgumentNullException.ThrowIfNull(renameConfig);
 
         _renameConfiguration = renameConfig;
         _nameData = nameData;
         _logger = MockLogger.MockIfNull(logger);
+        _reporter = reporter;
     }
 
     public async Task RunAsync(IProgress<ProgressInfo>? reporter = null, CancellationToken token = default)
     {
         InvalidConfigurationException.ThrowIfNull(_nameData);
-        Directory.CreateDirectory(_nameData.ApkSmaliTempDirectory);
+        Directory.CreateDirectory(_nameData.SmaliAssemblyDirectory);
 
 #if DEBUG
 #if ASYNC_RENAME_DISABLED
@@ -99,16 +98,9 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
         reporter.ReportProgressMessage("Finished");
     }
 
-    /// <inheritdoc/>
-    public SmaliEditor SetReporter(IProgress<ProgressInfo>? reporter)
-    {
-        _reporter = reporter;
-        return this;
-    }
-
     private IEnumerable<string> GetSmaliFiles()
     {
-        string apkAssemblyDirectory = _nameData!.ApkAssemblyDirectory;
+        string apkAssemblyDirectory = _nameData.PackageAssemblyDirectory;
 
         IEnumerable<string> smaliFiles = Directory.EnumerateFiles(
             Path.Combine(apkAssemblyDirectory, "smali"),
@@ -141,14 +133,14 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
 
     public async IAsyncEnumerable<string> GetSmaliFilesAsync(IProgress<ProgressInfo>? reporter, [EnumeratorCancellation] CancellationToken token)
     {
-        string[] smalidDirectories = Directory.GetDirectories(_nameData!.ApkAssemblyDirectory, "smali_*");
+        string[] smalidDirectories = Directory.GetDirectories(_nameData.PackageAssemblyDirectory, "smali_*");
 
-        await foreach (string filePath in FunctionalGrep.FindFilesWithSubstringAsync(_nameData.OriginalCompanyName, smalidDirectories, reporter, token))
+        await foreach (string filePath in FunctionalGrep.FindFilesWithSubstringAsync(_nameData.OldCompanyName, smalidDirectories, reporter, token))
         {
             yield return filePath;
         }
 
-        string libDirectory = Path.Combine(_nameData.ApkAssemblyDirectory, "lib");
+        string libDirectory = Path.Combine(_nameData.PackageAssemblyDirectory, "lib");
         if (Directory.Exists(libDirectory))
         {
             foreach (string libFile in Directory.EnumerateFiles(libDirectory, "*.config.so", SearchOption.AllDirectories))
@@ -157,12 +149,12 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
             }
         }
 
-        yield return Path.Combine(_nameData.ApkAssemblyDirectory, "AndroidManifest.xml");
-        yield return Path.Combine(_nameData.ApkAssemblyDirectory, "apktool.yml");
+        yield return Path.Combine(_nameData.PackageAssemblyDirectory, "AndroidManifest.xml");
+        yield return Path.Combine(_nameData.PackageAssemblyDirectory, "apktool.yml");
 
         foreach (string? extraPath in _renameConfiguration.ExtraInternalPackagePaths
             .Where(p => p.FileType is FileType.RegularText)
-            .Select(p => Path.Combine(_nameData.ApkAssemblyDirectory, p.FilePath)))
+            .Select(p => Path.Combine(_nameData.PackageAssemblyDirectory, p.FilePath)))
         {
             yield return extraPath;
         }
@@ -172,7 +164,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
     {
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning("Failed to find file {SubtractPathFrom}", PackageNameData.SubtractPathFrom(_nameData!.ApkAssemblyDirectory, filePath));
+            _logger.LogWarning("Failed to find file {SubtractPathFrom}", PackageRenameState.SubtractPathFrom(_nameData.PackageAssemblyDirectory, filePath));
             return;
         }
 
@@ -190,7 +182,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
             string content = await File.ReadAllTextAsync(filePath, cToken);
 
             // Might seem dumb/redundant, but it reduced driver call overhead by ~12% on large packages
-            if (!content.Contains(_nameData!.OriginalCompanyName))
+            if (!content.Contains(_nameData.OldCompanyName))
             {
                 return;
             }
@@ -203,7 +195,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
         [MethodImpl(MethodImplOptions.AggressiveOptimization)] // Hot path
         async Task StreamFileReplace(FileInfo fileInfo, CancellationToken cToken)
         {
-            string tempSmaliFile = Path.Combine(_nameData!.ApkSmaliTempDirectory, $"${fileInfo.Name}_{Random.Shared.Next():x}");
+            string tempSmaliFile = Path.Combine(_nameData.SmaliAssemblyDirectory, $"${fileInfo.Name}_{Random.Shared.Next():x}");
             using StreamReader reader = new(fileInfo.FullName, Encoding.Default, detectEncodingFromByteOrderMarks: true, bufferSize: _renameConfiguration.SmaliBufferSize);
             using StreamWriter writer = new(tempSmaliFile, append: false, reader.CurrentEncoding, _renameConfiguration.SmaliBufferSize);
 
@@ -212,7 +204,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
             {
                 if (!string.IsNullOrEmpty(line)
                     && !line.StartsWith('#')
-                    && line.Contains(_nameData!.OriginalCompanyName))
+                    && line.Contains(_nameData.OldCompanyName))
                 {
                     line = Replace(line);
                 }
@@ -229,7 +221,7 @@ public sealed class SmaliEditor : Additionals<SmaliEditor>,
 
         string Replace(string original)
         {
-            return _renameConfiguration.BuildAndCacheRegex(_nameData!.OriginalCompanyName)
+            return _renameConfiguration.BuildAndCacheRegex(_nameData.OldCompanyName)
                 .Replace(original, _nameData.NewCompanyName);
         }
     }

@@ -3,11 +3,12 @@ using System.Runtime.CompilerServices;
 using APKognito.ViewModels.Windows;
 using Humanizer;
 using Wpf.Ui.Controls;
+using APKognito.Utilities.ConsoleAbstractions;
+
 
 #if DEBUG
 using Spectre.Console;
 using Microsoft.Extensions.Logging;
-using APKognito.ConsoleAbstractions;
 using System.Runtime.InteropServices;
 using static APKognito.Utilities.MVVM.LoggableObservableObject;
 #endif

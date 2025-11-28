@@ -7,20 +7,20 @@ using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib.Editors;
 
-public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEditor>
+public sealed class AssetEditor : Additionals<AssetEditor>
 {
     private readonly AssetRenameConfiguration _renameConfiguration;
+    private readonly PackageRenameState _nameData;
+
     private readonly ILogger _logger;
-    private readonly PackageNameData _nameData;
+    private readonly IProgress<ProgressInfo>? _reporter;
 
-    private IProgress<ProgressInfo>? _reporter;
-
-    public AssetEditor(AssetRenameConfiguration renameConfig, PackageNameData nameData)
-        : this(renameConfig, nameData, null)
+    public AssetEditor(AssetRenameConfiguration renameConfig, PackageRenameState nameData)
+        : this(renameConfig, nameData, null, null)
     {
     }
 
-    public AssetEditor(AssetRenameConfiguration renameConfig, PackageNameData nameData, ILogger? logger)
+    public AssetEditor(AssetRenameConfiguration renameConfig, PackageRenameState nameData, ILogger? logger, IProgress<ProgressInfo>? reporter)
     {
         ArgumentNullException.ThrowIfNull(renameConfig);
         ArgumentNullException.ThrowIfNull(nameData);
@@ -28,6 +28,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEdi
         _renameConfiguration = renameConfig;
         _nameData = nameData;
         _logger = MockLogger.MockIfNull(logger);
+        _reporter = reporter;
     }
 
     public async Task RenameAssetAsync(string assetPath, string outputDirectory, CancellationToken token = default)
@@ -66,20 +67,13 @@ public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEdi
 
     public async Task<string?> RunAsync(string? assetDirectory = null, string? outputDirectory = null, CancellationToken token = default)
     {
-        InvalidConfigurationException.ThrowIfNullEmptyOrWhitespace(_nameData.RenamedOutputDirectoryInternal, "No set output renamed package output directory. Remember to run PackageCompressor.GatherPackageMetadata()!");
+        InvalidConfigurationException.ThrowIfNullEmptyOrWhitespace(_nameData.PackageOutputDirectory, "No set output renamed package output directory. Remember to run PackageCompressor.GatherPackageMetadata()!");
 
         return await RunInternalAsync(
             BaseRenameConfiguration.Coalesce(assetDirectory, _renameConfiguration.AssetDirectory),
-            outputDirectory ?? Path.Combine(_nameData.OriginalPackageName, _nameData.RenamedOutputDirectoryInternal, _nameData.NewPackageName),
+            outputDirectory ?? Path.Combine(_nameData.PackageOutputDirectory, _nameData.NewPackageName),
             token
         );
-    }
-
-    /// <inheritdoc/>
-    public AssetEditor SetReporter(IProgress<ProgressInfo>? reporter)
-    {
-        _reporter = reporter;
-        return this;
     }
 
     private async Task<string?> RunInternalAsync(string assetDirectory, string outputDirectory, CancellationToken token)
@@ -87,8 +81,8 @@ public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEdi
         if (assetDirectory is null)
         {
             // Assume the asset directory is next to the package. Otherwise, this needs to be an overridden path.
-            string parentDirectory = Path.GetDirectoryName(_nameData.FullSourceApkPath)!;
-            assetDirectory = Path.Combine(parentDirectory, _nameData.OriginalPackageName);
+            string parentDirectory = Path.GetDirectoryName(_nameData.SourcePackagePath)!;
+            assetDirectory = Path.Combine(parentDirectory, _nameData.OldPackageName);
         }
 
         if (!Directory.Exists(assetDirectory))
@@ -115,27 +109,33 @@ public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEdi
                 continue;
             }
 
-            await RenameAssetInternalAsync(assetPath, outputDirectory, mode, token);
+            string renamedAssetPath = await RenameAssetInternalAsync(assetPath, outputDirectory, mode, token);
 
             if (_renameConfiguration.RenameObbArchiveEntries)
             {
-                await RenameArchiveEntriesInternalAsync(assetPath, token);
+                await RenameArchiveEntriesInternalAsync(renamedAssetPath, token);
             }
         }
 
+        _reporter.Clear();
         return outputDirectory;
     }
 
-    private async Task RenameAssetInternalAsync(string assetPath, string outputDirectory, AssetTransferMode mode, CancellationToken token)
+    private async Task<string> RenameAssetInternalAsync(string assetPath, string outputDirectory, AssetTransferMode mode, CancellationToken token)
     {
+        _reporter.ReportProgressTitle(mode is AssetTransferMode.Copy ? "Copying" : "Moving");
         _reporter.ReportProgressMessage(Path.GetFileName(assetPath));
 
-        string newAssetName = Path.GetFileName(assetPath).Replace(_nameData.OriginalCompanyName, _nameData.NewCompanyName);
+        (string oldName, string newName) = _nameData.GetPackageRenamePair(_renameConfiguration.PackageRenameConfiguration.UseBootstrapClassLoader);
+        string newAssetName = Path.GetFileName(assetPath)
+            .Replace(oldName, newName);
 
         _logger.LogInformation("Renaming asset file: {GetFileName}{InternalRenameInfoLogDelimiter}{NewAssetName} (Mode: {Mode})", Path.GetFileName(assetPath), _renameConfiguration.InternalRenameInfoLogDelimiter, newAssetName, mode);
 
         string assetOutputPath = Path.Combine(outputDirectory, newAssetName);
         await MoveAssetAsync(assetPath, assetOutputPath, mode, token);
+
+        return assetOutputPath;
     }
 
     private async ValueTask MoveAssetAsync(string assetPath, string targetDirectory, AssetTransferMode mode, CancellationToken token)
@@ -154,11 +154,12 @@ public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEdi
     {
         try
         {
+            (string oldName, string newName) = _nameData.GetPackageRenamePair(_renameConfiguration.PackageRenameConfiguration.UseBootstrapClassLoader);
             var binaryReplace = new ArchiveReplace(_reporter, _logger);
             await binaryReplace.ModifyArchiveStringsAsync(
                 assetPath,
-                _renameConfiguration.BuildAndCacheRegex(_nameData.OriginalCompanyName),
-                _nameData.NewCompanyName,
+                _renameConfiguration.BuildAndCacheRegex(oldName),
+                newName,
                 [.. _renameConfiguration.RenameObbsInternalExtras],
                 token
             );
@@ -171,7 +172,7 @@ public sealed class AssetEditor : Additionals<AssetEditor>, IReportable<AssetEdi
 
     private IEnumerable<string> GetAssetPaths(string assetDirectory)
     {
-        return Directory.EnumerateFiles(assetDirectory)//, $"*{_nameData.FullSourceApkFileName}.obb")
+        return Directory.EnumerateFiles(assetDirectory)
             .Concat(_renameConfiguration.ExtraInternalPackagePaths)
             .FilterByAdditions(Inclusions, Exclusions);
     }

@@ -269,7 +269,7 @@ public sealed class AutoUpdaterService : IHostedService, IDisposable
         const string script = "-c Write-Host 'Waiting for APKognito to exit...'; Start-Sleep -Seconds 5; " +
             "Write-Host 'Installing APKognito'; Copy-Item -Recurse -Path '{0}\\*' -Destination '{1}'; " +
             "Write-Host 'Starting APKognito!'; Start-Process -FilePath '{1}APKognito.exe' -Args '{2}'";
-        string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, Constants.UpdateInstalledArgument);
+        string command = string.Format(script, unpackedPath, AppDomain.CurrentDomain.BaseDirectory, Constants.UPDATE_INSTALLED_ARG);
 
         _ = Process.Start(new ProcessStartInfo()
         {

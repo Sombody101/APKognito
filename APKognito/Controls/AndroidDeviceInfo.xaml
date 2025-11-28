@@ -65,7 +65,53 @@
             </StackPanel>
         </DataTemplate>
 
-        <DataTemplate x:Key="AdbBatteryLevelPresenter" d:DataType="ctrls:AndroidDeviceInfo">
+        <DataTemplate x:Key="VerticalAdbBatteryLevelPresenter" d:DataType="ctrls:AndroidDeviceInfo">
+            <Grid HorizontalAlignment="Left">
+
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Margin="0,0,10,0" VerticalAlignment="Center">
+                    <Border
+                        Width="10"
+                        Height="5"
+                        Margin="0,-2"
+                        Padding="2"
+                        Background="{DynamicResource TextFillColorPrimaryBrush}"
+                        CornerRadius="2,2,0,0" />
+                    <Border
+                        Width="20"
+                        Height="35"
+                        Padding="1"
+                        BorderBrush="{DynamicResource TextFillColorPrimaryBrush}"
+                        BorderThickness="2"
+                        CornerRadius="4">
+                        <Grid>
+                            <ProgressBar
+                                Height="30"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Foreground="{Binding ViewModel.BatteryLabelColor}"
+                                Orientation="Vertical"
+                                Value="{Binding ViewModel.AndroidDevice.BatteryLevel}" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <ui:TextBlock
+                    Grid.Column="1"
+                    Width="40"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    Text="{Binding ViewModel.FormattedBatteryLevel}" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HorizontalAdbBatteryLevelPresenter" d:DataType="ctrls:AndroidDeviceInfo">
             <Viewbox
                 Width="75"
                 HorizontalAlignment="Left"
@@ -156,7 +202,7 @@
                         Grid.Column="0"
                         Margin="5"
                         Content="{Binding}"
-                        ContentTemplate="{StaticResource AdbBatteryLevelPresenter}" />
+                        ContentTemplate="{StaticResource HorizontalAdbBatteryLevelPresenter}" />
 
                     <ContentPresenter
                         Grid.Row="1"
@@ -217,29 +263,41 @@
         </DataTemplate>
 
         <DataTemplate x:Key="SideTrayView" d:DataType="ctrls:AndroidDeviceInfo">
-            <Grid Margin="-35,0,0,0">
-                <Grid Margin="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition />
-                        <RowDefinition />
-                    </Grid.RowDefinitions>
+            <Grid Width="175" Margin="-25,10,-35,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
 
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="auto" />
+                        <ColumnDefinition />
+                        <ColumnDefinition />
                     </Grid.ColumnDefinitions>
 
                     <ContentPresenter
-                        Grid.Row="0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
                         Content="{Binding}"
-                        ContentTemplate="{StaticResource AdbBatteryLevelPresenter}" />
+                        ContentTemplate="{StaticResource VerticalAdbBatteryLevelPresenter}" />
 
-                    <ContentPresenter
-                        Grid.Row="1"
-                        Margin="0,10,0,0"
-                        HorizontalAlignment="Stretch"
-                        Content="{Binding}"
-                        ContentTemplate="{StaticResource AdbStorageLevelPresenter}" />
+                    <ui:TextBlock
+                        Grid.Column="1"
+                        Width="90"
+                        Margin="0,0,0,-25"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Text="{Binding ViewModel.AndroidDeviceName}"
+                        TextAlignment="Right"
+                        TextTrimming="CharacterEllipsis" />
                 </Grid>
+
+                <ContentPresenter
+                    Grid.Row="1"
+                    Margin="0,10,0,0"
+                    HorizontalAlignment="Stretch"
+                    Content="{Binding}"
+                    ContentTemplate="{StaticResource AdbStorageLevelPresenter}" />
             </Grid>
         </DataTemplate>
     </UserControl.Resources>

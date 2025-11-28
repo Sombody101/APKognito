@@ -4,7 +4,7 @@
 using Spectre.Console;
 #endif
 
-namespace APKognito.ConsoleAbstractions;
+namespace APKognito.Utilities.ConsoleAbstractions;
 
 public static class ConsoleAbstraction
 {

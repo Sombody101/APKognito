@@ -23,6 +23,10 @@ title: Home
   <a href="configurations" class="md-button">Learn More</a>
 </div>
 
+<div align="center" markdown>
+  <a href="https://github.com/Sombody101/APKognito/releases/latest" class="md-button">:fontawesome-brands-windows: Download latest release</a>
+</div>
+
 <div class="grid cards" markdown>
 -   :material-rocket-launch-outline: **Getting Started**
     <br />
@@ -39,7 +43,6 @@ title: Home
     Explore advanced configurations and fine-tune your APKs.
     <br />
     [<span class="md-button">Explore</span>](advanced/advanced_package_configurations.md)
-
 </div>
 
 <div class="grid cards" markdown>

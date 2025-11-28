@@ -3,7 +3,7 @@ using APKognito.Configurations.ConfigModels;
 
 namespace APKognito.ApkMod;
 
-public record RenameConfiguration
+public record UserRenameOptions
 {
     public required UserRenameConfiguration UserRenameConfig { get; set; }
 
@@ -16,6 +16,4 @@ public record RenameConfiguration
     public string OutputBaseDirectory { get; set; } = string.Empty;
 
     public string TempDirectory { get; set; } = string.Empty;
-
-    public string ReplacementCompanyName { get; set; } = string.Empty;
 }

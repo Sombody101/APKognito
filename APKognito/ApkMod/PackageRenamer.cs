@@ -6,6 +6,7 @@ using APKognito.ApkLib.Automation;
 using APKognito.ApkLib.Automation.Parser;
 using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
+using APKognito.ApkLib.Exceptions;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Exceptions;
@@ -36,29 +37,22 @@ public sealed class PackageRenamer
     }
 
     public async Task<PackageRenameResult> RenamePackageAsync(
-        RenameConfiguration modRenameConfiguration,
+        UserRenameOptions renameOptions,
         bool pushAfterRename,
         CancellationToken token = default)
     {
-        PackageRenameConfiguration renameConfig = MapRenameSettings(modRenameConfiguration);
+        PackageRenameConfiguration renameConfig = MapRenameSettings(renameOptions);
 
-        string sourceApkName = Path.GetFileName(modRenameConfiguration.SourcePackagePath);
-        if (sourceApkName.EndsWith(".apk"))
+        PackageRenameState nameState = new()
         {
-            sourceApkName = sourceApkName[..^4];
-        }
-
-        PackageNameData nameData = new()
-        {
-            ApkAssemblyDirectory = modRenameConfiguration.TempDirectory,
-            ApkSmaliTempDirectory = Path.Combine(Path.GetDirectoryName(modRenameConfiguration.TempDirectory)!, "$smali"),
-            FullSourceApkPath = modRenameConfiguration.SourcePackagePath,
-            FullSourceApkFileName = sourceApkName,
-            NewCompanyName = modRenameConfiguration.ReplacementCompanyName,
-            RenamedPackageOutputBaseDirectory = modRenameConfiguration.OutputBaseDirectory
+            PackageAssemblyDirectory = renameOptions.TempDirectory,
+            PackageOutputDirectory = renameOptions.OutputBaseDirectory,
+            SmaliAssemblyDirectory = Path.Combine(Path.GetDirectoryName(renameOptions.TempDirectory)!, "$smali"),
+            SourcePackagePath = renameOptions.SourcePackagePath,
+            NewCompanyName = renameOptions.UserRenameConfig.ApkNameReplacement,
         };
 
-        return await RunSafePackageRenameAsync(modRenameConfiguration, renameConfig, nameData, pushAfterRename, token);
+        return await RunSafePackageRenameAsync(renameOptions, renameConfig, nameState, pushAfterRename, token);
     }
 
     public async Task SideloadPackageAsync(RenameOutputLocations locations, CancellationToken token = default)
@@ -73,22 +67,23 @@ public sealed class PackageRenamer
             metadata.RelativeAssetsPath is not null
                 ? Path.Combine(Path.GetDirectoryName(fullPackagePath)!, metadata.RelativeAssetsPath)
                 : null,
-            metadata.PackageName
+            metadata.PackageName,
+            string.Empty // Not used for sideloading
         );
 
         await PushRenamedApkAsync(locations, token);
     }
 
     private async Task<PackageRenameResult> RunSafePackageRenameAsync(
-        RenameConfiguration modRenameConfig,
+        UserRenameOptions modRenameConfig,
         PackageRenameConfiguration libRenameConfig,
-        PackageNameData nameData,
+        PackageRenameState nameState,
         bool pushAfterRename,
         CancellationToken token)
     {
         try
         {
-            PackageRenameResult result = await StartRenameInternalAsync(modRenameConfig, libRenameConfig, nameData, token);
+            PackageRenameResult result = await StartRenameInternalAsync(modRenameConfig, libRenameConfig, nameState, token);
 
             if (!result.Successful)
             {
@@ -100,17 +95,6 @@ public sealed class PackageRenamer
                 await PushRenamedApkAsync(result.OutputLocations, token);
             }
 
-            result.RenamedPackageMetadata = new()
-            {
-                PackageName = nameData.NewPackageName,
-                OriginalPackageName = nameData.OriginalPackageName,
-                RelativeAssetsPath = result.OutputLocations.AssetsDirectory is not null
-                    ? Path.GetRelativePath(Path.GetDirectoryName(result.OutputLocations.OutputApkPath)!, result.OutputLocations.AssetsDirectory)
-                    : null,
-                RenameDate = DateTimeOffset.UtcNow,
-                ApkognitoVersion = App.Version.GetVersion()
-            };
-
             string claimFile = DirectoryManager.ClaimDirectory(Path.GetDirectoryName(result.OutputLocations.OutputApkPath)!);
             MetadataManager.WriteMetadata(claimFile, result.RenamedPackageMetadata);
 
@@ -118,13 +102,12 @@ public sealed class PackageRenamer
         }
         catch (TaskCanceledException tcex)
         {
-            // Handle cancellation
             _logger.LogWarning(tcex, "Job canceled.");
             return new()
             {
                 ResultStatus = "Job canceled.",
                 Successful = false,
-                OutputLocations = new(null!, null, string.Empty)
+                OutputLocations = RenameOutputLocations.Empty
             };
         }
         catch (Exception ex)
@@ -134,15 +117,15 @@ public sealed class PackageRenamer
             {
                 ResultStatus = ex.Message,
                 Successful = false,
-                OutputLocations = new(null!, null, string.Empty)
+                OutputLocations = RenameOutputLocations.Empty
             };
         }
     }
 
     private async Task<PackageRenameResult> StartRenameInternalAsync(
-        RenameConfiguration modRenameConfig,
+        UserRenameOptions modRenameConfig,
         PackageRenameConfiguration renameConfig,
-        PackageNameData nameData,
+        PackageRenameState nameState,
         CancellationToken token)
     {
         _reporter.Report(new(string.Empty, ProgressUpdateType.Reset));
@@ -151,8 +134,7 @@ public sealed class PackageRenamer
             ? GetParsedAutoConfigAsync(modRenameConfig.AdvancedConfig.AutoPackageConfig)
             : null;
 
-        PackageEditorContext context = new PackageEditorContext(renameConfig, nameData, modRenameConfig.ToolingPaths, _logger)
-            .SetReporter(_reporter);
+        PackageEditorContext context = new(renameConfig, modRenameConfig.ToolingPaths, nameState, _logger, _reporter);
 
         /* Unpack */
 
@@ -161,37 +143,17 @@ public sealed class PackageRenamer
         {
             await compressor.UnpackPackageAsync(token: token);
             context.GatherPackageMetadata();
-
-            _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameData.OriginalPackageName, nameData.NewPackageName);
         }, nameof(compressor.UnpackPackageAsync));
 
+        _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameState);
 
-        _ = await GetCommandResultAsync(automationConfig, CommandStage.Unpack, nameData);
+        _logger.LogInformation("Changing '{OriginalName}' |> '{NewName}'", nameState.OldPackageName, nameState.NewPackageName);
 
-        await TimeAsync(async () =>
-        {
-            context.CreateDirectoryEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Directory, nameData))
-                .Run();
-        }, nameof(DirectoryEditor));
+        /* Rename stuff */
 
-        /* Libraries */
-
-        await TimeAsync(async () =>
-        {
-            LibraryEditor libraryEditor = context.CreateLibraryEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Library, nameData));
-            await libraryEditor.RunAsync(token: token);
-        }, nameof(LibraryEditor));
-
-        /* Smali */
-
-        await TimeAsync(async () =>
-        {
-            SmaliEditor smaliEditor = context.CreateSmaliEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Smali, nameData));
-            await smaliEditor.RunAsync(token: token);
-        }, nameof(SmaliEditor));
+        await (renameConfig.UseBootstrapClassLoader
+            ? InjectBootstrapperAsync(nameState, renameConfig.BootstrapConfiguration!)
+            : RunBruteRenameAsync(nameState, automationConfig, context, token));
 
         /* Pack and Sign */
 
@@ -204,33 +166,92 @@ public sealed class PackageRenamer
         await TimeAsync(async () =>
         {
             AssetEditor assetEditor = context.CreateAssetEditor()
-                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Assets, nameData));
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Assets, nameState));
             outputAssetDirectory = await assetEditor.RunAsync(token: token);
         }, nameof(AssetEditor));
 
-        _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack, nameData);
+        _ = await GetCommandResultAsync(automationConfig, CommandStage.Pack, nameState);
 
         /* Cleanup */
 
-        await Task.Run(async () => await CleanUpTempsAsync(renameConfig, nameData, token), token);
+        await CleanUpTempsAsync(renameConfig, nameState, token);
 
         /* Finalize and return paths */
 
-        string outputPackagePath = Path.Combine(nameData.FinalOutputDirectory, $"{nameData.NewPackageName}.apk");
+        string outputPackagePath = Path.Combine(nameState.PackageOutputDirectory, $"{nameState.NewPackageName}.apk");
 
         return new PackageRenameResult()
         {
             Successful = true,
-            OutputLocations = new(outputPackagePath, outputAssetDirectory, nameData.NewPackageName)
+            OutputLocations = new(outputPackagePath, outputAssetDirectory, nameState.NewPackageName, nameState.OldPackageName),
+            RenamedPackageMetadata = new()
+            {
+                PackageName = nameState.NewPackageName,
+                OriginalPackageName = nameState.OldPackageName,
+                RelativeAssetsPath = outputAssetDirectory is not null
+                    ? Path.GetRelativePath(Path.GetDirectoryName(outputPackagePath)!, outputAssetDirectory)
+                    : null,
+                RenameDate = DateTimeOffset.UtcNow,
+                ApkognitoVersion = App.Version.GetVersion()
+            },
         };
     }
 
-    private static PackageRenameConfiguration MapRenameSettings(RenameConfiguration settings)
+    private async Task RunBruteRenameAsync(PackageRenameState nameState, AutoConfig? automationConfig, PackageEditorContext context, CancellationToken token)
+    {
+        /* Directories */
+
+        await TimeAsync(async () =>
+        {
+            context.CreateDirectoryEditor()
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Directory, nameState))
+                .Run();
+        }, nameof(DirectoryEditor));
+
+        /* Libraries */
+
+        await TimeAsync(async () =>
+        {
+            LibraryEditor libraryEditor = context.CreateLibraryEditor()
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Library, nameState));
+            await libraryEditor.RunAsync(token: token);
+        }, nameof(LibraryEditor));
+
+        /* Smali */
+
+        await TimeAsync(async () =>
+        {
+            SmaliEditor smaliEditor = context.CreateSmaliEditor()
+                .WithStageResult(await GetCommandResultAsync(automationConfig, CommandStage.Smali, nameState));
+            await smaliEditor.RunAsync(token: token);
+        }, nameof(SmaliEditor));
+    }
+
+    private async Task InjectBootstrapperAsync(PackageRenameState nameState, BootstrapConfiguration bootstrapConfig)
+    {
+        PackageBootstrapper bootstrapper = new(nameState.PackageAssemblyDirectory, bootstrapConfig, _logger);
+        await TimeAsync(bootstrapper.RunAsync);
+    }
+
+    private static PackageRenameConfiguration MapRenameSettings(UserRenameOptions settings)
     {
         string assetDirectory = Path.Combine(
             Path.GetDirectoryName(settings.SourcePackagePath)!,
             Path.GetFileNameWithoutExtension(settings.SourcePackagePath)
         );
+
+        if (settings.AdvancedConfig.RenameType is RenameType.Bootstrapper)
+        {
+            if (string.IsNullOrWhiteSpace(settings.AdvancedConfig.NewBootstrapPackageName))
+            {
+                throw new InvalidConfigurationException("A bootstrap package name is required.");
+            }
+
+            if (!settings.AdvancedConfig.NewBootstrapPackageName.Contains('.'))
+            {
+                throw new InvalidConfigurationException("The bootstrap package name must be a valid package name (containing at least one identifier separating dot). e.g., io.sombody101.{appname}");
+            }
+        }
 
         return new()
         {
@@ -264,7 +285,14 @@ public sealed class PackageRenamer
                 CopyAssets = settings.UserRenameConfig.CopyFilesWhenRenaming,
                 RenameObbArchiveEntries = settings.AdvancedConfig.RenameObbsInternal,
                 ExtraInternalPackagePaths = [.. settings.AdvancedConfig.RenameObbsInternalExtras],
-            }
+            },
+            UseBootstrapClassLoader = settings.AdvancedConfig.RenameType is RenameType.Bootstrapper,
+            BootstrapConfiguration = new()
+            {
+                NewPackageName = settings.AdvancedConfig.NewBootstrapPackageName,
+                //FriendlyAppName = settings.AdvancedConfig.FriendlyBootstrapAppName,
+                EnableErrorReporting = settings.AdvancedConfig.EnableBootstrapErrorReporting,
+            },
         };
     }
 
@@ -285,7 +313,7 @@ public sealed class PackageRenamer
         });
     }
 
-    private async Task<CommandStageResult?> GetCommandResultAsync(AutoConfig? config, CommandStage stage, PackageNameData nameData)
+    private async Task<CommandStageResult?> GetCommandResultAsync(AutoConfig? config, CommandStage stage, PackageRenameState nameState)
     {
         if (config is null)
         {
@@ -306,14 +334,14 @@ public sealed class PackageRenamer
         {
             Dictionary<string, string> variables = new()
             {
-                { "originalCompany", nameData.OriginalCompanyName },
-                { "originalPackage", nameData.OriginalPackageName },
-                { "newCompany", nameData.NewCompanyName },
-                { "newPackage", nameData.NewPackageName },
+                { "originalCompany", nameState.OldCompanyName },
+                { "originalPackage", nameState.OldPackageName },
+                { "newCompany", nameState.NewCompanyName },
+                { "newPackage", nameState.NewPackageName },
             };
 
             using IDisposable? scope = _logger.BeginScope("[SCRIPT]");
-            return await new CommandDispatcher(foundStage, nameData.ApkAssemblyDirectory, variables, _logger)
+            return await new CommandDispatcher(foundStage, nameState.PackageAssemblyDirectory, variables, _logger)
                 .DispatchCommandsAsync();
         }
         finally
@@ -386,7 +414,7 @@ public sealed class PackageRenamer
 
         _ = await AdbManager.QuickDeviceCommandAsync(@$"shell [ -d ""{obbDirectory}"" ] && rm -r ""{obbDirectory}""; mkdir ""{obbDirectory}""", token: cancellationToken);
 
-        using IDisposable? scope = _logger.BeginScope("UPLD");
+        using IDisposable? scope = _logger.BeginScope("Upload");
 
         int assetIndex = 0;
         foreach (string file in assets)
@@ -399,32 +427,32 @@ public sealed class PackageRenamer
             var assetInfo = new FileInfo(file);
             _logger.Log($"Pushing [{++assetIndex}/{assets.Length}]: {assetInfo.Name} ({GBConverter.FormatSizeFromBytes(assetInfo.Length)})");
 
-            _ = await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}""", token: cancellationToken);
+            _ = await AdbManager.QuickDeviceCommandAsync(@$"push ""{file}"" ""{obbDirectory}"" ", token: cancellationToken);
         }
     }
 
-    private async Task CleanUpTempsAsync(PackageRenameConfiguration renameConfig, PackageNameData nameData, CancellationToken token = default)
+    private async Task CleanUpTempsAsync(PackageRenameConfiguration renameConfig, PackageRenameState nameState, CancellationToken token = default)
     {
         _logger.LogInformation("Cleaning up...");
 
         if (renameConfig.ClearTempFilesOnRename)
         {
-            _logger.LogDebug("Cleaning temp directory `{AssemblyDirectory}`", nameData.ApkAssemblyDirectory);
-            await DirectoryManager.DeleteDirectoryAsync(nameData.ApkAssemblyDirectory, token);
+            _logger.LogDebug("Cleaning temp directory `{AssemblyDirectory}`", nameState.PackageAssemblyDirectory);
+            await DirectoryManager.DeleteDirectoryAsync(nameState.PackageAssemblyDirectory, token);
         }
 
         if (renameConfig.AssetRenameConfiguration?.CopyAssets is false)
         {
-            _logger.LogDebug("CopyWhenRenaming disabled, deleting directory `{FullSourceApkPath}`", nameData.FullSourceApkPath);
+            _logger.LogDebug("CopyWhenRenaming disabled, deleting directory `{FullSourceApkPath}`", nameState.SourcePackagePath);
 
             try
             {
-                File.Delete(nameData.FullSourceApkPath);
+                File.Delete(nameState.SourcePackagePath);
 
-                string obbDirectory = Path.GetDirectoryName(nameData.FullSourceApkPath)
+                string obbDirectory = Path.GetDirectoryName(nameState.SourcePackagePath)
                     ?? throw new RenameFailedException("Failed to clean OBB directory ");
 
-                await DirectoryManager.DeleteDirectoryAsync(obbDirectory);
+                await DirectoryManager.DeleteDirectoryAsync(obbDirectory, token);
             }
             catch (Exception ex)
             {
@@ -446,7 +474,6 @@ public sealed class PackageRenamer
         finally
         {
             sw.Stop();
-            FileLogger.Log($"--- {tag}: {sw}");
             _logger.LogDebug($"{tag}: {sw}");
         }
     }

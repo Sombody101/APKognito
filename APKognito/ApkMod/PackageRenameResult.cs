@@ -19,10 +19,15 @@ public sealed record RenameOutputLocations
 
     public string NewPackageName { get; }
 
-    public RenameOutputLocations(string outputApkPath, string? assetsDirectory, string newPackageName)
+    public string OriginalPackageName { get; }
+
+    public RenameOutputLocations(string outputApkPath, string? assetsDirectory, string newPackageName, string originalPackageName)
     {
         OutputApkPath = outputApkPath;
         AssetsDirectory = assetsDirectory;
         NewPackageName = newPackageName;
+        OriginalPackageName = originalPackageName;
     }
+
+    public static RenameOutputLocations Empty => new(null!, null, string.Empty, string.Empty);
 }

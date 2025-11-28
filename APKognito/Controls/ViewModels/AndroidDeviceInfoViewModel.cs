@@ -1,4 +1,8 @@
-﻿using System.Collections.ObjectModel;
+﻿#if DEBUG
+//#define BATTERY_TEST_ANIMATION
+#endif
+
+using System.Collections.ObjectModel;
 using APKognito.AdbTools;
 using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
@@ -11,7 +15,6 @@ namespace APKognito.Controls.ViewModels;
 public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 {
     private const int UPDATE_DELAY_MS = 10_000;
-    private const int GB_DIVIDER = 1024 * 1024;
 
     private readonly AdbConfig _adbConfig = App.GetService<ConfigurationFactory>()!.GetConfig<AdbConfig>();
 
@@ -36,19 +39,64 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
     public partial string FormattedBatteryLevel { get; set; } = "?";
 
     [ObservableProperty]
-    public partial int BatteryLevelWidth { get; set; } = 0;
-
-    [ObservableProperty]
     public partial int UsedStoragePercent { get; set; } = 0;
 
     [ObservableProperty]
-    public partial AdbDeviceInfo AdbDeviceInfo { get; set; } = null!;
+    public partial string AndroidDeviceName { get; set; } = string.Empty;
 
     #endregion Properties
 
     public AndroidDeviceInfoViewModel()
     {
         // For designer
+
+#if BATTERY_TEST_ANIMATION
+        bool increment = true;
+        int value = 0;
+
+        System.Timers.Timer batteryTimer = new(TimeSpan.FromMilliseconds(25));
+        batteryTimer.Elapsed += async (sender, args) =>
+        {
+            if (App.Current is null)
+            {
+                batteryTimer.Stop();
+                return;
+            }
+
+            try
+            {
+                await App.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    // Watch the memory usage skyrocket with this bad boy
+                    AndroidDevice device = (AndroidDevice is null
+                        ? AndroidDevice.Empty
+                        : AndroidDevice) with
+                    { BatteryLevel = value };
+
+                    OnAndroidDeviceChanged(device);
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                // Eat
+            }
+
+            if (value is 100)
+            {
+                increment = false;
+            }
+            else if (value is 0)
+            {
+                increment = true;
+            }
+
+            value = increment
+                ? value + 1
+                : value - 1;
+        };
+
+        batteryTimer.Start();
+#endif
     }
 
     #region Commands
@@ -200,12 +248,11 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
         if (value.BatteryLevel < 0)
         {
             FormattedBatteryLevel = "?";
-            BatteryLevelWidth = 0;
             return;
         }
 
         FormattedBatteryLevel = $"{value.BatteryLevel}%";
-        BatteryLevelWidth = value.BatteryLevel;
+        AndroidDeviceName = value.DeviceName;
     }
 
     private async Task<AndroidDevice?> UpdateDeviceInfoAsync(CancellationToken token = default)
@@ -219,8 +266,9 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 
         const string getStorageScript = "df | awk '/^(\\/dev\\/block|rootfs|tmp)/ {print $2, $3, $4}'";
         const string getBatteryScript = "dumpsys battery | awk -F ':' '/level/ {print $2}'";
+        const string getDeviceName = "getprop ro.product.model";
 
-        AdbCommandOutput output = await AdbManager.QuickCommandAsync($"shell {getBatteryScript}; {getStorageScript}", token: token, noThrow: true);
+        AdbCommandOutput output = await AdbManager.QuickDeviceCommandAsync($"shell {getDeviceName}; {getBatteryScript}; {getStorageScript}", token: token, noThrow: true);
 
         if (output.Errored)
         {
@@ -236,15 +284,16 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
             return AndroidDevice.Empty;
         }
 
-        if (!int.TryParse(outputLines[0], out int batteryPercentage))
+        if (!int.TryParse(outputLines[1], out int batteryPercentage))
         {
             batteryPercentage = -1;
         }
 
-        (float total, float used, float free) = ParseDeviceStorage(outputLines[1..]);
+        (float total, float used, float free) = ParseDeviceStorage(outputLines[2..]);
 
         return new()
         {
+            DeviceName = outputLines[0],
             BatteryLevel = batteryPercentage,
             TotalSpace = total,
             UsedSpace = used,
@@ -254,6 +303,8 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 
     private static (float Total, float Used, float Free) ParseDeviceStorage(string[] infoLines)
     {
+        const int GB_DIVIDER = 1024 * 1024;
+
         try
         {
             long totalSizeGB = 0,
@@ -310,13 +361,33 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
 
     private static string MapBatteryColor(int value)
     {
-        if (value < 0)
+        // fml
+
+        if (value <= 0)
         {
             return "#0000";
         }
+        else if (value > 100)
+        {
+            return "#00FF00";
+        }
 
-        int red = (int)(255 * (100 - value) / 100.0);
-        int green = (int)(255 * value / 100.0);
+        int red;
+        int green;
+
+        if (value <= 50)
+        {
+            red = 255;
+            green = (int)(value / 50.0 * 255);
+        }
+        else
+        {
+            green = 255;
+            red = (int)((100 - value) / 50.0 * 255);
+        }
+
+        red = Math.Max(0, Math.Min(255, red));
+        green = Math.Max(0, Math.Min(255, green));
 
         return $"#{red:X2}{green:X2}00";
     }

@@ -9,8 +9,9 @@ public partial record LogViewerLine
 {
     private const string DEFAULT = "[None]";
 
-    public string RawLog { get; }
-    public bool HasException { get; }
+    public string RawLog { get; init; } = string.Empty;
+
+    public bool HasException { get; init; }
 
     public string LogTime { get; private set; } = string.Empty;
 
@@ -30,12 +31,16 @@ public partial record LogViewerLine
 
     public Brush Background => FileLogger.LogLevelToBrush(LogLevel);
 
-    public LogViewerLine(string log, bool hasExceptionLog)
+    public static LogViewerLine FromLog(string log, bool hasExceptionLog)
     {
-        RawLog = log;
-        HasException = hasExceptionLog;
+        var logLine = new LogViewerLine()
+        {
+            RawLog = log,
+            HasException = hasExceptionLog,
+        };
 
-        ParseLog();
+        logLine.ParseLog();
+        return logLine;
     }
 
     private void ParseLog()
@@ -58,7 +63,10 @@ public partial record LogViewerLine
         }
 
         string timeString = match.Groups[1].Value;
-        int lastSpace = timeString[..timeString.LastIndexOf(' ')].LastIndexOf(' ') + 1;
+
+        int lastSpace = timeString.LastIndexOf("ADMIN") is not -1
+            ? timeString[..timeString.LastIndexOf(' ')].LastIndexOf(' ') + 1
+            : timeString.LastIndexOf(' ') + 1;
 
         string rawLogLevel = timeString[lastSpace..];
 
@@ -73,8 +81,9 @@ public partial record LogViewerLine
             ExceptionLog = ParseExceptionLog(match.Groups[5].Value);
         }
 
-        const string TIME_FORMAT = "hh:mm:ss.fff";
+        const string TIME_FORMAT = FileLogger.TIME_FORMAT_STRING;//"hh:mm:ss.fff";
         string trimmedTime = timeString.Trim();
+
         if (DateTime.TryParseExact(trimmedTime, TIME_FORMAT, CultureInfo.CurrentCulture, DateTimeStyles.AssumeUniversal, out DateTime dateTime))
         {
             LogTime = dateTime.ToString("hh:mm:ss tt");

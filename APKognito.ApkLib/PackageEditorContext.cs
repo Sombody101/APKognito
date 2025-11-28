@@ -1,27 +1,28 @@
-﻿using APKognito.ApkLib.Configuration;
+﻿using System.Diagnostics;
+using APKognito.ApkLib.Configuration;
 using APKognito.ApkLib.Editors;
 using APKognito.ApkLib.Exceptions;
-using APKognito.ApkLib.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace APKognito.ApkLib;
 
-public sealed class PackageEditorContext : IReportable<PackageEditorContext>
+public sealed class PackageEditorContext
 {
-    private readonly ILogger _logger;
+    internal PackageRenameConfiguration _renameConfiguration;
     private readonly PackageToolingPaths _toolingPaths;
-    private readonly PackageNameData _nameData;
-    private IProgress<ProgressInfo>? _reporter;
 
-    internal PackageRenameConfiguration? RenameConfiguration { get; private set; }
+    private readonly ILogger _logger;
+    private readonly IProgress<ProgressInfo>? _reporter;
+
+    internal readonly PackageRenameState _nameState;
 
     /// <summary>
     /// Creates a new <see cref="PackageEditorContext"/> without a logger.
     /// </summary>
     /// <param name="renameConfiguration"></param>
     /// <param name="toolingPaths"></param>
-    public PackageEditorContext(PackageRenameConfiguration renameConfiguration, PackageNameData nameData, PackageToolingPaths toolingPaths)
-        : this(renameConfiguration, nameData, toolingPaths, null)
+    public PackageEditorContext(PackageRenameConfiguration renameConfiguration, PackageToolingPaths toolingPaths, PackageRenameState nameState)
+        : this(renameConfiguration, toolingPaths, nameState, null, null)
     {
     }
 
@@ -31,16 +32,16 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>
     /// <param name="renameConfiguration"></param>
     /// <param name="toolingPaths"></param>
     /// <param name="logger"></param>
-    public PackageEditorContext(PackageRenameConfiguration renameConfiguration, PackageNameData nameData, PackageToolingPaths toolingPaths, ILogger? logger)
+    public PackageEditorContext(PackageRenameConfiguration renameConfiguration, PackageToolingPaths toolingPaths, PackageRenameState nameState, ILogger? logger, IProgress<ProgressInfo>? reporter)
     {
         ArgumentNullException.ThrowIfNull(renameConfiguration);
-        ArgumentNullException.ThrowIfNull(nameData);
         ArgumentNullException.ThrowIfNull(toolingPaths);
 
-        RenameConfiguration = renameConfiguration;
-        _nameData = nameData;
+        _renameConfiguration = renameConfiguration;
         _toolingPaths = toolingPaths;
         _logger = MockLogger.MockIfNull(logger);
+        _reporter = reporter;
+        _nameState = nameState;
     }
 
     /// <summary>
@@ -50,7 +51,7 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>
     public void SetRenameConfiguration(PackageRenameConfiguration config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        RenameConfiguration = config;
+        _renameConfiguration = config;
     }
 
     #region Editor Instance Creators
@@ -63,9 +64,9 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>
     {
         ThrowIfNullConfig();
 
-        CompressorConfiguration compressorConfig = RenameConfiguration!.CompressorConfiguration ?? new();
+        CompressorConfiguration compressorConfig = _renameConfiguration!.CompressorConfiguration ?? new();
 
-        return new PackageCompressor(compressorConfig, _toolingPaths, _nameData, _logger);
+        return new PackageCompressor(compressorConfig, _toolingPaths, _nameState, _logger);
     }
 
     /// <summary>
@@ -76,22 +77,20 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>
     {
         ThrowIfNullConfig();
 
-        DirectoryRenameConfiguration directoryConfig = RenameConfiguration!.DirectoryRenameConfiguration ?? new();
-        directoryConfig.ApplyOverrides(RenameConfiguration!);
+        DirectoryRenameConfiguration directoryConfig = _renameConfiguration!.DirectoryRenameConfiguration ?? new();
+        directoryConfig.ApplyOverrides(_renameConfiguration!);
 
-        return new DirectoryEditor(directoryConfig, _nameData, _logger)
-            .SetReporter(_reporter);
+        return new DirectoryEditor(directoryConfig, _nameState, _logger, _reporter);
     }
 
     public LibraryEditor CreateLibraryEditor()
     {
         ThrowIfNullConfig();
 
-        LibraryRenameConfiguration libraryConfig = RenameConfiguration!.LibraryRenameConfiguration ?? new();
-        libraryConfig.ApplyOverrides(RenameConfiguration!);
+        LibraryRenameConfiguration libraryConfig = _renameConfiguration!.LibraryRenameConfiguration ?? new();
+        libraryConfig.ApplyOverrides(_renameConfiguration!);
 
-        return new LibraryEditor(libraryConfig, _nameData, _logger)
-            .SetReporter(_reporter);
+        return new LibraryEditor(libraryConfig, _nameState, _logger, _reporter);
     }
 
     /// <summary>
@@ -102,11 +101,24 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>
     {
         ThrowIfNullConfig();
 
-        SmaliRenameConfiguration smaliConfig = RenameConfiguration!.SmaliRenameConfiguration ?? new();
-        smaliConfig.ApplyOverrides(RenameConfiguration!);
+        SmaliRenameConfiguration smaliConfig = _renameConfiguration!.SmaliRenameConfiguration ?? new();
+        smaliConfig.ApplyOverrides(_renameConfiguration!);
 
-        return new SmaliEditor(smaliConfig, _nameData, _logger)
-            .SetReporter(_reporter);
+        return new SmaliEditor(smaliConfig, _nameState, _logger, _reporter);
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="PackageBootstrapper"/> using the current <see cref="PackageRenameConfiguration"/>.
+    /// </summary>
+    /// <returns></returns>
+    public PackageBootstrapper CreatePackageBootstrapper()
+    {
+        ThrowIfNullConfig();
+        ArgumentNullException.ThrowIfNull(_renameConfiguration!.BootstrapConfiguration);
+
+        BootstrapConfiguration bootstrapConfig = _renameConfiguration.BootstrapConfiguration;
+
+        return new PackageBootstrapper(_nameState.SourcePackagePath, bootstrapConfig, _logger);
     }
 
     /// <summary>
@@ -117,63 +129,48 @@ public sealed class PackageEditorContext : IReportable<PackageEditorContext>
     {
         ThrowIfNullConfig();
 
-        AssetRenameConfiguration assetConfig = RenameConfiguration!.AssetRenameConfiguration ?? new();
-        assetConfig.ApplyOverrides(RenameConfiguration!);
+        AssetRenameConfiguration assetConfig = _renameConfiguration.AssetRenameConfiguration ?? new();
+        assetConfig.ApplyOverrides(_renameConfiguration);
 
-        return new AssetEditor(assetConfig, _nameData, _logger)
-            .SetReporter(_reporter);
+        return new AssetEditor(assetConfig, _nameState, _logger, _reporter);
     }
 
     #endregion Editor Instance Creators
 
-    /// <summary>
-    /// Assigns the package names to the shared <see cref="PackageNameData"/>. This is required in order for the rest of the renaming
-    /// process to function.
-    /// </summary>
     public void GatherPackageMetadata(string? manifestPath = null)
     {
-        manifestPath = BaseRenameConfiguration.Coalesce(manifestPath, () => Path.Combine(_nameData.ApkAssemblyDirectory, "AndroidManifest.xml"));
-        _nameData.OriginalPackageName = PackageCompressor.GetPackageName(manifestPath);
+        manifestPath = BaseRenameConfiguration.Coalesce(manifestPath, () => Path.Combine(_nameState.PackageAssemblyDirectory, "AndroidManifest.xml"));
+        _nameState.OldPackageName = PackageCompressor.GetPackageName(manifestPath);
 
-        (
-            _,
-            _nameData.OriginalCompanyName,
-            _nameData.NewPackageName
-        ) = PackageCompressor.SplitPackageName(_nameData);
+        (_nameState.OldCompanyName, _nameState.NewPackageName) = PackageCompressor.SplitPackageName(_nameState);
 
-        // Also set the output directory as long as a base directory is set and a explicit directory is not.
-        if (_nameData.RenamedPackageOutputBaseDirectory is not null)
+        if (_renameConfiguration.CreateOutputSubdirectory)
         {
-            if (_nameData.RenamedPackageOutputDirectory is not null)
-            {
-                throw new InvalidConfigurationException("The RenamedPackageOutputDirectory must be null if RenamedPackageOutputBaseDirectory is set.");
-            }
+            _nameState.PackageOutputDirectory = Path.Combine(_nameState.PackageOutputDirectory, PackageUtils.GetFormattedTimeDirectory(_nameState.NewPackageName));
+        }
 
-            _nameData.RenamedOutputDirectoryInternal = Path.Combine(_nameData.RenamedPackageOutputBaseDirectory, PackageUtils.GetFormattedTimeDirectory(_nameData.NewPackageName));
+        _ = Directory.CreateDirectory(_nameState.PackageOutputDirectory);
+
+        if (_renameConfiguration.UseBootstrapClassLoader)
+        {
+            InvalidConfigurationException.ThrowIfNull(_renameConfiguration.BootstrapConfiguration);
+
+            string oldAppName = _nameState.OldPackageName.Split('.')[^1]; // If this fails, the package was already fucked (or my code that gathers it lol)
+            _nameState.NewPackageName = _renameConfiguration.BootstrapConfiguration.NewPackageName.Replace("{appname}", oldAppName, StringComparison.OrdinalIgnoreCase);
+            _renameConfiguration.BootstrapConfiguration.NewPackageName = _nameState.NewPackageName;
+
+            _renameConfiguration.InternalRenameRegexString = _nameState.OldPackageName.Replace(".", "\\.");
+            _renameConfiguration.BuildAndCacheRegex(string.Empty);
         }
         else
         {
-            if (_nameData.RenamedPackageOutputDirectory is null)
-            {
-                throw new InvalidConfigurationException("Either RenamedPackageOutputBaseDirectory or RenamedPackageOutputDirectory must be set to valid paths.");
-            }
-
-            _nameData.RenamedOutputDirectoryInternal = _nameData.RenamedPackageOutputDirectory!;
+            _renameConfiguration.BuildAndCacheRegex(_nameState.OldCompanyName);
         }
-
-        _ = Directory.CreateDirectory(_nameData.RenamedOutputDirectoryInternal);
-
-        RenameConfiguration?.BuildAndCacheRegex(_nameData.OriginalCompanyName);
     }
 
-    public PackageEditorContext SetReporter(IProgress<ProgressInfo>? reporter)
-    {
-        _reporter = reporter;
-        return this;
-    }
-
+    [DebuggerHidden]
     private void ThrowIfNullConfig()
     {
-        ArgumentNullException.ThrowIfNull(RenameConfiguration);
+        ArgumentNullException.ThrowIfNull(_renameConfiguration);
     }
 }

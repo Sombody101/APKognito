@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace APKognito.ApkLib.Exceptions;
 
@@ -6,6 +7,7 @@ public sealed class InvalidConfigurationException(string message) : Exception(me
 {
     private const string DEFAULT_CONFIG_MESSAGE = "The required config type was null.";
 
+    [DebuggerHidden]
     public static void ThrowIfNull<T>([NotNull] T? obj, string message = DEFAULT_CONFIG_MESSAGE)
     {
         if (obj is null)
@@ -14,6 +16,7 @@ public sealed class InvalidConfigurationException(string message) : Exception(me
         }
     }
 
+    [DebuggerHidden]
     public static void ThrowIfNullEmptyOrWhitespace([NotNull] string? obj, string message)
     {
         if (string.IsNullOrWhiteSpace(obj))

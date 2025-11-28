@@ -20,7 +20,14 @@ internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger
 
         extraFiles ??= [];
 
-        await ModifyArchiveStringsInternalAsync(archivePath, pattern, replacementValue, extraFiles, token);
+        try
+        {
+            await ModifyArchiveStringsInternalAsync(archivePath, pattern, replacementValue, extraFiles, token);
+        }
+        finally
+        {
+            _reporter.Clear();
+        }
     }
 
     private async Task ModifyArchiveStringsInternalAsync(string archivePath, Regex pattern, string replacement, string[] extraFiles, CancellationToken token)
@@ -51,8 +58,7 @@ internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger
 
         _logger?.LogInformation("Saving asset changes...");
 
-        // Not great for the thread pool, but it will lock the UI
-        await Task.Run(zip.Save, token);
+        zip.Save();
     }
 
     private static async Task ProcessTextEntryAsync(ZipFile zip, ZipEntry entry, Regex pattern, string replacement, CancellationToken token)
@@ -69,8 +75,11 @@ internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger
 
         string updatedContent = pattern.Replace(originalContent, replacement);
 
-        zip.RemoveEntry(entry.FileName);
-        _ = zip.AddEntry(entry.FileName, updatedContent);
+        if (!ReferenceEquals(originalContent, updatedContent))
+        {
+            zip.RemoveEntry(entry.FileName);
+            _ = zip.AddEntry(entry.FileName, updatedContent);
+        }
     }
 }
 
