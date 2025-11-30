@@ -52,7 +52,7 @@ If you're new to APKognito and don't know what you're doing, then check out the 
 
 `APKognito` is precompiled for a _64 bit operating system_. If you're running 32 bit Windows 10, you need to compile `APKognito` yourself (which requires the SDK, see [build](#build) for more instructions).
 
-`APKognito` requires the .Net Core 8.0 runtime to be installed on your machine prior to use and can be found [here (for v8.0.10-x64)](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.10-windows-x64-installer).
+`APKognito` requires the .Net Core 9.0 runtime to be installed on your machine prior to use and can be found [here (.NET 9.0)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0).
 
 # Basic Usage
 
@@ -64,7 +64,7 @@ If you experience any issues, please submit one at [the issues page](https://git
 
 # Build
 
-`APKognito` uses [.Net Core 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0). Ensure you have the SDK for it prior to building.
+`APKognito` uses [.NET Core 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0). Ensure you have the SDK for it prior to building.
 
 If you have Visual Studio installed, you can build it with that.
 
