@@ -153,17 +153,17 @@ def _metadata(args: str) -> str:
 
     return "".join(
         [
-            "<span>",
+            '<span class="metadata">',
             *(
                 [
-                    f'<span class="metadata" title="{meta_key[2] if len(meta_key) > 2 else "The control type."}">:{meta_key[1]}: {meta_key[0]}</span>'
+                    f'<span title="{meta_key[2] if len(meta_key) > 2 else "The control type."}">:{meta_key[1]}: {meta_key[0]}</span>'
                 ]
                 if meta_key
                 else []
             ),
             *(
                 [
-                    f'<span class="metadata" title="The JSON key used to access this value in the configuration file."><span> | </span>:material-code-json: {__current_config} :material-arrow-right: {meta_value}</span>'
+                    f'<span> | </span><span title="The JSON key used to access this value in the configuration file.">:material-code-json: {__current_config} :material-arrow-right: {meta_value}</span>'
                 ]
                 if meta_value
                 else []

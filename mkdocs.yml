@@ -12,7 +12,7 @@ theme:
     - navigation.instant.progress
     - navigation.expand
     - navigation.indexes
-    - toc.integrate
+    #- toc.integrate
     - content.tooltips
 
   logo: images/apkognito.webp
@@ -43,6 +43,7 @@ extra_css:
 
 markdown_extensions:
   - attr_list
+  - toc
   - md_in_html
   - admonition
   - pymdownx.details
@@ -61,11 +62,10 @@ plugins:
   - social:
       enabled: true
       cards: true
+      cards_layout_dir: docs/layouts
+      cards_layout: social
       cache_dir: .cache/plugins/social
       cards_dir: assets/images/social
-      cards_layout_options:
-        background_image: images/dots_bg.webp
-        font_family: Fira Code
   - minify:
       minify_html: true
       minify_css: true

@@ -31,6 +31,8 @@ Excludes the given file from the respective stage.
     exclude "/smali/com/somecompany/LoggerUtil/" ; This will exclude the directory from being renamed.
     ```
 
+---
+
 ### Include
 
 ```asm
@@ -50,6 +52,8 @@ Includes the given file in the respective stage.
     exclude "/smali/com/somecompany/LoggerUtil/" ; This will include the directory to be renamed.
     ```
 
+---
+
 ## File commands
 
 ### Create directory
@@ -67,6 +71,8 @@ Creates the respective target directory. If the directory already exists, no act
     ```asm
     mkdir "/smali/newdir/"
     ```
+
+---
 
 ### Move entry
 
@@ -92,6 +98,8 @@ Moves a file or directory to a new location, renaming it if specified.
     mv '/assets/bin/Data/Managed/Metadata/global-metadata.dat' '/assets/global-metadata.dat'
     ```
 
+---
+
 ### Copy entry
 
 <!-- md:api read write -->
@@ -115,6 +123,8 @@ Copies a file or directory to a new location, renaming it if specified.
     ```asm
     cp "/assets/bin/Data/Managed/Metadata/global-metadata.dat" "/assets/global-metadata.dat"
     ```
+
+---
 
 ### Remove entry
 

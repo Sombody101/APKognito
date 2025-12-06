@@ -73,17 +73,15 @@
 }
 
 .metadata {
+    background-color: var(--md-accent-fg-color--transparent);
+    border-radius: .1rem;
+    padding: .1rem;
+}
+
+.metadata>span {
     color: var(--md-default-fg-color);
     font-size: small;
     margin-top: .1rem;
     margin-bottom: .1rem;
-}
-
-.metadata {
     padding: .1rem;
-}
-
-.metadata>span:not(.twemoji) {
-    margin-left: 5px;
-    margin-right: 5px;
 }

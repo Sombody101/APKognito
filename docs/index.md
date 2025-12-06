@@ -1,5 +1,6 @@
 ---
 title: Home
+description: Welcome to APKognito!
 ---
 
 <p align="center">
@@ -18,13 +19,8 @@ title: Home
 
 <h1 align="center">Welcome to APKognito!</h1>
 
-<div align="center">
-  <a href="getting_started" class="md-button md-button--primary">Quickstart</a>
-  <a href="configurations" class="md-button">Learn More</a>
-</div>
-
 <div align="center" markdown>
-  <a href="https://github.com/Sombody101/APKognito/releases/latest" class="md-button">:fontawesome-brands-windows: Download latest release</a>
+  [:fontawesome-brands-windows: Download latest release](https://github.com/Sombody101/APKognito/releases/latest){ .md-button .md-button--primary }
 </div>
 
 <div class="grid cards" markdown>

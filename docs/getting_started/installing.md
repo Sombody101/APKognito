@@ -27,7 +27,7 @@ Once the app is running, follow our [Getting Started](index.md) guide to learn h
 
     e.g., `+2.1.10`
 
-    ![Version command example](../images/installing/version-command-example.png)
+    ![Version command example](../images/installing/version-command-example.webp)
 
 ---
 

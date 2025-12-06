@@ -8,7 +8,9 @@ If you haven't already, please make sure to download and install APKognito. You 
 
 ---
 
-### Step 1: Navigating Windows SmartScreen
+## Installation steps
+
+### Navigating Windows SmartScreen
 
 When you first run APKognito, Windows will likely display a security warning. This is called [Windows SmartScreen](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/).
 
@@ -39,7 +41,7 @@ You should see a window that looks like this:
 
 ---
 
-### Step 2: Selecting Your Packages
+### Selecting Your Packages
 
 To start, click the **`Select APKs`** button. This will open a File Explorer window. Navigate to and select the packages you want to rename.
 
@@ -54,7 +56,7 @@ To start, click the **`Select APKs`** button. This will open a File Explorer win
 
 ---
 
-### Step 3: Configuring and Starting the Process
+### Configuring and Starting the Process
 
 At this point, you can adjust any [configurations](../configurations.md) to your liking, or simply proceed with the defaults.
 
@@ -72,7 +74,7 @@ Now, you're ready to start the renaming process. Click the **`Start Renaming`** 
 
 ---
 
-### Step 4: Viewing the Output
+### Viewing the Output
 
 All renamed packages are saved to the configured output directory, which defaults to `%APPDATA%\APKognito\output`.
 
@@ -80,9 +82,9 @@ Clicking the **`View Output`** button will open File Explorer directly to this l
 
 ---
 
-### Conclusion
+## Conclusion
 
 Congratulations! You have successfully used APKognito to rename your first package.
 
 -   To learn more, use the navigation menu on the left to explore other articles.
--   Ready for more? Dive into advanced topics like [advanced configuration](../advanced/advanced_package_configurations.md).
+-   Ready for more? Dive into advanced topics like [advanced configurations](../advanced/advanced_package_configurations.md).

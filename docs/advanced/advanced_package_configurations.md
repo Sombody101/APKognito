@@ -15,7 +15,9 @@ This is a regex used throughout the package renaming process. It's default value
 
 !!! warning
 
-    It's important that the substring `{value}` be present and that the regex is valid, or the renaming process _will not work_. If you're trying to edit the regex, use [regex.101](https://regex101.com/) or other tools to make sure it won't fail.
+    It's important that the substring `{value}`{.tagv} be present and that the regex is valid, or the renaming process _will not work_. If you're trying to edit the regex, use [regex.101](https://regex101.com/) or other tools to make sure it won't fail.
+
+---
 
 ## Rename options
 
@@ -53,6 +55,8 @@ There isn't an option for renaming OBB files because that's a standard part of t
 
 With this, the file entries in every found OBB file are searched through in memory. If an entry either has the word "catalog" inside it or is a direct match to an entry in the `Extra OBB Rename Paths` text box, then it's fully extracted into memory, renamed, then repacked into the OBB.
 
+---
+
 ## OBB renaming
 
 ### Extra OBB rename paths
@@ -65,6 +69,8 @@ Every line in this textbox will be used as an internal file path in each OBB fil
 For example, the if the path `aa/Android/bin/tts/index.json` is found in an OBB file, that file will be extracted into memory, renamed, then repacked. No error or warning will be triggered if it's not found.
 
 Each item can be either comma or newline separated. They will be newline separated regardless of the method used the next time APKognito loads the saved values.
+
+---
 
 ## Java options
 
@@ -88,12 +94,15 @@ Error: A fatal exception has occurred. Program will exit.
 </code></pre></div>
 
 Simply clear the Java flags textbox, save your changes, and re-run the renaming process. This error is caused when using an older JDK or JRE
-version that was made prior to the indroduction of this flag.
+version that was made prior to the introduction of this flag.
 
 !!! info
-Note, this is for the Java executable, not the .jar file that Java is running.
 
-### Auto rename configs
+    Note, this is for the Java executable, not the `.jar` file that Java is running.
+
+---
+
+## Auto rename configs
 
 <!-- md:meta toggle | auto_package_config_enabled -->
 
@@ -109,6 +118,8 @@ Auto rename configs use explicit UNIX-like commands to manipulate the renaming p
 All commands are manually implemented wrappers for operations defined in C# ([command bindings](https://github.com/Sombody101/APKognito/tree/master/APKognito/ApkMod/Automation/CommandBindings)).
 
 More information on auto rename configs can be found in the [auto config API](./auto_config_api.md) guide.
+
+---
 
 ## Buffers
 
