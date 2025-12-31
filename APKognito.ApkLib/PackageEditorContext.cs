@@ -66,7 +66,7 @@ public sealed class PackageEditorContext
 
         CompressorConfiguration compressorConfig = _renameConfiguration!.CompressorConfiguration ?? new();
 
-        return new PackageCompressor(compressorConfig, _toolingPaths, _nameState, _logger);
+        return new PackageCompressor(compressorConfig, _toolingPaths, _nameState, _logger, _reporter);
     }
 
     /// <summary>

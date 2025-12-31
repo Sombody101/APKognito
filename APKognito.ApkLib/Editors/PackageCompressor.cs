@@ -14,15 +14,17 @@ public sealed class PackageCompressor
 
     private readonly CompressorConfiguration _compressorConfiguration;
     private readonly ILogger _logger;
+    private readonly IProgress<ProgressInfo>? _reporter;
+
     private readonly PackageToolingPaths _toolingPaths;
     private readonly PackageRenameState _nameData;
 
     public PackageCompressor(CompressorConfiguration compressorConfig, PackageToolingPaths toolPaths, PackageRenameState nameData)
-        : this(compressorConfig, toolPaths, nameData, null)
+        : this(compressorConfig, toolPaths, nameData, null, null)
     {
     }
 
-    public PackageCompressor(CompressorConfiguration compressorConfig, PackageToolingPaths toolPaths, PackageRenameState nameData, ILogger? logger)
+    public PackageCompressor(CompressorConfiguration compressorConfig, PackageToolingPaths toolPaths, PackageRenameState nameData, ILogger? logger, IProgress<ProgressInfo>? reporter)
     {
         ArgumentNullException.ThrowIfNull(compressorConfig);
         ArgumentNullException.ThrowIfNull(toolPaths);
@@ -34,6 +36,7 @@ public sealed class PackageCompressor
         _nameData = nameData;
         _logger = MockLogger.MockIfNull(logger);
         _compressorConfiguration = compressorConfig;
+        _reporter = reporter;
     }
 
     /// <summary>
@@ -122,6 +125,8 @@ public sealed class PackageCompressor
 
         _ = Directory.CreateDirectory(outputDirectory);
 
+        _reporter.ReportProgress("Unpacking", $"Unpacking {_nameData.OldPackageName}");
+
         IEnumerable<string> args = new string[]
         {
             "-jar", _toolingPaths.ApkToolJarPath, "d", overwrite ? "-f" : string.Empty, packagePath, "-o", outputDirectory
@@ -141,6 +146,8 @@ public sealed class PackageCompressor
         {
             throw new DirectoryNotFoundException($"Unpacked package directory not found at: {unpackedPackageDirectory}");
         }
+
+        _reporter.ReportProgress("Packing", $"Packing {_nameData.NewPackageName}");
 
         string? outputDir = Path.GetDirectoryName(outputPackageFilePath);
         if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
@@ -175,6 +182,8 @@ public sealed class PackageCompressor
         {
             throw new FileNotFoundException($"Unsigned APK file not found at: {unsignedPackageFilePath}", unsignedPackageFilePath);
         }
+
+        _reporter.ReportProgress("Signing", $"Signing {_nameData.NewPackageName}");
 
         List<string> args =
         [

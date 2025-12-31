@@ -2,9 +2,20 @@
 
 internal static class ProgressReporter
 {
-    public static void ReportProgress(this IProgress<ProgressInfo> reporter, string data, ProgressUpdateType updateType)
+    public static void ReportProgress(this IProgress<ProgressInfo> reporter, string content, ProgressUpdateType updateType)
     {
-        reporter.Report(new(data, updateType));
+        reporter.Report(new(content, updateType));
+    }
+
+    public static void ReportProgress(this IProgress<ProgressInfo>? reporter, string title, params string[] content)
+    {
+        if (reporter is null)
+        {
+            return;
+        }
+
+        ReportProgress(reporter, title, ProgressUpdateType.Title);
+        ReportProgress(reporter, string.Concat(content), ProgressUpdateType.Content);
     }
 
     public static void ReportProgressTitle(this IProgress<ProgressInfo>? reporter, params string[] title)

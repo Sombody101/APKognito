@@ -37,10 +37,16 @@ internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger
         // Not really indexing, but it sounds cooler :p
         _reporter.ReportProgressMessage("Indexing...");
 
-        using ZipFile zip = new(archivePath);
+        using ZipFile? zip = TryOpenZip(archivePath);
+
+        if (zip is null)
+        {
+            return;
+        }
 
         List<ZipEntry> selectedFiles = [.. zip.Entries.Where(e => e.FileName.Contains("catalog") || extraFiles.Contains(e.FileName))];
 
+        int editCount = 0;
         foreach (ZipEntry entry in selectedFiles)
         {
             if (token.IsCancellationRequested)
@@ -51,17 +57,27 @@ internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger
             _logger?.LogDebug("Renaming OBB entry '{FileName}'", entry.FileName);
             _reporter.ReportProgressMessage(entry.FileName);
 
-            await ProcessTextEntryAsync(zip, entry, pattern, replacement, token);
+            if (await ProcessTextEntryAsync(zip, entry, pattern, replacement, token))
+            {
+                editCount++;
+            }
 
             _reporter.ReportProgressMessage("Searching...");
         }
 
-        _logger?.LogInformation("Saving asset changes...");
+        if (editCount is 0)
+        {
+            _logger?.LogInformation("No edits made.");
+            return;
+        }
+
+        _logger?.LogInformation("Saving {Count} asset changes...", editCount);
+        _reporter.ReportProgress("Saving OBB", "Saving ", editCount.ToString(), " asset changes...");
 
         zip.Save();
     }
 
-    private static async Task ProcessTextEntryAsync(ZipFile zip, ZipEntry entry, Regex pattern, string replacement, CancellationToken token)
+    private static async Task<bool> ProcessTextEntryAsync(ZipFile zip, ZipEntry entry, Regex pattern, string replacement, CancellationToken token)
     {
         string originalContent = string.Empty;
 
@@ -79,7 +95,25 @@ internal sealed class ArchiveReplace(IProgress<ProgressInfo>? _reporter, ILogger
         {
             zip.RemoveEntry(entry.FileName);
             _ = zip.AddEntry(entry.FileName, updatedContent);
+            return true;
         }
+
+        return false;
+    }
+
+    private ZipFile? TryOpenZip(string archivePath)
+    {
+        FileStream stream = File.Open(archivePath, FileMode.Open, FileAccess.ReadWrite);
+
+        if (!ZipFile.IsZipFile(stream, false))
+        {
+            _logger.LogWarning("The file '{File}' is not an archive. No edits will be made.", Path.GetFileName(archivePath));
+            stream.Dispose();
+            return null;
+        }
+
+        stream.Position = 0;
+        return ZipFile.Read(stream);
     }
 }
 

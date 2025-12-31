@@ -99,10 +99,25 @@ public sealed class PackageBootstrapper
         _ = application.PrependChild(newActivity);
     }
 
-    private XmlNode GetOriginalMainActivity(XmlNode root)
+    private XmlNode GetOriginalMainActivity(XmlNode application)
     {
-        return root.SelectSingleNode("//activity[intent-filter/action[@android:name='android.intent.action.MAIN'] and intent-filter/category[@android:name='android.intent.category.LAUNCHER']]", _namespace)
-            ?? throw new InvalidOperationException("Failed to find the original main activity.");
+        XmlNode? foundActivity = application.SelectSingleNode("//activity[intent-filter/action[@android:name='android.intent.action.MAIN'] and intent-filter/category[@android:name='android.intent.category.LAUNCHER']]", _namespace);
+
+        if (foundActivity is not null)
+        {
+            // This comment stops the formatter from making an ugly ternary
+            return foundActivity;
+        }
+
+        foundActivity = application.SelectSingleNode("//activity[intent-filter/action[@android:name='android.intent.action.MAIN']]", _namespace);
+
+        if (foundActivity is not null)
+        {
+            _logger.LogWarning("Failed to find a launcher activity, but main is present. This application will likely be hidden once installed.");
+            return foundActivity;
+        }
+
+        throw new InvalidOperationException("Failed to find the original main activity.");
     }
 
     private void RemoveLauncherIntents(XmlNode node)
@@ -149,12 +164,7 @@ public sealed class PackageBootstrapper
 
                 if (nameAttribute is not null && nameAttribute.Equals("app_name", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (reader.Read() && reader.NodeType is XmlNodeType.Text)
-                    {
-                        return reader.Value;
-                    }
-
-                    return string.Empty;
+                    return reader.Read() && reader.NodeType is XmlNodeType.Text ? reader.Value : string.Empty;
                 }
             }
 

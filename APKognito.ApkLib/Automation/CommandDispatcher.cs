@@ -374,22 +374,16 @@ public partial class CommandDispatcher
         public ParameterInfo[] Parameters { get; } = method.GetParameters();
     }
 
+    public class CommandInvocationException(string reason) : Exception(reason);
+
     public class LaunchedAsAdminException() : Exception("Auto config rename files cannot be used while APKognito is launched as admin. " +
-        "Either restart APKognito as a normal user, or disable this option in the Advanced Settings Page.")
-    {
-    }
+        "Either restart APKognito as a normal user, or disable this option in the Advanced Settings Page.");
 
-    public class InvalidArgumentException(string message) : Exception(message)
-    {
-    }
+    public class InvalidArgumentException(string message) : Exception(message);
 
-    public class UnknownCommandException(string name) : Exception($"No command '{name}' exists.")
-    {
-    }
+    public class UnknownCommandException(string name) : Exception($"No command '{name}' exists.");
 
-    public class NoCommandsException() : Exception("No commands were found. This likely means corruption or the namespace target is invalid.")
-    {
-    }
+    public class NoCommandsException() : Exception("No commands were found. This likely means corruption or the namespace target is invalid.");
 
     [GeneratedRegex(@"%([^%]+)%")]
     private static partial Regex VariableRegex();
