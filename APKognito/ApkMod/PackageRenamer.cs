@@ -52,7 +52,8 @@ public sealed class PackageRenamer
             NewCompanyName = renameOptions.UserRenameConfig.ApkNameReplacement,
         };
 
-        return await RunSafePackageRenameAsync(renameOptions, renameConfig, nameState, pushAfterRename, token);
+        return await RunSafePackageRenameAsync(renameOptions, renameConfig, nameState, pushAfterRename, token)
+            .ConfigureAwait(false);
     }
 
     public async Task SideloadPackageAsync(RenameOutputLocations locations, CancellationToken token = default)
