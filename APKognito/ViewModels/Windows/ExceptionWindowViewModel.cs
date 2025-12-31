@@ -92,11 +92,11 @@ public partial class ExceptionWindowViewModel : LoggableObservableObject
             exceptionBuffer.AppendLine($"[Failed to log exception to %APPDATA%\\applog.log]: File Log Exception Details:\n\tType:\t{ex.GetType().Name}\n\tReason:\t{ex.Message}\n");
         }
 
-        exceptionBuffer.Append("[Main Exception Details]\n\tFailure: \t").AppendLine(IsFailure.ToString())
-            .Append("\tFacility: \t0x").Append(Facility.ToString("x0")).Append(" (").Append(Facility).AppendLine(")")
-            .Append("\tCode: \t0x").Append(ExceptionCode.ToString("x00")).Append(" (").Append(ExceptionCode).AppendLine(")")
-            .Append(exception.GetType().Name).Append(": ").AppendLine(exception.Message)
-            .AppendLine(exception.StackTrace);
+        exceptionBuffer
+            .Append(exception.GetType().Name).AppendLine(":\n").AppendLine(exception.Message).AppendLine("\nStack trace:").AppendLine(exception.StackTrace)
+            .Append("\n[verbose exception details]\nFailure: ").AppendLine(IsFailure.ToString())
+            .Append("Facility: 0x").Append(Facility.ToString("x0")).Append(" (").Append(Facility).AppendLine(")")
+            .Append("Code: 0x").Append(ExceptionCode.ToString("x00")).Append(" (").Append(ExceptionCode).AppendLine(")");
 
         WriteGenericLogLine(exceptionBuffer.ToString());
     }
