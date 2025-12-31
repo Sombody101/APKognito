@@ -10,6 +10,8 @@ using Wpf.Ui.Controls;
 using APKognito.Helpers;
 using APKognito.Controls;
 using APKognito.Configurations.ConfigModels;
+using CommunityToolkit.Mvvm.Messaging;
+
 
 #if DEBUG
 using APKognito.Views.Pages.Debugging;
@@ -20,6 +22,7 @@ namespace APKognito.ViewModels.Windows;
 public partial class MainWindowViewModel : LoggableObservableObject
 {
     private readonly ConfigurationFactory _configFactory;
+    private readonly UserThemeConfig _userThemeConfig;
 
     #region Properties
 
@@ -44,25 +47,12 @@ public partial class MainWindowViewModel : LoggableObservableObject
             Icon = new SymbolIcon { Symbol = SymbolRegular.HardDrive16 },
             TargetPageType = typeof(DriveUsagePage)
         },
-        // new NavigationViewItem()
-        // {
-        //     Content = "Rename History",
-        //     Icon = new SymbolIcon { Symbol = SymbolRegular.History16 },
-        //     TargetPageType = typeof(RenamingHistoryPage)
-        // },
-        new NavigationViewItem()
-        {
-            Content = "ADB",
-            Icon = new SymbolIcon { Symbol = SymbolRegular.Code16 },
-            TargetPageType = typeof(AdbConsolePage),
-            MenuItemsSource = new NavigationViewItem[] {
-                new("ADB Configuration", SymbolRegular.PlaySettings20, typeof(AdbConfigurationPage)),
-                new("Console", SymbolRegular.WindowConsole20, typeof(AdbConsolePage)),
-                new("File Explorer", SymbolRegular.DocumentSearch20, typeof(FileExplorerPage)),
-                new("File Uploader", SymbolRegular.ArchiveArrowBack20, typeof(FileUploaderPage)),
-                new("Package Manager", SymbolRegular.DeveloperBoard20, typeof(PackageManagerPage)),
-            },
-        },
+        new Separator() { Margin = new(2.5) },
+        new NavigationViewItem("ADB Configuration", SymbolRegular.PlaySettings20, typeof(AdbConfigurationPage)),
+        new NavigationViewItem("Console", SymbolRegular.WindowConsole20, typeof(AdbConsolePage)),
+        new NavigationViewItem("File Explorer", SymbolRegular.DocumentSearch20, typeof(FileExplorerPage)),
+        new NavigationViewItem("File Uploader", SymbolRegular.ArchiveArrowBack20, typeof(FileUploaderPage)),
+        new NavigationViewItem("Package Manager", SymbolRegular.DeveloperBoard20, typeof(PackageManagerPage)),
     ];
 
     [ObservableProperty]
@@ -91,6 +81,16 @@ public partial class MainWindowViewModel : LoggableObservableObject
         new MenuItem { Header = "Close", Tag = "tray_close" }
     ];
 
+    public WindowBackdropType WindowStyle
+    {
+        get => field;
+        private set
+        {
+            field = value;
+            OnPropertyChanged(nameof(WindowStyle));
+        }
+    }
+
     #endregion Properties
 
     public MainWindowViewModel()
@@ -104,6 +104,14 @@ public partial class MainWindowViewModel : LoggableObservableObject
     {
         SetSnackbarProvider(snackService);
         _configFactory = configFactory;
+        _userThemeConfig = configFactory.GetConfig<UserThemeConfig>();
+        WindowStyle = _userThemeConfig.WindowStyle;
+
+        WeakReferenceMessenger.Default.Register<UserThemeConfig>(this, (r, config) =>
+        {
+            WindowStyle = config.WindowStyle;
+        });
+
         AddAdbDeviceTray();
     }
 

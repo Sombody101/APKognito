@@ -24,7 +24,6 @@ public partial class MainWindow : INavigationWindow
         ViewModel = viewModel;
         DataContext = this;
 
-        SystemThemeWatcher.Watch(this);
 
         UserThemeConfig themeManager = configFactory.GetConfig<UserThemeConfig>();
         ApplicationThemeManager.Apply(themeManager.AppTheme, WindowBackdropType.None, false);
@@ -32,6 +31,7 @@ public partial class MainWindow : INavigationWindow
         if (themeManager.UseSystemAccent)
         {
             ApplicationAccentColorManager.ApplySystemAccent();
+            SystemThemeWatcher.Watch(this);
         }
 
         InitializeComponent();
