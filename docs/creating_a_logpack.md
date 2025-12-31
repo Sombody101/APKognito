@@ -1,3 +1,7 @@
+---
+title: Logpack Creation
+---
+
 ## What is a logpack?
 
 A logpack is a ZIP archive that contains information, logs, and certain configurations about your APKognito installation that can help with debugging.

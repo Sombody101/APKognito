@@ -1,5 +1,6 @@
 nav:
-    - Home: index.md
+    - index.md
     - getting_started/
     - "*"
+    - anchor.md
     - advanced/
