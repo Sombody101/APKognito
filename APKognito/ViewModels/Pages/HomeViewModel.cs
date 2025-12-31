@@ -341,7 +341,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Packing {sourceDirectory}");
 
-            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageRenameState.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageRenameState.Empty, this, _renameProgressReporter);
             _ = await compressor.PackPackageAsync(sourceDirectory, outputFile);
 
             Log($"Packed {Path.GetFileName(sourceDirectory)} into {packageFileName}");
@@ -370,7 +370,7 @@ public partial class HomeViewModel : LoggableObservableObject
 
             Log($"Signing {filePath}");
 
-            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageRenameState.Empty, this);
+            var compressor = new PackageCompressor(new(), UserRenameConfiguration.GetToolingPaths().Item1, PackageRenameState.Empty, this, _renameProgressReporter);
             string signedPackagePath = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetDirectoryName(filePath)!);
             await compressor.SignPackageAsync(filePath, signedPackagePath, false);
 
@@ -494,8 +494,7 @@ public partial class HomeViewModel : LoggableObservableObject
                 };
 
                 PackageRenameResult renameResult = await new PackageRenamer(_configFactory, this, _renameProgressReporter)
-                    .RenamePackageAsync(renameConfig, UserRenameConfiguration.PushAfterRename, token)
-                    .ConfigureAwait(false);
+                    .RenamePackageAsync(renameConfig, UserRenameConfiguration.PushAfterRename, token);
 
                 if (renameResult.Successful)
                 {
