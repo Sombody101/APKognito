@@ -22,7 +22,7 @@
     mc:Ignorable="d">
 
     <overrides:Card
-        VerticalAlignment="Top"
+        VerticalAlignment="Stretch"
         VerticalContentAlignment="Top"
         CornerRadius="4,0,0,0"
         IsEnabled="{Binding EnableControls}">
@@ -149,6 +149,8 @@
                     x:Name="PackagesList"
                     Grid.Row="0"
                     VerticalAlignment="Stretch"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
                     ItemsSource="{Binding PackageList}"
                     ScrollViewer.CanContentScroll="True"
                     SelectionMode="Extended"
@@ -195,6 +197,16 @@
                     HorizontalAlignment="Stretch"
                     VerticalContentAlignment="Center">
                     <ui:TextBlock HorizontalAlignment="Center" Text="No packages to display!" />
+                    <ui:Card.Style>
+                        <Style BasedOn="{StaticResource {x:Type ui:Card}}" TargetType="{x:Type ui:Card}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Path=PackageList.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ui:Card.Style>
                 </ui:Card>
             </Grid>
         </Grid>

@@ -423,6 +423,28 @@ internal sealed class AdbManager : IDisposable
         return s_adbConfig.PlatformToolsPath;
     }
 
+    private static async Task<bool> EnsureAdbDevicesAsync()
+    {
+        return await GetAdbDeviceCountAsync() is 0;
+    }
+
+    private static async Task<int> GetAdbDeviceCountAsync()
+    {
+        AdbCommandOutput result = await QuickCommandAsync("devices");
+        string output = result.StdOut.Trim();
+
+        int count = 0;
+        foreach (char c in output)
+        {
+            if (c is '\n')
+            {
+                ++count;
+            }
+        }
+
+        return count;
+    }
+
     private static Process CreateAdbProcess([Optional] string? overrideAdbPath, [Optional] string? arguments)
     {
         string adbDirectory = string.IsNullOrWhiteSpace(overrideAdbPath)

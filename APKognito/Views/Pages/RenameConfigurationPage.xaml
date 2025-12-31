@@ -232,7 +232,7 @@
                             <InlineUIContainer>
                                 <ui:Card Margin="0,0,0,-6" Padding="3,0">
                                     <ui:TextBlock
-                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                        Foreground="Violet"
                                         Text="{}{appname}"
                                         TextWrapping="WrapWithOverflow" />
                                 </ui:Card>
@@ -541,7 +541,7 @@
                                 TextWrapping="WrapWithOverflow" />
                             <ui:Card Grid.Column="1" Padding="3,0">
                                 <ui:TextBlock
-                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                    Foreground="Violet"
                                     Text="{}{value}"
                                     TextWrapping="WrapWithOverflow" />
                             </ui:Card>

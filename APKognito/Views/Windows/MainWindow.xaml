@@ -23,7 +23,6 @@
     Icon="/Assets/apkognito.ico"
     WindowBackdropType="{Binding ViewModel.WindowStyle}"
     WindowCornerPreference="Round"
-    Icon="/Assets/apkognito.ico"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
 

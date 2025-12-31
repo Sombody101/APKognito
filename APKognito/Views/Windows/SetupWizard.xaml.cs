@@ -34,9 +34,6 @@ public partial class SetupWizardWindow : INavigationWindow, INavigableView<Setup
 
         InitializeComponent();
 
-        SystemThemeWatcher.Watch(this);
-        ApplicationAccentColorManager.ApplySystemAccent();
-
         _navigationService = navigationService;
     }
 
