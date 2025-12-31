@@ -71,7 +71,14 @@
                 </Grid>
             </ui:CardExpander.Header>
 
-            <ui:Card>
+            <StackPanel>
+                <StackPanel.Resources>
+                    <Style TargetType="{x:Type Separator}">
+                        <Setter Property="Margin" Value="0,10" />
+                    </Style>
+                </StackPanel.Resources>
+
+                <!--
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -90,17 +97,51 @@
                     <ui:TextBlock
                         Grid.Row="1"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="Select which app theme to display" />
+                        Text="Enable Windows theme accents." />
 
                     <ui:ToggleSwitch
                         Grid.RowSpan="2"
                         Grid.Column="1"
                         MinWidth="200"
                         Margin="0,0,10,0"
+                        IsChecked="{Binding ViewModel.UseAccent}"
                         OffContent="Disabled"
-                        OnContent="Disabled" />
+                        OnContent="Enabled" />
                 </Grid>
-            </ui:Card>
+
+                <Separator />
+                -->
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="Window style" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Select which window style to use." />
+
+                    <ComboBox
+                        Grid.RowSpan="2"
+                        Grid.Column="1"
+                        MinWidth="200"
+                        Margin="0,0,10,0"
+                        ItemsSource="{helpers:EnumCollection EnumType=ui:WindowBackdropType}"
+                        SelectedItem="{Binding ViewModel.WindowStyle}" />
+                </Grid>
+
+            </StackPanel>
 
         </ui:CardExpander>
 

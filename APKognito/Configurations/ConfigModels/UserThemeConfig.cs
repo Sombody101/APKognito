@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 
 namespace APKognito.Configurations.ConfigModels;
 
@@ -12,13 +13,19 @@ public sealed record UserThemeConfig : IKognitoConfig
     [JsonProperty("use_system_accent")]
     public bool UseSystemAccent { get; set; } = true;
 
+    [JsonProperty("window_style")]
+    public WindowBackdropType WindowStyle { get; set; } = WindowBackdropType.Mica;
+
     public void ApplyUserTheme()
     {
-        ApplicationThemeManager.Apply(AppTheme);
-
         if (UseSystemAccent)
         {
             ApplicationAccentColorManager.ApplySystemAccent();
+        }
+        else
+        {
+            ApplicationAccentColorManager.Apply(ApplicationAccentColorManager.GetColorizationColor());
+            ApplicationThemeManager.Apply(AppTheme);
         }
     }
 }

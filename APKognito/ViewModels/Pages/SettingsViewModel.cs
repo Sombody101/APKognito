@@ -61,8 +61,24 @@ public partial class SettingsViewModel : ViewModel, IViewable
             }
 
             _userThemeConfig.UseSystemAccent = value;
-            ApplicationAccentColorManager.ApplySystemAccent();
+            _userThemeConfig.ApplyUserTheme();
             OnPropertyChanged(nameof(UseAccent));
+        }
+    }
+
+    public WindowBackdropType WindowStyle
+    {
+        get => _userThemeConfig.WindowStyle;
+        set
+        {
+            if (_userThemeConfig.WindowStyle == value)
+            {
+                return;
+            }
+
+            _userThemeConfig.WindowStyle = value;
+            OnPropertyChanged(nameof(WindowStyle));
+            _userThemeConfig.NotifyChanged();
         }
     }
 
