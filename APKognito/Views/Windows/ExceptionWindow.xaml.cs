@@ -19,9 +19,6 @@ public partial class ExceptionWindow : FluentWindow
         DataContext = this;
 
         InitializeComponent();
-
-        SystemThemeWatcher.Watch(this);
-        ApplicationAccentColorManager.ApplySystemAccent();
     }
 
 #if DEBUG
