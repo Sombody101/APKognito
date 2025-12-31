@@ -275,9 +275,9 @@ public sealed partial class AndroidDeviceInfoViewModel : ObservableObject
             return AndroidDevice.Empty;
         }
 
-        string[] outputLines = output.StdOut.Split('\n');
+        string[] outputLines = output.StdOut.Trim().Split('\n');
 
-        if (outputLines.Length is 0)
+        if (outputLines.Length is < 2)
         {
             // Something is fucky if this happens
             FileLogger.LogError("Shell script returned no package or storage information.");
