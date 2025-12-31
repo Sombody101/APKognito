@@ -299,7 +299,7 @@ public partial class App
 
         static string SanitizeOverridePath(string path)
         {
-            if (path.StartsWith('/'))
+            if (Path.IsPathRooted(path))
             {
                 // Absolute
                 return path;
