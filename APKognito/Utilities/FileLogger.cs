@@ -49,13 +49,23 @@ public static class FileLogger
     public const string USER_REPLACEMENT_STRING = "[:USER:]";
 
     private static readonly Lock s_lock = new();
-    private static readonly string s_logFilePath = Path.Combine(App.AppDataDirectory!.FullName, "applog.log");
-    private static readonly string s_exceptionLogFilePath = Path.Combine(App.AppDataDirectory!.FullName, "exlog.log");
+    private static string s_logFilePath;
+    private static string s_exceptionLogFilePath;
 
     private static string UtcFormattedTime => DateTime.UtcNow.ToString(TIME_FORMAT_STRING, CultureInfo.InvariantCulture);
 
-    static FileLogger()
+    private static bool s__debounce = false;
+    public static void ConfigureLogging(string appBasePath)
     {
+        if (s__debounce)
+        {
+            return;
+        }
+        s__debounce = true;
+
+        s_logFilePath = Path.Combine(appBasePath, "applog.log");
+        s_exceptionLogFilePath = Path.Combine(appBasePath, "exlog.log");
+
         const int ONE_MB = 1024 * 1024;
 
         try
@@ -94,11 +104,11 @@ public static class FileLogger
 
         text = text.EscapeMarkup();
 
-        builder.Append("[[")
-            .Append(DateTime.Now.ToString(TIME_FORMAT_STRING)).Append(' ')
-            .Append(LogLevelColors.GetAnsiColor(logLevel)).Append(logLevel.ToString().ToUpper()).Append("[/] ")
+        builder
+            .Append("[[").Append(DateTime.Now.ToString(TIME_FORMAT_STRING)).Append(' ')
+            .Append(LogLevelColors.GetAnsiColor(logLevel)).Append(logLevel.ToString().ToUpper()).Append("[/]")
             .Append(MainWindowViewModel.LaunchedAsAdministrator ? " [yellow]ADMIN[/]" : string.Empty)
-            .Append("[[").Append(GetCallerInfo().EscapeMarkup()).Append("]] ").Append(text).Append(lineSuffix);
+            .Append("]] [[").Append(GetCallerInfo().EscapeMarkup()).Append("]] ").Append(text).Append(lineSuffix);
 
         string logEntry = builder.ToString();
 #else
@@ -354,6 +364,11 @@ public static class FileLogger
 #if DEBUG
             entry = ConsoleAbstraction.RemoveMarkup(entry);
 #endif
+
+            if (s_logFilePath is null)
+            {
+                return;
+            }
 
             lock (s_lock)
             {

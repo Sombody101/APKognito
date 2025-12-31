@@ -6,6 +6,7 @@ enum ExitCode
     NoError = 0,
     InvalidCliUsage,
     InvalidInputArgument,
+    InvalidAnchorConfiguration,
     ParentConsoleHandleNotFound = 5012,
     ConsoleCreationFailed,
 }

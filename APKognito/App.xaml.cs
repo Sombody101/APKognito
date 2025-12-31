@@ -1,10 +1,12 @@
-﻿#define NO_EXCEPTION_HANDLING
+﻿//#define NO_EXCEPTION_HANDLING
 
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Data;
+using System.Windows.Threading;
 using APKognito.Configurations;
+using APKognito.Configurations.ConfigModels;
 using APKognito.Services;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
@@ -19,9 +21,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Tomlet;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
-using Wpf.Ui.Appearance;
 
 namespace APKognito;
 
@@ -34,7 +36,7 @@ public partial class App
 {
     private static FrameLockDetector? s_frameLockDetector;
 
-    public static DirectoryInfo AppDataDirectory { get; } = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito)));
+    public static DirectoryInfo AppDataDirectory { get; private set; }
 
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
     // https://docs.microsoft.com/dotnet/core/extensions/generic-host
@@ -127,17 +129,8 @@ public partial class App
     /// <summary>
     /// Occurs when the application is loading.
     /// </summary>
-    private void TimedOnStartup(object sender, StartupEventArgs e)
-    {
-        Tools.Time(() => OnStartup(sender, e), nameof(OnStartup));
-    }
-
     private void OnStartup(object sender, StartupEventArgs e)
     {
-        FileLogger.Log($"App start. {Version.GetFullVersion()}, {Version.VersionIdentifier}");
-
-        s_frameLockDetector = new(Dispatcher);
-
 #if !NO_EXCEPTION_HANDLING || RELEASE
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
@@ -162,8 +155,12 @@ public partial class App
         };
 #endif
 
+        LoadAnchorOrDefaults();
+        FileLogger.ConfigureLogging(AppDataDirectory.FullName);
+
+        FileLogger.Log($"App start. {Version.GetFullVersion()}, {Version.VersionIdentifier}");
+
         Tools.Time(s_host.Start, "Host.Start");
-        ApplicationAccentColorManager.ApplySystemAccent();
 
 #if DEBUG
         FileLogger.Log("Update service disabled. Use a Public Debug or full Release to get updates.");
@@ -208,6 +205,11 @@ public partial class App
     public static void NavigateTo(Type target)
     {
         _ = GetRequiredService<INavigationService>().Navigate(target);
+    }
+
+    public static void NavigateTo<TTarget>()
+    {
+        _ = GetRequiredService<INavigationService>().Navigate(typeof(TTarget));
     }
 
     /// <summary>
@@ -261,6 +263,51 @@ public partial class App
 
         BindingExpression binding = BindingOperations.GetBindingExpression(tBox, prop);
         binding?.UpdateSource();
+    }
+
+    private static void LoadAnchorOrDefaults()
+    {
+        string anchorFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "anchor.toml");
+        string defaultAppdataLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), nameof(APKognito));
+
+        if (!File.Exists(anchorFile))
+        {
+            AppDataDirectory = Directory.CreateDirectory(defaultAppdataLocation);
+            return;
+        }
+
+        try
+        {
+            string anchorByteData = File.ReadAllText(anchorFile);
+            ApplicationAnchor anchorData = TomletMain.To<ApplicationAnchor>(anchorByteData);
+
+            string appdataPath = anchorData.OverrideBasePath is not null
+                ? SanitizeOverridePath(anchorData.OverrideBasePath)
+                : defaultAppdataLocation;
+
+            AppDataDirectory = Directory.CreateDirectory(appdataPath);
+        }
+        catch (Exception ex)
+        {
+            const string ANCHOR_ERROR_FILE = "anchor-errors.txt";
+
+            // The appdata directory is still unset, so logs can't be placed in the regular location... just slap it next to the binary.
+            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ANCHOR_ERROR_FILE), ex.ToString());
+
+            throw;
+        }
+
+        static string SanitizeOverridePath(string path)
+        {
+            if (path.StartsWith('/'))
+            {
+                // Absolute
+                return path;
+            }
+
+            // Relative
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
+        }
     }
 
     public readonly struct Version
