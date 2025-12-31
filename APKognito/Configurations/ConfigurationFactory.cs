@@ -2,7 +2,9 @@
 using System.IO.Compression;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
+using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
+using CommunityToolkit.Mvvm.Messaging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
 
@@ -92,7 +94,7 @@ public class ConfigurationFactory
 
         string filePath = GetCompletePath(configAttribute.FileName);
 
-        FileLogger.Log($"'{filePath}' for {config.GetType().Name}");
+        FileLogger.LogDebug($"'{filePath}' for {config.GetType().Name}");
 
         switch (configAttribute.ConfigType)
         {
@@ -350,7 +352,13 @@ public class ConfigurationFactory
         }
     }
 
-    public sealed class UnknownConfigTypeException(ConfigType configType) : Exception($"No implementation found for '{configType}'")
+    public sealed class UnknownConfigTypeException(ConfigType configType) : Exception($"No implementation found for '{configType}'");
+}
+
+public static class ConfigurationFactoryExtensions
+{
+    public static void NotifyChanged<T>(this T config) where T : class, IKognitoConfig
     {
+        WeakReferenceMessenger.Default.Send<T>(config);
     }
 }
