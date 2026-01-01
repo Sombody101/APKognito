@@ -1,6 +1,7 @@
 ﻿using APKognito.AdbTools;
+using APKognito.Configurations;
 using APKognito.Utilities.MVVM;
-using APKognito.ViewModels.Pages;
+using APKognito.ViewModels.ConsoleCommands;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Controls.Dialogs;
@@ -58,6 +59,8 @@ public sealed partial class ConsoleDialog
 
     public sealed partial class ConsoleDialogViewModel : LoggableObservableObject, IDisposable
     {
+        private static readonly CommandHost s_commandHost = new();
+
         private readonly CancellationTokenSource _cancellationTokenSource;
 
         [ObservableProperty]
@@ -67,12 +70,14 @@ public sealed partial class ConsoleDialog
         {
             InteractionButtonText = initialCloseText;
             _cancellationTokenSource = new CancellationTokenSource();
+
+            RegisterConsoleHostParams();
         }
 
         public async Task RunInternalAsync(string command)
         {
             CancellationToken token = _cancellationTokenSource.Token;
-            await AdbConsoleViewModel.RunBuiltinCommandAsync(command, this, token);
+            await s_commandHost.RunCommandAsync(command, this, token);
         }
 
         public async Task<AdbCommandOutput> RunAdbAsync(string command)
@@ -97,6 +102,19 @@ public sealed partial class ConsoleDialog
         public void Dispose()
         {
             _cancellationTokenSource?.Dispose();
+        }
+
+        private static void RegisterConsoleHostParams()
+        {
+            CommandParameterProvider paramProvider = s_commandHost.ParameterProvider;
+
+            if (paramProvider.ParamCount is not 0)
+            {
+                return;
+            }
+
+            ConfigurationFactory configFactory = App.GetService<ConfigurationFactory>()!;
+            paramProvider.Register(configFactory);
         }
     }
 }

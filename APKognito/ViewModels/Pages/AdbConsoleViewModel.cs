@@ -4,18 +4,22 @@ using APKognito.Configurations;
 using APKognito.Configurations.ConfigModels;
 using APKognito.Utilities;
 using APKognito.Utilities.MVVM;
+using APKognito.ViewModels.ConsoleCommands;
 using Wpf.Ui;
 
 namespace APKognito.ViewModels.Pages;
+
 public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 {
-    private const string NO_USAGE = "";
-    private const string VARIABLE_SETTER = "__VARIABLE_SETTER";
+    public const string NO_USAGE = "";
+    public const string VARIABLE_SETTER = "__VARIABLE_SETTER";
 
     private readonly AdbManager _adbManager;
     private readonly ConfigurationFactory _configFactory;
     private readonly AdbConfig _adbConfig;
     private readonly AdbHistory _adbHistory;
+
+    private readonly CommandHost _commandHost;
 
     private int _historyIndex;
 
@@ -43,11 +47,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         _adbHistory = _configFactory.GetConfig<AdbHistory>();
 
         _historyIndex = _adbHistory.CommandHistory.Count;
-
-        if (s_commands.Count is 0)
-        {
-            RegisterCommands();
-        }
+        _commandHost = new();
     }
 
     #region Commands
@@ -155,24 +155,6 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
         }
     }
 
-    public static async ValueTask<bool> RunBuiltinCommandAsync(string command, IViewLogger logger, CancellationToken token = default)
-    {
-        command = command.TrimStart(':');
-
-        ParsedCommand parsedCommand = new(command);
-
-        RegisterCommands();
-        CommandInfo? commandInfo = s_commands.Find(c => c.CommandName == parsedCommand.Command);
-        if (commandInfo is null)
-        {
-            return false;
-        }
-
-        await InvokeCommandAsync(commandInfo, parsedCommand, logger, null, token);
-
-        return true;
-    }
-
     private async ValueTask<bool> RunInternalCommandAsync(string rawCommand, IViewLogger? logger = null)
     {
         rawCommand = rawCommand.Trim();
@@ -202,13 +184,13 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
             return true;
         }
 
-        CommandInfo? wantedCommand = s_commands.Find(c => c.CommandName == command.Command);
+        CommandInfo? wantedCommand = _commandHost.Commands.FirstOrDefault(c => c.CommandName == command.Command);
 
         if (wantedCommand is null)
         {
             LogError($"Unknown command '{command.Command}'");
 
-            string closest = StringMatch.GetClosestMatch(command.Command, s_commands.Select(cmd => cmd.CommandName));
+            string closest = StringMatch.GetClosestMatch(command.Command, _commandHost.Commands.Select(cmd => cmd.CommandName));
             Log($"Did you mean ':{closest}'?");
 
             return true;
@@ -216,7 +198,7 @@ public partial class AdbConsoleViewModel : LoggableObservableObject, IViewable
 
         try
         {
-            await InvokeCommandAsync(wantedCommand, command, logger ?? this, this, CancellationToken.None);
+            await _commandHost.InvokeCommandDirectAsync(wantedCommand, command, logger ?? this);
         }
         catch (Exception ex)
         {
