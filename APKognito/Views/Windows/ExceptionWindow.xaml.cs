@@ -1,17 +1,24 @@
 ﻿using System.Runtime.InteropServices;
 using APKognito.Utilities;
 using APKognito.ViewModels.Windows;
-using Wpf.Ui.Appearance;
-using Wpf.Ui.Controls;
 
 namespace APKognito.Views.Windows;
 
 /// <summary>
 /// Interaction logic for ExceptionWindow.xaml
 /// </summary>
-public partial class ExceptionWindow : FluentWindow
+public partial class ExceptionWindow
 {
     public ExceptionWindowViewModel ViewModel { get; set; }
+
+#if DEBUG
+    public ExceptionWindow()
+        : this(new())
+    {
+        // For designer
+        ViewModel.SetException(new DebugOnlyException());
+    }
+#endif
 
     public ExceptionWindow(ExceptionWindowViewModel exceptionViewModel)
     {
@@ -20,16 +27,6 @@ public partial class ExceptionWindow : FluentWindow
 
         InitializeComponent();
     }
-
-#if DEBUG
-    public ExceptionWindow()
-        : this(null!)
-    {
-        // For designer
-
-        ViewModel.SetException(new DebugOnlyException());
-    }
-#endif
 
     public static bool? CreateNewExceptionWindow(Exception exception, ExceptionWindowViewModel evm, [Optional] string exceptionSource)
     {

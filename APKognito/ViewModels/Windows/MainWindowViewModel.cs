@@ -1,6 +1,5 @@
 ﻿using APKognito.Configurations;
 using APKognito.Utilities;
-using APKognito.Utilities.MVVM;
 using APKognito.Views.Pages;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -10,8 +9,6 @@ using Wpf.Ui.Controls;
 using APKognito.Helpers;
 using APKognito.Controls;
 using APKognito.Configurations.ConfigModels;
-using CommunityToolkit.Mvvm.Messaging;
-
 
 #if DEBUG
 using APKognito.Views.Pages.Debugging;
@@ -19,10 +16,9 @@ using APKognito.Views.Pages.Debugging;
 
 namespace APKognito.ViewModels.Windows;
 
-public partial class MainWindowViewModel : LoggableObservableObject
+public partial class MainWindowViewModel : KognitoWindowViewModel
 {
     private readonly ConfigurationFactory _configFactory;
-    private readonly UserThemeConfig _userThemeConfig;
 
     #region Properties
 
@@ -81,16 +77,6 @@ public partial class MainWindowViewModel : LoggableObservableObject
         new MenuItem { Header = "Close", Tag = "tray_close" }
     ];
 
-    public WindowBackdropType WindowStyle
-    {
-        get => field;
-        private set
-        {
-            field = value;
-            OnPropertyChanged(nameof(WindowStyle));
-        }
-    }
-
     #endregion Properties
 
     public MainWindowViewModel()
@@ -104,13 +90,6 @@ public partial class MainWindowViewModel : LoggableObservableObject
     {
         SetSnackbarProvider(snackService);
         _configFactory = configFactory;
-        _userThemeConfig = configFactory.GetConfig<UserThemeConfig>();
-        WindowStyle = _userThemeConfig.WindowStyle;
-
-        WeakReferenceMessenger.Default.Register<UserThemeConfig>(this, (r, config) =>
-        {
-            WindowStyle = config.WindowStyle;
-        });
 
         AddAdbDeviceTray();
     }

@@ -1,9 +1,7 @@
 ﻿using APKognito.Configurations;
-using APKognito.Configurations.ConfigModels;
 using APKognito.ViewModels.Windows;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
-using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
 namespace APKognito.Views.Windows;
@@ -19,20 +17,10 @@ public partial class MainWindow : INavigationWindow
         INavigationService navigationService,
         IContentDialogService contentDialogService,
         ConfigurationFactory configFactory
-    )
+    ) : base(configFactory)
     {
         ViewModel = viewModel;
         DataContext = this;
-
-
-        UserThemeConfig themeManager = configFactory.GetConfig<UserThemeConfig>();
-        ApplicationThemeManager.Apply(themeManager.AppTheme, WindowBackdropType.None, false);
-
-        if (themeManager.UseSystemAccent)
-        {
-            ApplicationAccentColorManager.ApplySystemAccent();
-            SystemThemeWatcher.Watch(this);
-        }
 
         InitializeComponent();
         SetPageService(pageService);

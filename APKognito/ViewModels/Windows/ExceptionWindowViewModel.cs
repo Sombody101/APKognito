@@ -1,7 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
 using APKognito.Utilities;
-using APKognito.Utilities.MVVM;
 using APKognito.ViewModels.Pages;
 using Wpf.Ui;
 
@@ -9,7 +8,7 @@ namespace APKognito.ViewModels.Windows;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-public partial class ExceptionWindowViewModel : LoggableObservableObject
+public partial class ExceptionWindowViewModel : KognitoWindowViewModel
 {
     private readonly IContentDialogService dialogService;
 
@@ -34,6 +33,13 @@ public partial class ExceptionWindowViewModel : LoggableObservableObject
     public partial int ExceptionCode { get; set; }
 
     #endregion Properties
+
+#if DEBUG
+    public ExceptionWindowViewModel()
+    {
+        // For designer
+    }
+#endif
 
     public ExceptionWindowViewModel(IContentDialogService _dialogService)
     {
