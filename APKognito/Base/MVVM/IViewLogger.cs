@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Media;
+using APKognito.Models;
 using Microsoft.Extensions.Logging;
 using Wpf.Ui.Controls;
 using static APKognito.Models.LogBoxEntry;
@@ -153,6 +154,8 @@ public interface IViewLogger : ILogger
     /// </summary>
     /// <param name="body"></param>
     public void SnackError(string body);
+
+    public void AppendLog(LogBoxEntry entry);
 
     public void WriteImage(WPFUI.Controls.Image image);
 

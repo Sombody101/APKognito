@@ -104,7 +104,7 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
             LogType = logType,
         };
 
-        LogBoxEntries.Add(newEntry);
+        AppendLog(newEntry);
     }
 
     public void WriteGenericLogLine()
@@ -267,6 +267,16 @@ public partial class LoggableObservableObject : ViewModel, IViewable, IViewLogge
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull
     {
         return new LogScope(state);
+    }
+
+    public void AppendLog(LogBoxEntry entry)
+    {
+        AppendEntry(entry);
+    }
+
+    protected virtual void AppendEntry(LogBoxEntry entry)
+    {
+        LogBoxEntries.Add(entry);
     }
 
     public static class LogScopeManager
