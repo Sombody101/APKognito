@@ -14,8 +14,14 @@
 *.userosscache
 *.sln.docstates
 .venv
+
 # Might need to be removed after full Zensical migration
 site/
+
+# Just for now
+*.Native 
+zig-out/
+.zig-cache
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
