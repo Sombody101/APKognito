@@ -93,7 +93,7 @@ extra:
       link: https://discord.gg/rNR2VHySgF
       name: APKognito Support Discord
 
-copyright: Copyright &copy; 2024 - 2025 Sombody101
+copyright: Copyright &copy; 2024 - 2026 Sombody101
 
 hooks:
   - docs/overrides/hooks/shortcodes.py
