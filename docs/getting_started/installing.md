@@ -1,5 +1,6 @@
 ---
 title: Installing APKognito
+description: Install APKognito and learn how versioning works.
 ---
 
 # Installing APKognito
@@ -35,13 +36,11 @@ Once the app is running, follow our [Getting Started](index.md) guide to learn h
 
 APKognito uses specific prefixes to indicate the type of build you are using. This is important because **APKognito will only update to builds of the same type**.
 
-!!! info "Version Prefixes"
-
-    | Prefix | Type | Description |
-    | :--- | :--- | :--- |
-    | `v` | **Public Release** | The standard, stable version. Updates are automatic and frequent. (e.g., `v2.0.0`) |
-    | `pd` | **Public Debug** | A build containing tools for diagnosing specific user issues. These are provided on a case-by-case basis and will eventually be rolled into a Public Release. |
-    | `d` | **Debug** | A local build only obtainable by compiling the source code yourself. These builds never receive updates since the version is constant, and full debug builds are never uploaded. (e.g., `d1.0.0`) |
+| Prefix | Type | Description |
+| :--- | :--- | :--- |
+| `v` | **Public Release** | The standard, stable version. Updates are automatic and frequent.(e.g., `v2.0.0`) |
+| `pd` | **Public Debug** | A build containing tools for diagnosing specific user issues. Theseare provided on a case-by-case basis and will eventually be rolled into a Public Release. |
+| `d` | **Debug** | A local build only obtainable by compiling the source code yourself. Thesebuilds never receive updates since the version is constant, and full debug builds are neveruploaded. (e.g., `d1.0.0`) |
 
 !!! warning "Important Note"
 

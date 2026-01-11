@@ -25,3 +25,8 @@
 .md-typeset .admonition-title code.tagv {
     color: violet;
 }
+
+img.md-large,
+image.md-large {
+    width: 80%;
+}

@@ -8,12 +8,14 @@ theme:
 
   features:
     - content.action.edit
+    - content.tooltips
+    #- navigation.expand
+    - navigation.indexes
     - navigation.instant
     - navigation.instant.progress
-    - navigation.expand
-    - navigation.indexes
+    - navigation.path
+    - toc.follow
     #- toc.integrate
-    - content.tooltips
 
   logo: images/apkognito.webp
   favicon: images/apkognito.ico

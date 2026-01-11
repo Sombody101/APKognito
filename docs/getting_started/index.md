@@ -1,5 +1,6 @@
 ---
 title: Getting started
+description: A crash course on installing and using APKognito to rename a package.
 ---
 
 # Getting Started with APKognito
@@ -34,10 +35,10 @@ After clicking `More info` and `Run anyway`, APKognito will launch...
 
 You should see a window that looks like this:
 
-<figure markdown>
-  ![APKognito Main Page Example](../images/index/apkognito-main-page-example.webp)
-  <figcaption>The APKognito main window.</figcaption>
-</figure>
+![APKognito Main Page Example](../images/index/apkognito-main-page-example.webp){ .md-large }
+/// caption
+The APKognito main window.
+///
 
 ---
 
@@ -45,10 +46,10 @@ You should see a window that looks like this:
 
 To start, click the **`Select APKs`** button. This will open a File Explorer window. Navigate to and select the packages you want to rename.
 
-<figure markdown>
-  ![Totally Real Example](../images/index/real-example.webp)
-  <figcaption>A totally real example of selecting packages in File Explorer.</figcaption>
-</figure>
+![Totally Real Example](../images/index/real-example.webp){ .md-large }
+/// caption
+A totally real example of selecting packages in File Explorer.
+///
 
 !!! tip "Batch Processing"
 

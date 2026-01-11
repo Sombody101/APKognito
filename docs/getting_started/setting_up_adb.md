@@ -1,5 +1,6 @@
 ---
 title: ADB - Configuration
+description: Installing and configuring ADB
 ---
 
 Configuring ADB (also known as Platform Tools) allows APKognito to interact with your connected ADB devices, including installing applications once renamed.
