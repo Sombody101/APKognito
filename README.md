@@ -20,6 +20,7 @@
   </a>
   <img src="https://img.shields.io/github/downloads/Sombody101/APKognito/total.svg" alt="Downloads badge">
   <img src="https://img.shields.io/github/issues/Sombody101/APKognito" alt="Open Issues badge">
+  <img src="https://api.netlify.com/api/v1/badges/b75b5cb1-06cb-4d34-b378-543b3b036245/deploy-status" alt="Netlify Status"/>
 </p>
 
 <!--  Just badges for bragging ¯\_(ツ)_/¯  -->
